@@ -18,8 +18,7 @@ function Y_test = KNN_Survival2(X_test,X_train,Survival_train,Censored_train,K,B
 %
 % OUTPUTS:
 % ---------
-% Y_test - ordering of testing samples from lowest to highest predicted
-% survival
+% Y_test - predicted survival times of each patient
 %
 %% Sample Inputs
 % clear ; close all ; clc ; 
@@ -32,7 +31,10 @@ function Y_test = KNN_Survival2(X_test,X_train,Survival_train,Censored_train,K,B
 % % FOR THE FOLLOWING: features in rows, samples on columns
 % %
 % X_train = randn(p,N_train); % training features (continuous)
+% %X_train = randi([0,1],p,N_train); % training features (binary)
+% 
 % X_test = randn(p,N_test); % testing features (continuous)
+% %X_test = randi([0,1],p,N_test); % testing features (binary)
 % 
 % Survival_train = randi([1,300],1,N_train); % survival of training sample
 % Censored_train = randi([0,1],1,N_train); % censorship of training sample: 1=alive
@@ -61,6 +63,7 @@ for P_Surround = 1:P_SurroundMax
     Surround = X_train(:,P_Surround);
     
     % Weighted euclidian distance
+    %Dist(1,P_Surround) = sqrt(sum((Beta1 .* (Center - Surround)).^2));
     Dist(1,P_Surround) = sum((Beta1.^2) .* (abs(Center - Surround)));
     
 end
@@ -73,15 +76,11 @@ Dist = Dist(1:K,:);
 Dist = sortrows(Dist,2);
 [t,f,~,~] = KM(Dist(:,2), Dist(:,3));
 
-f = reshape(f,[length(f),1]);
-t = reshape(t,[length(t),1]);
-
 if sum(Dist(:,3)) < length(Dist(:,3))-1
 pAUC = sum(diff(t) .* f(1:end-1,:)) / sum(diff(t)); %proportion of area under curve covered
 elseif sum(Dist(:,3)) >= length(Dist(:,3))-1 %almost all surrounding points are censored
 pAUC = 1;
 end
-
 
 Y_test(1,P_Center) = pAUC * max(t); %since f is maximally 1, max possible survival is tmax*1
 

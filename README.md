@@ -4,11 +4,23 @@
    tl;dr In this context, YES!
    - KNN has been used in genomics for a long time, but not in right-censored settings.
    - This is corroborated by the relatively recent paper from Gad Getz that only used linear models and random survival forests.
-   - KNN has been used in relatively high-dimensional settings (300+ features) in kidney tumor cases using clinical data, but not genomic data. In that case, K-M curves were constructed using closes K-patients (cumulative survival probability) and no clear way of ranking features. 
 
    - Most important publications:
 	-- https://rdrr.io/cran/bnnSurvival/ 
         -- Lowsky 2013: "A K-nearest neighbors survival probability prediction method"
+   - Differences:
+     - Lowski's method relies on creating KM curves, i.e. it relies on cumulative survival probability. -- our method uses non-cumulative survival probability which (at least in the GBMLGG dataset) results in a higher c-index.
+     - Lowski's method was developed/tested using moderate-dimensional clinical data (300+ features), but has not been tested using genomic data or very high dimensional settings.
+     - While the R package of Lowski's method uses bagged KNN to improve prediction accuracy and to de-correlate features (using different sets of features to find the nearest neighbors and averaging predictions), it still fails to use this as a method of feature ranking -- our method does not use bagging for the main model (but can be easily extended to do so), but uses it as a means to rank features. 
+     - The impact of missing data on the method has not been investigated before. 
+     - The effect of feature correlations (and the benefit gained from the moderate correlation seen in gene expression data) has not been investigated before.
+
+2- Lowski's method was developed/tested using moderate-dimensional clinical data (300+ features), but has not been tested using genomic data or very high dimensional settings.
+
+3- While the R package of Lowski's method uses bagged KNN to improve prediction accuracy and to de-correlate features (using different sets of features to find the nearest neighbors and averaging predictions), it still fails to use this as a method of feature ranking -- our method does not use bagging for the main model (but can be easily extended to do so), but uses it as a means to rank features.
+
+4- The impact of missing data on the method has not been investigated before.
+5- The effect of feature correlations (and the benefit gained from the moderate correlation seen in gene expression data) has not been investigated before.
 
 ## 1- Does it work:
    a- in different cancer types

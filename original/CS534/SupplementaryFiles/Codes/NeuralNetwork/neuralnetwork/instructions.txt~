@@ -1,0 +1,13 @@
+Dependencies:
+Tensorflow
+
+1. Load the raw data 
+    a. data/BasicModelGBM - Original GBM Data
+2. Transform the data (1 and 2)
+    a. scripts/transform_data_org (Inputs: data, save loc) (Outputs:data_trans)
+    b. scripts/transform_data_mod (Inputs: data, save loc) (Outputs data_trans)
+3. Run experiment
+    a. scripts/experiment.py > Neural Network 
+    b. scripts/experiment2.py > Perceptron
+4. Plot the results
+    a. scripts/plot_results.m (Inputs: save location

@@ -1,16 +1,25 @@
-# KNN_Survival
+# KNN as a means of survival outcome prediction and imputation in high-dimensional genomic settings. 
 
-Relevant scripts and functions used, including any supporting functions, have been placed into the relevant folders with descriptive names, as follows:
+## 0- Is it novel?
+   tl;dr In this context, YES!
+   a- KNN has been used in genomics for a long time, but not in right-censored settings.
+   b- This is corroborated by the relatively recent paper from Gad Getz that only used linear models and random survival forests.
+   c- KNN has been used in relatively high-dimensional settings (300+ features) in kidney tumor cases using clinical data, but not genomic data. In that case, K-M curves were constructed using closes K-patients (cumulative survival probability) and no clear way of ranking features. 
 
-1- Cox_Regression: scripts used fo the cox regression experiments.
+## 1- Does it work:
+   a- in different cancer types
+   b- in different feature types
+   
+## 2- How does it compare to existing methods:
+   a- Regularized cox regression
+   b- Random survival forests
+   c- Deep survival models
 
-2- KNN:
-	2a: early_attempts - scripts and functions used early during model optimization, including using K-M estimators before the non-cumulative implementation was adopted, as well as early gradent-descent experiments.
-	2b: Experiments - scripts used in various experiments used throughout the text (eg feature correlation experiments).
-	2c: Feature_selection_RightWay - Filter and Wrapper feature selection and model accuracy assessment.
-	2d: Keyfunctions - Most important functions and scripts. To apply the finalized KNN without feature selection, use BasicModel_KNN4.m script.
-	2e: Model_Interpretation - Scripts used in model interpretation experiments.
+## 3- Can it rank features?
+   Since we are dealing with right-censored data, simply correlating features with survival does not work due to missing data. Once we got an accurate model, "impute" the survival of right-censored cases using your method. Now we've converted right-censored data into complete prediction data! Now we can simply use the Pearson or Spearman correlation coefficients to rank the features.
 
-3- Preprocessing: scripts used in pre-processing.
+## 4- Cumulative vs. non-cumulative survival probability.
+   - Which one is better? (confir in different cancer types)
+   - What factor affect this? Possible candidate: number of censored cases.
 
-4- Supporting_functions: all supporting functions needed to run the codes (no other dependencies).
+## 5- Imputation using KNN vs relying directly on KNN survival prediction - handling missing values.

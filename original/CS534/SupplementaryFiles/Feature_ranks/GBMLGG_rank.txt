@@ -1,0 +1,399 @@
+IDH1	Mutation	1	Known major prognosticator in LGG and GBM – 2-HG metabolite causes hypermethylated phenotype by inhibiting TET and contibutes to better prognosis
+PTEN	CNVGene	2	Known TSG in Akt-mTOR pathway
+age_at_initial_pathologic_diagnosis	Clinical	3	Known important clinical prognosticator
+10q	CNV	4	
+KLF6	CNVGene	5	TSG
+10p	CNV	6	
+histological_type-Is-untreated primary (de novo) gbm	Clinical	8	Untreated GBM has very poor survival
+CDKN2A	CNVGene	8	Known TSG
+EGFR	Mutation	9	RTK and known marker of disease progression, particularly in IDHwt and GBM
+CIC	Mutation	12	Known common alteration in LGG
+histological_type-Is-oligodendroglioma	Clinical	14	Oligodendroglioma has better prognosis
+SMARCA4	Mutation	14	required for EMT transition by ZEB1
+SERPING1	Mutation	16	inhibition if complement system (inflammation)
+11q	CNV	16	
+CDK6	CNVGene	17	cell cycle regulation
+MACC1	Mutation	20	key regulator of HGF-MET signaling
+HSPA1A	Protein	22	heatshock protein, involved in cell differentiation
+PEA15	Protein	22	astrocytic phosphoprotein - promotes autophagy in glioma cells in a JNK-dependent manner.
+FGFR3	CNVGene	24	RTK
+PTEN	Mutation	26	Known TSG in Akt-mTOR pathway
+BCL2	Protein	29	apoptosis mediator
+FAM123C	Mutation	30	Regulator of the canonical Wnt signaling pathway
+MET	CNVGene	32	Known component of ras/MAPK pathway. Also known alteration in LGG and GBM
+MDM2	CNVGene	33	important negative regulator of the p53 tumor suppressor (E3 UB ligase)
+TSC1	Protein	33	known tumor suppressor
+FIP1L1	CNVGene	34	
+SERPINE1	Protein	34	
+STK19	Mutation	36	
+KLK2	CNVGene	37	
+PECAM1	Protein	37	
+7q	CNV	38	
+RPL5	Mutation	39	
+9p	CNV	39	
+9q	CNV	39	
+AKT1 AKT2 AKT3	Protein	40	Known key component of Akt-mTOR pathway
+7p	CNV	41	
+RPS6	Protein	41	
+CASP7	Protein	43	
+CDKN1B	Protein	43	
+TNFAIP3	CNVGene	44	
+PDGFRA	Mutation	45	RTK (glioblastoma)
+RAD50	Protein	45	
+PRKCB	Protein	46	
+RPS6KB1	Protein	46	
+OAS2	Mutation	47	
+CDK4	CNVGene	47	
+20p	CNV	47	
+6p	CNV	49	
+WWTR1	Protein	49	
+SQSTM1	Protein	49	
+RASGRF2	Mutation	50	
+ANXA7	Protein	50	
+ECT2L	CNVGene	51	
+PREX1	Protein	53	
+22q	CNV	54	
+EIF4EBP1	Protein	54	
+NUTM1	CNVGene	58	
+G6PD	Protein	58	
+PRDX1	Protein	59	
+ARID2	CNVGene	60	
+PGR	Protein	61	
+SRC	Protein	62	
+NRAS	Mutation	63	
+PPP2R1A	CNVGene	63	
+CDKN2A	Mutation	65	
+KRT3	Mutation	65	
+ZNF512B	Mutation	71	
+AOX1	Mutation	78	
+RSPO3	CNVGene	79	
+INF2	Mutation	83	
+NUP210L	Mutation	83	
+PAK1	Mutation	83	
+1q	CNV	83	
+BECN1	Protein	83	
+CMA1	Mutation	84	
+GOPC	CNVGene	85	
+TFRC	Protein	85	
+TFRC	CNVGene	86	
+GATA3	Protein	87	
+RPS6KB1	Protein	87	
+CNOT1	Mutation	88	
+ROS1	CNVGene	88	
+DLX6	Mutation	89	
+ZDHHC4	Mutation	89	
+RB1	CNVGene	89	
+ACADS	Mutation	92	
+TRPV6	Mutation	93	
+WRN	Mutation	94	
+CCND1	Protein	94	
+MRE11A	Protein	94	
+AR	Protein	95	
+YAP1	Protein	95	
+YWHAB	Protein	97	
+MS4A1	Protein	99	
+MAPK1	Protein	100	
+TP53	CNVGene	101	
+SRC	Protein	103	
+NKD2	Mutation	105	
+LGALS13	Mutation	108	
+MYC	CNVGene	108	
+EEF2K	Protein	108	
+AKT1 AKT2 AKT3	Protein	109	
+SOX4	Mutation	114	
+RPL5	CNVGene	114	
+PRKCA	Protein	114	
+ATRX	Mutation	116	
+ZNF41	Mutation	116	
+MAF	CNVGene	116	
+MED9	Mutation	117	
+NEU2	Mutation	117	
+COL6A1	Protein	117	
+NRAS	Protein	117	
+GFRA4	Mutation	118	
+FAM126B	Mutation	119	
+BAX	Protein	119	
+FAM83D	Mutation	121	
+TMPRSS6	Mutation	121	
+CDKN2C	CNVGene	121	
+KRT15	Mutation	122	
+STAT5A	Protein	122	
+12q	CNV	124	
+PIK3CA	Mutation	127	
+CHEK1	Protein	129	
+FN1	Protein	129	
+gender-Is-male	Clinical	130	
+TP53	Protein	130	
+DOCK5	Mutation	131	
+TIGAR	Protein	132	
+18q	CNV	133	
+CCNB1	Protein	133	
+MAP3K12	Mutation	134	
+PARK7	Protein	135	
+SETD2	CNVGene	136	
+EGFR	Protein	136	
+GSK3A GSK3B	Protein	138	
+CREBZF	Mutation	139	
+NAP1L2	Mutation	139	
+NF1	CNVGene	139	
+CDKN1B	Protein	139	
+NOTCH1	Mutation	140	
+TP53BP1	Protein	142	
+ACACA	Protein	143	
+BAD	Protein	143	
+SRPX	Mutation	144	
+KRTAP5-3	Mutation	145	
+BRCA2	Protein	147	
+TGM2	Protein	147	
+HEATR3	Mutation	148	
+KRT13	Mutation	148	
+IGFBP2	Protein	148	
+KIT	Protein	148	
+PROKR2	Mutation	150	
+EGFR	Protein	150	
+SEMG1	Mutation	151	
+PEA15	Protein	151	
+MX2	Mutation	155	
+ERBB2	Protein	155	
+ERBB3	Protein	155	
+DDX5	Mutation	156	
+FOXO3	Protein	156	
+RPS6	Protein	156	
+BAP1	Protein	157	
+19q	CNV	158	Known major prognosticator in LGG
+GSK3A GSK3B	Protein	159	
+PRKCD	Protein	159	
+IRF4	CNVGene	162	
+OR52M1	Mutation	163	
+GSK3A GSK3B	Protein	164	
+MYC	Protein	164	
+EGFR	Protein	165	
+RPS6KA1	Protein	167	
+RPS6KA1	Protein	167	
+PIK3R1	Mutation	168	
+NOTCH1	Protein	168	
+ESR1	Protein	169	
+TCL1A	CNVGene	171	
+RAD51	Protein	171	
+1p	CNV	172	Known major prognosticator in LGG and GBM
+FMR1	Mutation	173	
+MYO5A	Mutation	174	
+FAM47C	Mutation	175	
+TRERF1	Mutation	175	
+MYCN	CNVGene	175	
+PRCC	CNVGene	175	
+PDCD4	Protein	175	
+NUDT11	Mutation	180	
+KDR	Mutation	181	
+ACACA ACACB	Protein	181	
+CHEK1	Protein	181	
+PDGFRA	CNVGene	182	
+EIF4EBP1	Protein	183	
+GRHL3	Mutation	185	
+MTOR	Protein	186	
+TSHR	CNVGene	187	
+CCNE1	Protein	187	
+BCL2L11	Protein	188	
+4p	CNV	189	
+MAPK9	Protein	189	
+DNMT3A	Mutation	191	
+SOX2	CNVGene	191	
+ATRX	CNVGene	192	
+histological_type-Is-glioblastoma multiforme (gbm)	Clinical	193	
+EIF4EBP1	Protein	193	
+FASN	Protein	193	
+RICTOR	Protein	194	
+DLC1	Mutation	195	
+TREML2	Mutation	196	
+EEF2	Protein	196	
+MORN5	Mutation	198	
+BRAF	Protein	198	
+SLC35A2	Mutation	199	
+BUB1B	CNVGene	199	
+CCNE2	Protein	199	
+20q	CNV	200	
+EMG1	Mutation	201	
+ATF7IP2	Mutation	202	
+MUC17	Mutation	203	
+ACVRL1	Protein	203	
+PDK1	Protein	206	
+PCNA	Protein	207	
+PXN	Protein	207	
+NIPBL	Mutation	208	
+IRS1	Protein	208	
+BAK1	Protein	209	
+HRAS	CNVGene	212	
+PRKAA1	Protein	213	
+FOXO3	Protein	213	
+RICTOR	Protein	213	
+MTOR	Protein	214	
+SLC6A3	Mutation	215	
+YBX1	Protein	216	
+KRAS	Mutation	217	
+CDKN1B	CNVGene	217	
+NUP98	CNVGene	218	
+RFX4	Mutation	219	
+HSP90AA1	CNVGene	219	
+CBFA2T3	CNVGene	221	
+ERBB2	Protein	221	
+PIK3R1 PIK3R2	Protein	221	
+PRCP	Mutation	223	
+TSC2	Protein	223	
+ARAF	Protein	224	
+ARID1A	Mutation	226	
+YWHAZ	Protein	226	
+KDR	Protein	226	
+RB1	Mutation	227	
+TP53	Mutation	228	
+CDKN1A	Protein	228	
+SMAD1	Protein	229	
+NF1	Mutation	230	
+TYRP1	Mutation	230	
+RECQL4	CNVGene	230	
+CPEB4	Mutation	231	
+YWHAE	Protein	236	
+MAP2K1	Protein	238	
+CLDN7	Protein	239	
+PRKAA1	Protein	240	
+SETD2	Mutation	241	
+TERT	CNVGene	242	
+PIK3CA	Protein	242	
+histological_type-Is-oligoastrocytoma	Clinical	243	
+POM121	Mutation	246	
+SDHA	CNVGene	246	
+PTPN11	Mutation	250	
+CCNE1	CNVGene	250	
+ZNF709	Mutation	251	
+SMAD3	Protein	251	
+IDH2	Mutation	253	Known major prognosticator in LGG and GBM – 2-HG metabolite causes hypermethylated phenotype by inhibiting TET and contibutes to better prognosis
+RBM15	Protein	254	
+STAT3	Protein	254	
+GAGE2A	Mutation	255	
+CDH1	Protein	258	
+EIF4E	Protein	258	
+FUBP1	Mutation	259	
+BID	Protein	260	
+MET	Protein	260	
+histological_type-Is-treated primary gbm	Clinical	261	
+15q	CNV	263	
+ZMIZ1	Mutation	264	
+CD44	Mutation	265	
+AKT1 AKT2 AKT3	Protein	265	
+STK11	Protein	265	
+BCL2L1	Protein	266	
+ETS1	Protein	267	
+PRG4	Mutation	268	
+PDK1	Protein	269	
+SRSF1	Protein	271	
+TCF12	Mutation	272	
+CDK1	Protein	272	
+CAV1	Protein	272	
+LCK	Protein	272	
+ESR2	Mutation	279	
+SMAD4	Protein	280	
+G6PC	Mutation	282	
+AKT1	CNVGene	282	
+AKT1S1	Protein	282	
+RAB11A RAB11B	Protein	283	
+6q	CNV	284	
+BCOR	Mutation	286	
+14q	CNV	286	
+MAP2K1	Protein	287	
+CYP11A1	Mutation	288	
+SLC26A3	Mutation	288	
+PTPRK	CNVGene	289	
+EIF4EBP1	Protein	289	
+CHEK2	Protein	289	
+RBPJ	Mutation	290	
+MAP3K1	Mutation	291	
+CARS	CNVGene	291	
+KCNJ15	Mutation	292	
+CTNNB1	Protein	295	
+ASNS	Protein	296	
+ERBB3	Protein	296	
+NF2	Protein	297	
+STAG2	Mutation	299	
+histological_type-Is-astrocytoma	Clinical	300	
+BCL11B	CNVGene	302	
+PALB2	CNVGene	302	
+EPS8L1	Mutation	303	
+CDH3	Protein	303	
+18p	CNV	305	
+JUN	Protein	305	
+CCND2	CNVGene	306	
+SYK	Protein	306	
+DDX6	CNVGene	307	
+EIF4G1	Protein	307	
+XRCC5	Protein	308	
+NFKB1	Protein	309	
+INPP4B	Protein	312	
+RAB25	Protein	312	
+SRC	Protein	312	
+RPTOR	Protein	314	
+RB1	Protein	314	
+SHC1	Protein	315	
+FANCA	CNVGene	318	
+ARID2	Mutation	319	
+ARHGEF12	CNVGene	319	
+H3F3A	CNVGene	319	
+REN	Mutation	324	
+GOLGA5	CNVGene	324	
+MYT1	Mutation	325	
+CDH2	Protein	325	
+DVL3	Protein	326	
+HTRA2	Mutation	327	
+STMN1	Protein	327	
+KMT2A	CNVGene	330	
+TLR6	Mutation	331	
+MAPK14	Protein	332	
+TNRC18	Mutation	333	
+MYB	CNVGene	335	
+CD209	Mutation	336	
+PDHA1	Mutation	336	
+13q	CNV	337	
+TPX2	Mutation	339	
+RPS6	Protein	339	
+BIRC2	Protein	340	
+TNFRSF9	Mutation	342	
+MYH8	Mutation	345	
+QKI	Mutation	346	
+CD1D	Mutation	347	
+BRAF	Mutation	349	
+C10orf76	Mutation	349	
+CBL	CNVGene	349	
+DICER1	CNVGene	349	
+RPL22	CNVGene	349	
+LUM	Mutation	351	
+ATM	Protein	352	
+CDKN1B	Protein	353	
+ZBTB20	Mutation	354	
+ZNF292	Mutation	355	
+NRG1	Protein	356	
+NDRG1	Protein	357	
+CREB3L1	CNVGene	360	
+FOXM1	Protein	360	
+MYH11	Protein	361	
+19p	CNV	365	
+TMEM216	Mutation	368	
+YBX1	Protein	368	
+RAF1	Protein	369	
+EEF1A1	Mutation	370	
+XRCC1	Protein	372	
+PLCG1	Mutation	373	
+TRIP11	CNVGene	374	
+YAP1	Protein	375	
+TMEM184A	Mutation	378	
+PRKCA	Protein	378	
+11p	CNV	380	
+CHEK2	Protein	380	
+ERRFI1	Protein	380	
+MAPK1 MAPK3	Protein	382	
+TSC2	Protein	382	
+RAF1	Protein	383	
+PTEN	Protein	386	
+ITGA2	Protein	387	
+ESR1	Protein	390	
+IRS4	Mutation	392	
+GAPDH	Protein	392	
+4q	CNV	398	
+

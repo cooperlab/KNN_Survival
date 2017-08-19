@@ -6,6 +6,10 @@
    - This is corroborated by the relatively recent paper from Gad Getz that only used linear models and random survival forests.
    - KNN has been used in relatively high-dimensional settings (300+ features) in kidney tumor cases using clinical data, but not genomic data. In that case, K-M curves were constructed using closes K-patients (cumulative survival probability) and no clear way of ranking features. 
 
+   - Most important publications:
+	-- https://rdrr.io/cran/bnnSurvival/ 
+        -- Lowsky 2013: "A K-nearest neighbors survival probability prediction method"
+
 ## 1- Does it work:
    a- in different cancer types
    b- in different feature types

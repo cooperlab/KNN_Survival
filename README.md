@@ -16,10 +16,15 @@
    c- Deep survival models
 
 ## 3- Can it rank features?
-   Since we are dealing with right-censored data, simply correlating features with survival does not work due to missing data. Once we got an accurate model, "impute" the survival of right-censored cases using your method. Now we've converted right-censored data into complete prediction data! Now we can simply use the Pearson or Spearman correlation coefficients to rank the features.
+   a- Univariate - use trained model to predict survival of censored cases then use simple correlation between each feature and survival. Essentially, the model is used to "impute" censored cases to enable cimple correlations to be made.
+   b- Multivariate - a random forest-like technique. This is what I used in the project to rank features. Essentially, random subsets of features are used to calculate the distance between patient pairs, such that each feature appears randomly in a number of different models, each with its own calculated accuracy. Features are then ranked by the median accuracy of models in which they were used. In other words, how much does feature Xi contribute to improving the prediction accuracy (c-index) of models in which it appears.
 
 ## 4- Cumulative vs. non-cumulative survival probability.
    - Which one is better? (confir in different cancer types)
    - What factor affect this? Possible candidate: number of censored cases.
 
-## 5- Imputation using KNN vs relying directly on KNN survival prediction - handling missing values.
+## 5- Handling of missing values - 
+    need to do comparison with imputation
+
+## 6- Calculating survival based on non-cumulative (as opposed to cumulative) probability:
+    need to try on different datasets and to investigate impact of censorship on this.

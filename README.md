@@ -1,4 +1,4 @@
-# KNN as a means of survival outcome prediction and imputation in high-dimensional genomic settings. 
+# KNN for survival analysis in high-dimensional genomic settings. 
 
 ## 0- Is it novel?
    tl;dr In this context, YES!

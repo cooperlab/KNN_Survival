@@ -1,5 +1,11 @@
 # KNN for survival analysis in high-dimensional genomic settings. 
 
+
+## @TODO:
+	- Convert to python.
+	- Bagging -> combined prediction and feature ranking.
+	- Experiments with cumulative vs vs non-cumulative probability.
+
 ## 0- Is it novel?
    tl;dr In this context, YES!
    - KNN has been used in genomics for a long time, but not in right-censored settings.

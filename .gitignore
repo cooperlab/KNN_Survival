@@ -5,3 +5,4 @@
 *.npy
 *.pyc
 __pycache__/*
+*.csv

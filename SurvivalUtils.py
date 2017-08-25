@@ -26,7 +26,7 @@ Data = loadmat(dpath)
 # GetSplitIdxs
 #==============================================================================
 
-def GetSplitIdxs(mrna_all, OPTIM_RATIO=0, K=10, SHUFFLES=5):
+def getSplitIdxs(data, OPTIM_RATIO=0.2, K=5, SHUFFLES=5):
     '''
     Args: input matrix, ratio allocated to optimization, K (no of folds)
     Out: indices of different sets
@@ -35,9 +35,9 @@ def GetSplitIdxs(mrna_all, OPTIM_RATIO=0, K=10, SHUFFLES=5):
 
     Idxs = {' ': " "}
     
-    N_all = np.size(mrna_all, 0)
+    N_all = np.size(data, 0)
     idx_all = np.arange(N_all)
-    mrna_all = None
+    data = None
     
     if OPTIM_RATIO > 0:
         # indices of hyperpar optimization set

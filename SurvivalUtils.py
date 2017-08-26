@@ -4,22 +4,12 @@
 Created on Thu Aug 24 18:12:57 2017
 
 @author: mohamed
-"""
 
-
-
-import numpy as np
-from scipy.io import loadmat
-
-"""
 A group of supporting utilities.
 """
 
-
-#%%
-
-dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-Data = loadmat(dpath)
+import numpy as np
+from scipy.io import loadmat
 
 
 #%%============================================================================
@@ -91,20 +81,52 @@ def getSplitIdxs(data, OPTIM_RATIO=0.2, K=5, SHUFFLES=5):
     return Idxs
 
 
-
-#%%============================================================================
-# Load data
-#==============================================================================
-
-
-
 #%%============================================================================
 # timeIndicator
 #==============================================================================
 
-#def timeIndicator
+def timeIndicator(Survival, Censored, t_min = 0, t_max = 0):
 
-""" This converts survival-censored data into alive-dead data by adding
-a time indicator variable. """
+    """ 
+    This converts survival and censored data (where 1 = lost to follow-up)
+    into alive-dead data by adding a time indicator variable 
+    (where 1 = alive, 0 = dead, -1 = unknown survival status)
+    """
+    
+    if t_max == 0:
+        t_max = np.max(Survival)
+    
+    # Initialize output matrix - rows are patients, cols are time points
+    aliveStatus = np.ones([len(Survival), t_max - t_min +1])
+    
+    #idx = 0
+    for idx in range(len(Survival)):
+    
+        if Censored[idx,0] == 0:
+            # known death time
+            aliveStatus[idx,Survival[idx,0]+1:-1] = 0 
+        else:
+            # lost to follow-up
+            aliveStatus[idx,Survival[idx,0]+1:-1] = -1
+            
+    return aliveStatus
 
+#%%============================================================================
+# test methods
+#==============================================================================
 
+if __name__ == '__main__':
+    
+    # Load data
+    dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+    Data = loadmat(dpath)
+    
+    data = np.float32(Data['Integ_X'])
+    if np.min(Data['Survival']) < 0:
+        Data['Survival'] = Data['Survival'] - np.min(Data['Survival']) + 1
+    
+    Survival = np.int32(Data['Survival'])
+    Censored = np.int32(Data['Censored'])
+    
+    # Generate survival status
+    aliveStatus = timeIndicator(Survival, Censored)

@@ -129,27 +129,27 @@ def add_Pi_to_cumSum(t, i, cumSum):
     return cumSum + Pi
 
 
-#def conditional_add_to_cumSum(t, i, cumSum):
-#    
-#        """ 
-#        Add Pi to cumsum if survival status of i is known at time t 
-#        """
-#        
-#        cumSum = tf.cond(tf.equal(avail_mask[i, t], 1), lambda: add_Pi_to_cumSum(t, i, cumSum), lambda: tf.cast(cumSum, tf.float32))
-#        
-#        
-#        # DEBUG !!!! **********************************************************
-#        #tf.Print(t, [t], message="t = ")
-#        #tf.Print(i, [i], message="i = ")
-#        # *********************************************************************
-#        
-#        # increment t if last patient
-#        t = tf.cond(tf.equal(i, N-1), lambda: tf.add(t, 1), lambda: tf.add(t, 0))
-#        
-#        # increment i (or reset it if last patient)
-#        i = tf.cond(tf.equal(i, N-1), lambda: tf.multiply(i, 0), lambda: tf.add(i, 1))
-#        
-#        return t, i, cumSum
+def conditional_add_to_cumSum(t, i, cumSum):
+    
+        """ 
+        Add Pi to cumsum if survival status of i is known at time t 
+        """
+        
+        cumSum = tf.cond(tf.equal(avail_mask[i, t], 1), lambda: add_Pi_to_cumSum(t, i, cumSum), lambda: tf.cast(cumSum, tf.float32))
+        
+        
+        # DEBUG !!!! **********************************************************
+        tf.Print(t, [t], message="t = ")
+        i_print = tf.Print(i, [i], message="i = ")
+        # *********************************************************************
+        
+        # increment t if last patient
+        t = tf.cond(tf.equal(i, N-1), lambda: tf.add(t, 1), lambda: tf.add(t, 0))
+        
+        # increment i (or reset it if last patient)
+        i = tf.cond(tf.equal(i, N-1), lambda: tf.multiply(i, 0), lambda: tf.add(i, 1))
+        
+        return t, i, cumSum
 
 # -----------------------------------------------------------------------------
 # Now go through all time points and patients
@@ -180,7 +180,9 @@ cumSum = tf.cast(tf.Variable([0.0]), tf.float32, name='cumSum')
 t = tf.cast(tf.constant(10), tf.int32, name='t')
 i = tf.cast(tf.constant(20), tf.int32, name='i')
 
-cumSum = add_Pi_to_cumSum(t, i, cumSum)
+#cumSum = add_Pi_to_cumSum(t, i, cumSum)
+
+t, i, cumSum = conditional_add_to_cumSum(t, i, cumSum)
 
 
 
@@ -199,8 +201,8 @@ with tf.Session() as sess:
     
     feed = {X: data, alive: aliveStatus}
     
-    #fetches = [t, i, ignoreMask, softmax, match, Pi, cumSum]
-    #fetch_names = ['t', 'i', 'ignoreMask', 'softmax', 'match', 'Pi', 'cumSum']
+    # fetches = [t, i, ignoreMask, softmax, match, Pi, cumSum]
+    # fetch_names = ['t', 'i', 'ignoreMask', 'softmax', 'match', 'Pi', 'cumSum']
     
     fetches = [cumSum]
     fetch_names = ['cumSum']

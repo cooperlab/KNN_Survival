@@ -84,7 +84,7 @@ def getSplitIdxs(data, OPTIM_RATIO=0.2, K=5, SHUFFLES=5):
 # timeIndicator
 #==============================================================================
 
-def timeIndicator(Survival, Censored, t_min = 0, t_max = 0, scale = 1):
+def getAliveStatus(Survival, Censored, t_min = 0, t_max = 0, scale = 1):
 
     """ 
     This converts survival and censored data (where 1 = lost to follow-up)
@@ -115,6 +115,7 @@ def timeIndicator(Survival, Censored, t_min = 0, t_max = 0, scale = 1):
             
     return aliveStatus
 
+
 #%%============================================================================
 # test methods
 #==============================================================================
@@ -132,8 +133,9 @@ if __name__ == '__main__':
     Survival = np.int32(Data['Survival'])
     Censored = np.int32(Data['Censored'])
     
-    # Generate survival status - discretized into months
-    aliveStatus = timeIndicator(Survival, Censored, scale = 30)
-    
     # Get split indices
     splitIdxs = getSplitIdxs(data)
+    
+    # Generate survival status - discretized into months
+    aliveStatus = getAliveStatus(Survival, Censored, scale = 30)
+    

@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Aug 27 01:56:26 2017
+
+@author: mohamed
+
+Survival NCA (Neighborhood Component Analysis)
+"""
+
+# Append relevant paths
+import os
+import sys
+
+def conditionalAppend(Dir):
+    """ Append dir to sys path"""
+    if Dir not in sys.path:
+        sys.path.append(Dir)
+
+cwd = os.getcwd()
+conditionalAppend(cwd)
+
+import numpy as np
+import SurvivalUtils as sUtils
+
+#%%============================================================================
+# 
+#==============================================================================

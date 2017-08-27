@@ -22,7 +22,92 @@ conditionalAppend(cwd)
 
 import numpy as np
 import SurvivalUtils as sUtils
+import tensorflow as tf
+
 
 #%%============================================================================
-# 
+# ---- J U N K ----------------------------------------------------------------
 #==============================================================================
+
+from scipy.io import loadmat
+
+# Load data
+dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+Data = loadmat(dpath)
+
+data = np.float32(Data['Integ_X'])
+if np.min(Data['Survival']) < 0:
+    Data['Survival'] = Data['Survival'] - np.min(Data['Survival']) + 1
+
+Survival = np.int32(Data['Survival'])
+Censored = np.int32(Data['Censored'])
+
+# Get split indices
+#splitIdxs = sUtils.getSplitIdxs(data)
+
+# Generate survival status - discretized into months
+aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)
+
+
+#%%============================================================================
+# --- P R O T O T Y P E S -----------------------------------------------------
+#==============================================================================
+
+
+#
+# Modified from: https://all-umass.github.io/metric-learn/ ...
+#                _modules/metric_learn/nca.html#NCA
+#
+
+# Initialize A to a scaling matrix
+n, d = data.shape
+A_init = np.zeros((d, d))
+np.fill_diagonal(A_init, 1./(data.max(axis=0)-data.min(axis=0)))
+A_init = np.float32(A_init)
+
+#
+# Building the compuational graph
+#
+
+tf.reset_default_graph()
+
+# Graph input
+X = tf.placeholder("float", data.shape)
+alive = tf.placeholder("float", aliveStatus.shape)
+
+# transform input
+A = tf.Variable(A_init)
+AX = tf.matmul(X, A)  # shape (n, d)
+
+# Get mask of available survival status at different time points
+nan_mask = tf.cast((alive >= 0), tf.int32)
+
+
+t = 10 #####
+i = 0  #####
+
+# Get ignore mask -> 
+# give central point and unknown status zero weight
+ignoreMask = tf.Variable(nan_mask[:, t]) # censored points at time t
+ignoreMask = ignoreMask[i].assign(0) # central point itself
+ignoreMask = tf.cast(ignoreMask, tf.float32)
+
+# Calculate normalized feature similarity metric between central point 
+# and those cases with available survival status at time t
+softmax = tf.exp(tf.reduce_sum((AX[i,:] - AX)**2, axis=1)) # shape (n)
+softmax = tf.multiply(softmax, ignoreMask)
+softmax = softmax / tf.reduce_sum(softmax)
+
+# Get INcorrect label (i.e. i is alive and j is dead and vice versa)
+
+
+#%%
+
+Ax_ = A_init.dot(data.T).T  # shape (n, d) -> .T means transpose
+
+
+softmax_ = np.exp(-((Ax_[i] - Ax_)**2).sum(axis=1))  # shape (n)
+
+
+softmax_[i] = 0
+softmax_ /= softmax_.sum()

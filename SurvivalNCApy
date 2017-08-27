@@ -80,34 +80,55 @@ A = tf.Variable(A_init)
 AX = tf.matmul(X, A)  # shape (n, d)
 
 # Get mask of available survival status at different time points
-nan_mask = tf.cast((alive >= 0), tf.int32)
+avail_mask = tf.cast((alive >= 0), tf.int32)
 
 
 t = 10 #####
 i = 0  #####
 
-# Get ignore mask -> 
-# give central point and unknown status zero weight
-ignoreMask = tf.Variable(nan_mask[:, t]) # censored points at time t
-ignoreMask = ignoreMask[i].assign(0) # central point itself
-ignoreMask = tf.cast(ignoreMask, tf.float32)
 
-# Calculate normalized feature similarity metric between central point 
-# and those cases with available survival status at time t
-softmax = tf.exp(tf.reduce_sum((AX[i,:] - AX)**2, axis=1)) # shape (n)
-softmax = tf.multiply(softmax, ignoreMask)
-softmax = softmax / tf.reduce_sum(softmax)
+def add_Pi_to_cumSum(t, i, cumSum):
+    
+    """ 
+    Gets "probability" of patient i's survival status being correctly 
+    predicted at time t and adds it to running cumSum for all points 
+    whose survival status is known at time t
+    """
 
-# Get INcorrect label (i.e. i is alive and j is dead and vice versa)
+    # Get ignore mask -> 
+    # give central point and unknown status zero weight
+    ignoreMask = tf.Variable(avail_mask[:, t]) # unavailable labels at time t are -> 0
+    ignoreMask = ignoreMask[i].assign(0) # central point itself -> 0
+    ignoreMask = tf.cast(ignoreMask, tf.float32)
+    
+    # Calculate normalized feature similarity metric between central point 
+    # and those cases with available survival status at time t
+    softmax = tf.exp(tf.reduce_sum((AX[i,:] - AX)**2, axis=1)) # shape (n)
+    softmax = tf.multiply(softmax, ignoreMask)
+    softmax = softmax / tf.reduce_sum(softmax)
+    
+    # Get label match mask (i.e. i is alive and j is alive, same if i is dead)
+    # note there is no need to set central/censored points to zero since this will
+    # be multiplied by softmax which already has zeros at these locations
+    match = tf.cast(tf.equal(alive[:, t], alive[i, t]), tf.float32)
+    
+    # Get "probability" of correctly classifying i at time t
+    Pi = tf.reduce_sum(tf.multiply(softmax, match))
+    
+    return cumSum + Pi
+
+
+def Conditional_Addto_cumSum(t, i, cumSum):
+    
+        """ 
+        Add Pi to cumsum if survival status of i is known at time t 
+        """
+        
+        cumSum = tf.cond(tf.equal(avail_mask[i, t], 1), lambda: add_Pi_to_cumSum(t, i, cumSum), lambda: tf.cast(cumSum, tf.float32))
+        
+        return cumSum
+
+cumSum_Pred = tf.Variable([0.0])
 
 
 #%%
-
-Ax_ = A_init.dot(data.T).T  # shape (n, d) -> .T means transpose
-
-
-softmax_ = np.exp(-((Ax_[i] - Ax_)**2).sum(axis=1))  # shape (n)
-
-
-softmax_[i] = 0
-softmax_ /= softmax_.sum()

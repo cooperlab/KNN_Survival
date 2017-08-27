@@ -54,20 +54,21 @@ aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)
 #==============================================================================
 
 
-#
-# Modified from: https://all-umass.github.io/metric-learn/ ...
-#                _modules/metric_learn/nca.html#NCA
-#
 
-# Initialize A to a scaling matrix
-n, d = data.shape
-A_init = np.zeros((d, d))
-np.fill_diagonal(A_init, 1./(data.max(axis=0)-data.min(axis=0)))
-A_init = np.float32(A_init)
 
-#
+
+#%%============================================================================
 # Building the compuational graph
+#==============================================================================
+
 #
+# Some parts were Modified from: 
+# https://all-umass.github.io/metric-learn/_modules/metric_learn/nca.html#NCA
+#
+
+# -----------------------------------------------------------------------------
+# Basic ground work
+# -----------------------------------------------------------------------------
 
 tf.reset_default_graph()
 
@@ -75,17 +76,30 @@ tf.reset_default_graph()
 X = tf.placeholder("float", data.shape)
 alive = tf.placeholder("float", aliveStatus.shape)
 
-# transform input
-A = tf.Variable(A_init)
-AX = tf.matmul(X, A)  # shape (n, d)
+# Get dims
+tmp = tf.cast(X.shape, tf.int32)
+N = tmp[0] # no of patients
+D = tmp[1] # no of features
+T = tf.cast(alive.shape[1], tf.int32) # no of time points
+
+
+# Initialize A to a scaling matrix
+d = data.shape[1]
+A = np.zeros((d, d))
+np.fill_diagonal(A, 1./(data.max(axis=0)-data.min(axis=0)))
+A = np.float32(A)
+A = tf.Variable(A)
+
+# initilize A and transform input
+AX = tf.matmul(X, A)  # shape (N, D)
 
 # Get mask of available survival status at different time points
 avail_mask = tf.cast((alive >= 0), tf.int32)
 
 
-t = 10 #####
-i = 0  #####
-
+# -----------------------------------------------------------------------------
+# Define core functions
+# -----------------------------------------------------------------------------
 
 def add_Pi_to_cumSum(t, i, cumSum):
     
@@ -118,7 +132,7 @@ def add_Pi_to_cumSum(t, i, cumSum):
     return cumSum + Pi
 
 
-def Conditional_Addto_cumSum(t, i, cumSum):
+def conditional_add_to_cumSum(t, i, cumSum):
     
         """ 
         Add Pi to cumsum if survival status of i is known at time t 
@@ -126,9 +140,42 @@ def Conditional_Addto_cumSum(t, i, cumSum):
         
         cumSum = tf.cond(tf.equal(avail_mask[i, t], 1), lambda: add_Pi_to_cumSum(t, i, cumSum), lambda: tf.cast(cumSum, tf.float32))
         
-        return cumSum
+        
+        # DEBUG !!!! **********************************************************
+        
+        tf.Print(t, [t], message="t = ")
+        tf.Print(i, [i], message="i = ")
+        
+        # *********************************************************************
+        
+        # increment t if last patient
+        t = tf.cond(tf.equal(i, N-1), lambda: tf.add(t, 1), lambda: tf.add(t, 0))
+        
+        # increment i (or reset it if last patient)
+        i = tf.cond(tf.equal(i, N-1), lambda: tf.multiply(i, 0), lambda: tf.add(i, 1))
+        
+        return t, i, cumSum
 
-cumSum_Pred = tf.Variable([0.0])
+# -----------------------------------------------------------------------------
+# Now go through all time points and patients
+# -----------------------------------------------------------------------------
+
+cumSum = tf.cast(tf.Variable([0.0]), tf.float32)
+t = tf.cast(tf.Variable(0), tf.int32)
+i = tf.cast(tf.Variable(0), tf.int32)
+
+# Doing the following admittedly odd step because tensorflow's loop
+# requires both the condition and body to have same number of inputs
+def compare_t(t, i, cumSum):
+    """Check that t < T"""
+    return tf.less(t, T) 
+
+# main loop
+condition = lambda t, i, cumSum: compare_t(t, i, cumSum)
+body = lambda t, i, cumSum: conditional_add_to_cumSum(t, i, cumSum)
+t, i, cumSum = tf.while_loop(condition, body, [t, i, cumSum])
 
 
-#%%
+#%%============================================================================
+# Building the compuational graph
+#==============================================================================

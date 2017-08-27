@@ -21,9 +21,8 @@ def getSplitIdxs(data, OPTIM_RATIO=0.2, K=5, SHUFFLES=5):
     Args: input matrix, ratio allocated to optimization, K (no of folds)
     Out: indices of different sets
     '''
-    #print("\nGetting data split indices...")
 
-    Idxs = {' ': " "}
+    Idxs = {}
     
     N_all = np.size(data, 0)
     idx_all = np.arange(N_all)
@@ -85,13 +84,18 @@ def getSplitIdxs(data, OPTIM_RATIO=0.2, K=5, SHUFFLES=5):
 # timeIndicator
 #==============================================================================
 
-def timeIndicator(Survival, Censored, t_min = 0, t_max = 0):
+def timeIndicator(Survival, Censored, t_min = 0, t_max = 0, scale = 1):
 
     """ 
     This converts survival and censored data (where 1 = lost to follow-up)
     into alive-dead data by adding a time indicator variable 
-    (where 1 = alive, 0 = dead, -1 = unknown survival status)
+    (where 1 = alive, 0 = dead, -1 = unknown survival status).
+    Use scale to convert time scale (eg to convert from days to weeks
+    set scale = 7)
     """
+    
+    # Get data in needed scale
+    Survival = np.int32(np.floor(Survival / scale))
     
     if t_max == 0:
         t_max = np.max(Survival)
@@ -104,10 +108,10 @@ def timeIndicator(Survival, Censored, t_min = 0, t_max = 0):
     
         if Censored[idx,0] == 0:
             # known death time
-            aliveStatus[idx,Survival[idx,0]+1:-1] = 0 
+            aliveStatus[idx,Survival[idx,0]+1:] = 0 
         else:
             # lost to follow-up
-            aliveStatus[idx,Survival[idx,0]+1:-1] = -1
+            aliveStatus[idx,Survival[idx,0]+1:] = -1
             
     return aliveStatus
 
@@ -128,5 +132,8 @@ if __name__ == '__main__':
     Survival = np.int32(Data['Survival'])
     Censored = np.int32(Data['Censored'])
     
-    # Generate survival status
-    aliveStatus = timeIndicator(Survival, Censored)
+    # Generate survival status - discretized into months
+    aliveStatus = timeIndicator(Survival, Censored, scale = 30)
+    
+    # Get split indices
+    splitIdxs = getSplitIdxs(data)

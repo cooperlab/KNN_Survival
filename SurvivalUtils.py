@@ -113,7 +113,7 @@ def getAliveStatus(Survival, Censored, t_min = 0, t_max = 0, scale = 1):
             # lost to follow-up
             aliveStatus[idx,Survival[idx,0]+1:] = -1
             
-    return aliveStatus
+    return np.int32(aliveStatus)
 
 
 #%%============================================================================

@@ -2,7 +2,13 @@
 
 
 ## @TODO:
-	- Convert to python.
+	
+	- NCA Survival (Neighborhood Component Analysis):
+		- NCA for survival analysis -> cast as classification problem
+		- NCA for feature selection and clustering by survival
+
+	--------------------------------------------------------------
+	- Port to python.
 	- Bagging -> combined prediction and feature ranking.
 	- Experiments with cumulative vs vs non-cumulative probability.
 

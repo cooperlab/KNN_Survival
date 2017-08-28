@@ -24,6 +24,8 @@ import numpy as np
 import SurvivalUtils as sUtils
 import tensorflow as tf
 
+#tf.logging.set_verbosity(tf.logging.INFO)
+
 
 #%%============================================================================
 # ---- J U N K ----------------------------------------------------------------
@@ -52,7 +54,6 @@ aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)
 #%%============================================================================
 # --- P R O T O T Y P E S -----------------------------------------------------
 #==============================================================================
-
 
 
 
@@ -94,22 +95,28 @@ A = tf.Variable(A, name='A')
 AX = tf.matmul(X, A)  # shape (N, D)
 
 
-## -----------------------------------------------------------------------------
-## Define core functions
-## -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Define core functions
+# -----------------------------------------------------------------------------
 
-def add_Pi_to_cumSum(t, i, cumSum):
+def add_to_cumSum(t, i, cumSum):
     
     """ 
     Gets "probability" of patient i's survival status being correctly 
     predicted at time t and adds it to running cumSum for all points 
-    whose survival status is known at time t
+    whose survival status is known at time t ... this only happens
+    if survival status of i is known at time t 
     """
+    
+    # Monitor progress
+    # Note:  This is not currently compatible with jupyter notebook
+    t = tf.Print(t, [t, i], message='t, i = ')
 
-    # Get ignore mask -> 
-    # give central point and unknown status zero weight
-    ignoreMask = tf.Variable(avail_mask[:, t]) # unavailable labels at time t are -> 0
-    ignoreMask = ignoreMask[i].assign(0) # central point itself -> 0
+    # Get ignore mask ->  give unknown status zero weight
+    # Note that the central point itself is not ignored because 
+    # tensorflow only allows item assignment for variables (not tensores)
+    # and it does not allow the creation of variables inside while loops
+    ignoreMask = avail_mask[:, t] # unavailable labels at time t are -> 0
     ignoreMask = tf.cast(ignoreMask, tf.float32)
     
     # Calculate normalized feature similarity metric between central point 
@@ -126,67 +133,32 @@ def add_Pi_to_cumSum(t, i, cumSum):
     # Get "probability" of correctly classifying i at time t
     Pi = tf.reduce_sum(tf.multiply(softmax, match))
     
-    return cumSum + Pi
-
-
-def conditional_add_to_cumSum(t, i, cumSum):
+    # add to cumSum - only if survival status of i is known at time t 
+    survival_is_known = tf.cast(tf.equal(avail_mask[i, t], 1), tf.float32)
+    cumSum = cumSum + (Pi * survival_is_known)
     
-        """ 
-        Add Pi to cumsum if survival status of i is known at time t 
-        """
-        
-        cumSum = tf.cond(tf.equal(avail_mask[i, t], 1), lambda: add_Pi_to_cumSum(t, i, cumSum), lambda: tf.cast(cumSum, tf.float32))
-        
-        
-        # DEBUG !!!! **********************************************************
-        tf.Print(t, [t], message="t = ")
-        i_print = tf.Print(i, [i], message="i = ")
-        # *********************************************************************
-        
-        # increment t if last patient
-        t = tf.cond(tf.equal(i, N-1), lambda: tf.add(t, 1), lambda: tf.add(t, 0))
-        
-        # increment i (or reset it if last patient)
-        i = tf.cond(tf.equal(i, N-1), lambda: tf.multiply(i, 0), lambda: tf.add(i, 1))
-        
-        return t, i, cumSum
+    # increment t if last patient
+    t = tf.cond(tf.equal(i, N-1), lambda: tf.add(t, 1), lambda: tf.add(t, 0))
+
+    # increment i (or reset it if last patient)
+    i = tf.cond(tf.equal(i, N-1), lambda: tf.multiply(i, 0), lambda: tf.add(i, 1))
+    
+    return t, i, cumSum
 
 # -----------------------------------------------------------------------------
 # Now go through all time points and patients
 # -----------------------------------------------------------------------------
 
-#cumSum = tf.cast(tf.Variable([0.0]), tf.float32)
-#t = tf.cast(tf.constant(0), tf.int32)
-#i = tf.cast(tf.constant(0), tf.int32)
+# initialize
+cumSum = tf.cast(tf.Variable([0.0]), tf.float32)
+t = tf.cast(tf.constant(0), tf.int32)
+i = tf.cast(tf.constant(0), tf.int32)
 
-## Doing the following admittedly odd step because tensorflow's loop
-## requires both the condition and body to have same number of inputs
-#def compare_t(t, i, cumSum):
-#    """Check that t < T"""
-#    return tf.less(t, T) 
-#
-## main loop
-#cond = lambda t, i, cumSum: compare_t(t, i, cumSum)
-#bod = lambda t, i, cumSum: conditional_add_to_cumSum(t, i, cumSum)
-#cumSum_ = tf.while_loop(cond, bod, [t, i, cumSum])
+def t_not_max(t, i, cumSum):
+    return tf.less(t, 5) #T) # DEBUG!!!
 
-
-# -----------------------------------------------------------------------------
-# DEBUG !!! ***************************************************************
-# -----------------------------------------------------------------------------
-
-
-cumSum = tf.cast(tf.Variable([0.0]), tf.float32, name='cumSum')
-t = tf.cast(tf.constant(10), tf.int32, name='t')
-i = tf.cast(tf.constant(20), tf.int32, name='i')
-
-#cumSum = add_Pi_to_cumSum(t, i, cumSum)
-
-t, i, cumSum = conditional_add_to_cumSum(t, i, cumSum)
-
-
-
-# -----------------------------------------------------------------------------
+# loop through time points
+_, _, cumSum = tf.while_loop(t_not_max, add_to_cumSum, [t, i, cumSum])
 
 
 #%%============================================================================
@@ -204,9 +176,12 @@ with tf.Session() as sess:
     # fetches = [t, i, ignoreMask, softmax, match, Pi, cumSum]
     # fetch_names = ['t', 'i', 'ignoreMask', 'softmax', 'match', 'Pi', 'cumSum']
     
-    fetches = [cumSum]
-    fetch_names = ['cumSum']
-        
+    fetches = [t, i, cumSum]
+    fetch_names = ['t', 'i', 'cumSum']
+    
+    #fetches = [cumSum_]
+    #fetch_names = ['cumSum_']
+    
     f = sess.run(fetches, feed_dict = feed)
     
     fetched = {}

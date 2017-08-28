@@ -11,7 +11,6 @@ A group of supporting utilities.
 import numpy as np
 from scipy.io import loadmat
 
-
 #%%============================================================================
 # GetSplitIdxs
 #==============================================================================
@@ -138,4 +137,5 @@ if __name__ == '__main__':
     
     # Generate survival status - discretized into months
     aliveStatus = getAliveStatus(Survival, Censored, scale = 30)
+    
     

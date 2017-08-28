@@ -20,6 +20,7 @@ def conditionalAppend(Dir):
 cwd = os.getcwd()
 conditionalAppend(cwd)
 
+from scipy.io import loadmat, savemat
 import numpy as np
 import SurvivalUtils as sUtils
 import tensorflow as tf
@@ -30,8 +31,6 @@ import tensorflow as tf
 #%%============================================================================
 # ---- J U N K ----------------------------------------------------------------
 #==============================================================================
-
-from scipy.io import loadmat
 
 # Load data
 dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
@@ -47,7 +46,7 @@ Censored = np.int32(Data['Censored'])
 # Get split indices
 #splitIdxs = sUtils.getSplitIdxs(data)
 
-n = 50
+n = 100
 data = data[0:n,:]
 Survival = Survival[0:n,:]
 Censored = Censored[0:n,:]
@@ -62,9 +61,14 @@ aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)
 
 RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
 
-LEARN_RATE = 10
+LEARN_RATE = 50
 D_new = data.shape[1] # set D_new < D to reduce dimensions
 MONITOR_STEP = 10
+
+
+#%%============================================================================
+# Setting things up
+#==============================================================================
 
 # Get dims
 N, D = np.int32(data.shape)
@@ -230,5 +234,33 @@ with tf.Session() as sess:
 
 
 
+#%%============================================================================
+# Now parse the learned matrix A and save
+#==============================================================================
 
+def getRanks(A):
+    w = np.diag(A).reshape(D_new, 1)
+    fidx = np.arange(len(A)).reshape(D_new, 1)
+    
+    w = np.concatenate((fidx, w), 1)
+    w = w[w[:,1].argsort()][::-1]
+    tokeep = w[:,1] < 100000
+    w = w[tokeep,:]
+    
+    
+    fnames = Data['Integ_Symbs']
+    fnames = fnames[np.int32(w[:,0])]
+    
+    return fnames
 
+ranks_init = getRanks(A_init)
+ranks_current = getRanks(A_current)
+
+# Save analysis result
+result = {'A_init': A_init,
+          'A_current': A_current,
+          'ranks_init': ranks_init,
+          'ranks_current': ranks_current,
+          'LEARN_RATE': LEARN_RATE,}
+
+savemat(RESULTPATH + 'result', result)

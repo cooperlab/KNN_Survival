@@ -23,6 +23,8 @@ conditionalAppend(cwd)
 import numpy as np
 import SurvivalUtils as sUtils
 import tensorflow as tf
+import matplotlib.pylab as plt
+#%matplotlib inline
 
 #tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -60,7 +62,7 @@ aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)
 # --- P R O T O T Y P E S -----------------------------------------------------
 #==============================================================================
 
-LEARN_RATE = 0.5
+LEARN_RATE = 0.05
 D_new = data.shape[1] # set D_new < D to reduce dimensions
 
 # Get dims
@@ -187,6 +189,7 @@ with tf.Session() as sess:
     cumsums = []
     step = 0
     
+    diffs = []
      
     try: 
         while True:
@@ -202,7 +205,30 @@ with tf.Session() as sess:
             
             cumsums.append([step, cumSum_current[0]])
             
+            diffs.append([step, np.sum(A_current - A_init)])
+            
+            
+            # monitor
+            if step % 10 == 0:
+                
+                fig, ax = plt.subplots() 
+                
+                #cs = np.array(cumsums)
+                #ax.plot(cs[:,0], cs[:,1], 'b', linewidth=1.5, aa=False)
+                
+                df = np.array(diffs)
+                ax.plot(df[:,0], df[:,1], 'b', linewidth=1.5, aa=False)
+                
+                plt.tight_layout()
+                plt.savefig("/home/mohamed/Desktop/cs.svg")
+                plt.close() 
+            
             step += 1
             
     except KeyboardInterrupt:
         pass
+
+
+
+
+

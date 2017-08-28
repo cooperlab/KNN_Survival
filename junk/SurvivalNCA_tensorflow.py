@@ -20,6 +20,7 @@ def conditionalAppend(Dir):
 cwd = os.getcwd()
 conditionalAppend(cwd)
 
+from scipy.io import loadmat, savemat
 import numpy as np
 import SurvivalUtils as sUtils
 import tensorflow as tf
@@ -27,11 +28,11 @@ import tensorflow as tf
 #tf.logging.set_verbosity(tf.logging.INFO)
 
 
+#raise Exception()
+
 #%%============================================================================
 # ---- J U N K ----------------------------------------------------------------
 #==============================================================================
-
-from scipy.io import loadmat
 
 # Load data
 dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
@@ -43,9 +44,22 @@ if np.min(Data['Survival']) < 0:
 
 Survival = np.int32(Data['Survival'])
 Censored = np.int32(Data['Censored'])
+fnames = Data['Integ_Symbs']
 
 # Get split indices
 #splitIdxs = sUtils.getSplitIdxs(data)
+
+n = 50
+data = data[0:n,:]
+Survival = Survival[0:n,:]
+Censored = Censored[0:n,:]
+
+# remove zero-variance features
+fvars = np.std(data, 0)
+toKeep = fvars > 0
+data = data[:, toKeep]
+fnames = fnames[toKeep]
+fvars = fvars[toKeep]
 
 # Generate survival status - discretized into months
 aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)
@@ -55,8 +69,32 @@ aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)
 # --- P R O T O T Y P E S -----------------------------------------------------
 #==============================================================================
 
-LEARN_RATE = 1e-5
+RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
 
+LEARN_RATE = 0.05
+D_new = data.shape[1] # set D_new < D to reduce dimensions
+MONITOR_STEP = 10
+
+
+#%%============================================================================
+# Setting things up
+#==============================================================================
+
+# Get dims
+N, D = np.int32(data.shape)
+T = np.int32(aliveStatus.shape[1]) # no of time points
+
+# Initialize A to a scaling matrix
+A_init = np.zeros((D, D_new))
+
+epsilon = 1e-7 # to  avoid division by zero
+
+np.fill_diagonal(A_init, 1./(data.max(axis=0) - data.min(axis=0) + epsilon))
+#np.fill_diagonal(A_init, 1./(np.sqrt(fvars) + epsilon))
+#np.fill_diagonal(A_init, np.random.rand(D))
+#A_init = np.random.rand(D, D_new)
+
+A_init = np.float32(A_init)
 
 
 #%%============================================================================
@@ -74,25 +112,15 @@ LEARN_RATE = 1e-5
 
 tf.reset_default_graph()
 
-# Get dims
-N, D = np.int32(data.shape)
-T = np.int32(aliveStatus.shape[1]) # no of time points
-
 # Graph input
 X = tf.placeholder("float32", [N, D], name='X')
 alive = tf.placeholder("int32", [N, T], name='alive')
+A = tf.Variable(A_init, name='A')
 
 # Get mask of available survival status at different time points
 avail_mask = tf.cast((aliveStatus >= 0), tf.int32, name='avail_mask')
 
-# Initialize A to a scaling matrix
-A = np.zeros((D, D))
-epsilon = 1e-7 # to  avoid division by zero
-np.fill_diagonal(A, 1./(data.max(axis=0) - data.min(axis=0) + epsilon))
-A = np.float32(A)
-A = tf.Variable(A, name='A')
-
-# initilize A and transform input
+# Transform input
 AX = tf.matmul(X, A)  # shape (N, D)
 
 
@@ -111,7 +139,7 @@ def add_to_cumSum(t, i, cumSum):
     
     # Monitor progress
     # Note:  This is not currently compatible with jupyter notebook
-    t = tf.Print(t, [t, i], message='t, i = ')
+    # t = tf.Print(t, [t, i], message='t, i = ')
 
     # Get ignore mask ->  give unknown status zero weight
     # Note that the central point itself is not ignored because 
@@ -151,43 +179,104 @@ def add_to_cumSum(t, i, cumSum):
 # -----------------------------------------------------------------------------
 
 # initialize
-cumSum = tf.cast(tf.Variable([0.0]), tf.float32)
-t = tf.cast(tf.constant(0), tf.int32)
-i = tf.cast(tf.constant(0), tf.int32)
+cumSum = tf.cast(tf.Variable([0.0], name='cumSum'), tf.float32)
+t = tf.cast(tf.constant(0, name='t'), tf.int32)
+i = tf.cast(tf.constant(0, name='i'), tf.int32)
 
 def t_not_max(t, i, cumSum):
-    return tf.less(t, 5) #T) # DEBUG!!!
+    return tf.less(t, T)
 
 # loop through time points
 _, _, cumSum = tf.while_loop(t_not_max, add_to_cumSum, [t, i, cumSum])
 
 cost = -cumSum
 
-optimizer = tf.train.AdamOptimizer(LEARN_RATE).minimize(cost)
+
+optimizer = tf.train.GradientDescentOptimizer(LEARN_RATE).minimize(cost)
+
+## Calculate gradient
+#d = tf.gradients(cumSum, A, name='d')
+## Update A
+#A_new = A + (tf.reshape(tf.multiply(d, A), [D, D_new]) * LEARN_RATE)
 
 
 #%%============================================================================
-# Launch graph
+# Launch session
 #==============================================================================
-
 
 with tf.Session() as sess:
     
     init = tf.global_variables_initializer()
     sess.run(init)
     
-    feed = {X: data, alive: aliveStatus}
+    cumsums = []
+    step = 0
     
-    # fetches = [t, i, ignoreMask, softmax, match, Pi, cumSum]
-    # fetch_names = ['t', 'i', 'ignoreMask', 'softmax', 'match', 'Pi', 'cumSum']
-    
-    fetches = [optimizer]
-    fetch_names = ['optimizer']
-    
-    f = sess.run(fetches, feed_dict = feed)
-    
-    fetched = {}
-    for i,j in enumerate(f):
-        fetched[fetch_names[i]] = j
+    diffs = []
+     
+    try: 
+        while True:
+            
+            print("\n--------------------------------------------")
+            print("---- STEP = " + str(step))
+            print("--------------------------------------------\n")
+            
+            fetches = [optimizer, A, cumSum]
+            feed = {X: data, alive: aliveStatus}
+            
+            _, A_current, cumSum_current = sess.run(fetches, feed_dict = feed)
+            
+            # initialize cumsums and total abs change in matrix A
+            cumsums.append([step, cumSum_current[0]])
+            diffs.append([step, np.sum(np.abs(A_current - A_init))])
+            
+            # monitor
+            if step % MONITOR_STEP == 0:
+                
+                cs = np.array(cumsums)                
+                df = np.array(diffs)
+                
+                sUtils.plotMonitor(arr= cs, title= "cumSum vs. epoch", 
+                                   xlab= "epoch", ylab= "cumSum", 
+                                   savename= RESULTPATH + "cumSums.svg")
+                                   
+                
+                sUtils.plotMonitor(arr= df, title= "deltaA vs. epoch", 
+                                   xlab= "epoch", ylab= "deltaA", 
+                                   savename= RESULTPATH + "deltaA.svg")
+            
+            step += 1
+            
+    except KeyboardInterrupt:
+        pass
 
+
+
+#%%============================================================================
+# Now parse the learned matrix A and save
+#==============================================================================
+
+def getRanks(A):
+    w = np.diag(A).reshape(D_new, 1)
+    fidx = np.arange(len(A)).reshape(D_new, 1)
     
+    w = np.concatenate((fidx, w), 1)
+    w = w[w[:,1].argsort()][::-1]
+    tokeep = w[:,1] < 100000
+    w = w[tokeep,:]
+    
+    fnames_ranked = fnames[np.int32(w[:,0])]
+    
+    return fnames_ranked
+
+ranks_init = getRanks(A_init)
+ranks_current = getRanks(A_current)
+
+# Save analysis result
+result = {'A_init': A_init,
+          'A_current': A_current,
+          'ranks_init': ranks_init,
+          'ranks_current': ranks_current,
+          'LEARN_RATE': LEARN_RATE,}
+
+savemat(RESULTPATH + 'result', result)

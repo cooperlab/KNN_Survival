@@ -10,6 +10,7 @@ A group of supporting utilities.
 
 import numpy as np
 from scipy.io import loadmat
+import matplotlib.pylab as plt
 
 #%%============================================================================
 # GetSplitIdxs
@@ -114,6 +115,24 @@ def getAliveStatus(Survival, Censored, t_min = 0, t_max = 0, scale = 1):
             
     return np.int32(aliveStatus)
 
+#%%============================================================================
+# PlotMonitor
+#==============================================================================
+
+def plotMonitor(arr, title, xlab, ylab, savename):
+                    
+    """ plots cost/other metric to monitor progress """
+    
+    print("Plotting " + title)
+    
+    fig, ax = plt.subplots() 
+    ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+    plt.title(title, fontsize =16, fontweight ='bold')
+    plt.xlabel(xlab)
+    plt.ylabel(ylab) 
+    plt.tight_layout()
+    plt.savefig(savename)
+    plt.close() 
 
 #%%============================================================================
 # test methods

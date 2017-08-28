@@ -23,8 +23,6 @@ conditionalAppend(cwd)
 import numpy as np
 import SurvivalUtils as sUtils
 import tensorflow as tf
-import matplotlib.pylab as plt
-#%matplotlib inline
 
 #tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -62,8 +60,11 @@ aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)
 # --- P R O T O T Y P E S -----------------------------------------------------
 #==============================================================================
 
-LEARN_RATE = 0.05
+RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
+
+LEARN_RATE = 10
 D_new = data.shape[1] # set D_new < D to reduce dimensions
+MONITOR_STEP = 10
 
 # Get dims
 N, D = np.int32(data.shape)
@@ -203,25 +204,24 @@ with tf.Session() as sess:
             
             _, A_current, cumSum_current = sess.run(fetches, feed_dict = feed)
             
+            # initialize cumsums and total abs change in matrix A
             cumsums.append([step, cumSum_current[0]])
-            
-            diffs.append([step, np.sum(A_current - A_init)])
-            
+            diffs.append([step, np.sum(np.abs(A_current - A_init))])
             
             # monitor
-            if step % 10 == 0:
+            if step % MONITOR_STEP == 0:
                 
-                fig, ax = plt.subplots() 
-                
-                #cs = np.array(cumsums)
-                #ax.plot(cs[:,0], cs[:,1], 'b', linewidth=1.5, aa=False)
-                
+                cs = np.array(cumsums)                
                 df = np.array(diffs)
-                ax.plot(df[:,0], df[:,1], 'b', linewidth=1.5, aa=False)
                 
-                plt.tight_layout()
-                plt.savefig("/home/mohamed/Desktop/cs.svg")
-                plt.close() 
+                sUtils.plotMonitor(arr= cs, title= "cumSum vs. epoch", 
+                                   xlab= "epoch", ylab= "cumSum", 
+                                   savename= RESULTPATH + "cumSums.svg")
+                                   
+                
+                sUtils.plotMonitor(arr= df, title= "deltaA vs. epoch", 
+                                   xlab= "epoch", ylab= "deltaA", 
+                                   savename= RESULTPATH + "deltaA.svg")
             
             step += 1
             

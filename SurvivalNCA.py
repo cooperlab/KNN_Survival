@@ -47,6 +47,11 @@ Censored = np.int32(Data['Censored'])
 # Get split indices
 #splitIdxs = sUtils.getSplitIdxs(data)
 
+n = 50
+data = data[0:n,:]
+Survival = Survival[0:n,:]
+Censored = Censored[0:n,:]
+
 # Generate survival status - discretized into months
 aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)
 
@@ -55,8 +60,18 @@ aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)
 # --- P R O T O T Y P E S -----------------------------------------------------
 #==============================================================================
 
-LEARN_RATE = 1e-5
+LEARN_RATE = 0.5
+D_new = data.shape[1] # set D_new < D to reduce dimensions
 
+# Get dims
+N, D = np.int32(data.shape)
+T = np.int32(aliveStatus.shape[1]) # no of time points
+
+# Initialize A to a scaling matrix
+A_init = np.zeros((D, D_new))
+epsilon = 1e-7 # to  avoid division by zero
+np.fill_diagonal(A_init, 1./(data.max(axis=0) - data.min(axis=0) + epsilon))
+A_init = np.float32(A_init)
 
 
 #%%============================================================================
@@ -74,25 +89,15 @@ LEARN_RATE = 1e-5
 
 tf.reset_default_graph()
 
-# Get dims
-N, D = np.int32(data.shape)
-T = np.int32(aliveStatus.shape[1]) # no of time points
-
 # Graph input
 X = tf.placeholder("float32", [N, D], name='X')
 alive = tf.placeholder("int32", [N, T], name='alive')
+A = tf.Variable(A_init, name='A')
 
 # Get mask of available survival status at different time points
 avail_mask = tf.cast((aliveStatus >= 0), tf.int32, name='avail_mask')
 
-# Initialize A to a scaling matrix
-A = np.zeros((D, D))
-epsilon = 1e-7 # to  avoid division by zero
-np.fill_diagonal(A, 1./(data.max(axis=0) - data.min(axis=0) + epsilon))
-A = np.float32(A)
-A = tf.Variable(A, name='A')
-
-# initilize A and transform input
+# Transform input
 AX = tf.matmul(X, A)  # shape (N, D)
 
 
@@ -111,7 +116,7 @@ def add_to_cumSum(t, i, cumSum):
     
     # Monitor progress
     # Note:  This is not currently compatible with jupyter notebook
-    t = tf.Print(t, [t, i], message='t, i = ')
+    # t = tf.Print(t, [t, i], message='t, i = ')
 
     # Get ignore mask ->  give unknown status zero weight
     # Note that the central point itself is not ignored because 
@@ -151,43 +156,53 @@ def add_to_cumSum(t, i, cumSum):
 # -----------------------------------------------------------------------------
 
 # initialize
-cumSum = tf.cast(tf.Variable([0.0]), tf.float32)
-t = tf.cast(tf.constant(0), tf.int32)
-i = tf.cast(tf.constant(0), tf.int32)
+cumSum = tf.cast(tf.Variable([0.0], name='cumSum'), tf.float32)
+t = tf.cast(tf.constant(0, name='t'), tf.int32)
+i = tf.cast(tf.constant(0, name='i'), tf.int32)
 
 def t_not_max(t, i, cumSum):
-    return tf.less(t, 5) #T) # DEBUG!!!
+    return tf.less(t, T)
 
 # loop through time points
 _, _, cumSum = tf.while_loop(t_not_max, add_to_cumSum, [t, i, cumSum])
 
 cost = -cumSum
+optimizer = tf.train.GradientDescentOptimizer(LEARN_RATE).minimize(cost)
 
-optimizer = tf.train.AdamOptimizer(LEARN_RATE).minimize(cost)
+## Calculate gradient
+#d = tf.gradients(cumSum, A, name='d')
+## Update A
+#A_new = A + (tf.reshape(tf.multiply(d, A), [D, D_new]) * LEARN_RATE)
 
 
 #%%============================================================================
-# Launch graph
+# Launch session
 #==============================================================================
-
 
 with tf.Session() as sess:
     
     init = tf.global_variables_initializer()
     sess.run(init)
     
-    feed = {X: data, alive: aliveStatus}
+    cumsums = []
+    step = 0
     
-    # fetches = [t, i, ignoreMask, softmax, match, Pi, cumSum]
-    # fetch_names = ['t', 'i', 'ignoreMask', 'softmax', 'match', 'Pi', 'cumSum']
-    
-    fetches = [optimizer]
-    fetch_names = ['optimizer']
-    
-    f = sess.run(fetches, feed_dict = feed)
-    
-    fetched = {}
-    for i,j in enumerate(f):
-        fetched[fetch_names[i]] = j
-
-    
+     
+    try: 
+        while True:
+            
+            print("\n--------------------------------------------")
+            print("---- STEP = " + str(step))
+            print("--------------------------------------------\n")
+            
+            fetches = [optimizer, A, cumSum]
+            feed = {X: data, alive: aliveStatus}
+            
+            _, A_current, cumSum_current = sess.run(fetches, feed_dict = feed)
+            
+            cumsums.append([step, cumSum_current[0]])
+            
+            step += 1
+            
+    except KeyboardInterrupt:
+        pass

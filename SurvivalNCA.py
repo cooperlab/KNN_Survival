@@ -20,10 +20,11 @@ def conditionalAppend(Dir):
 cwd = os.getcwd()
 conditionalAppend(cwd)
 
-from scipy.io import loadmat, savemat
 import numpy as np
 import SurvivalUtils as sUtils
-import tensorflow as tf
+
+from scipy.io import loadmat, savemat
+import scipy.optimize as opt
 
 #tf.logging.set_verbosity(tf.logging.INFO)
 

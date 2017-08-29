@@ -18,7 +18,7 @@ def conditionalAppend(Dir):
         sys.path.append(Dir)
 
 cwd = os.getcwd()
-conditionalAppend(cwd)
+conditionalAppend(cwd+"/../")
 
 from scipy.io import loadmat, savemat
 import numpy as np
@@ -71,9 +71,10 @@ aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)
 
 RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
 
-LEARN_RATE = 0.05
+LEARN_RATE = 0.2
 D_new = data.shape[1] # set D_new < D to reduce dimensions
 MONITOR_STEP = 10
+SIGMA = 2 # 0 - inf the smaller the more emphasis on closer neighbors
 
 
 #%%============================================================================
@@ -150,7 +151,7 @@ def add_to_cumSum(t, i, cumSum):
     
     # Calculate normalized feature similarity metric between central point 
     # and those cases with available survival status at time t
-    softmax = tf.exp(-tf.reduce_sum((AX[i,:] - AX)**2, axis=1)) # shape (n)
+    softmax = tf.exp(-tf.multiply(tf.reduce_sum((AX[i,:] - AX)**2, axis=1), 1/SIGMA)) # shape (n)
     softmax = tf.multiply(softmax, ignoreMask)
     softmax = softmax / tf.reduce_sum(softmax)
     

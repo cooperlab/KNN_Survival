@@ -163,6 +163,13 @@ try:
                                                N_SUBSET = N_SUBSET)
         # update A
         A -= LEARN_RATE * cum_gradf
+        
+        # Discard non-diagnoal terms - 
+        # Uncomment if you just want linear scaling of features,
+        # but expect worse performance without much gain in 
+        # interpretability. (columns of Ax still correspond to 
+        # columns of x without this step)
+        # A *= np.eye(A.shape[0], A.shape[1])
 
         # update costs
         costs.append([step, cum_f])

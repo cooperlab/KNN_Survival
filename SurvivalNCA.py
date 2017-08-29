@@ -36,15 +36,21 @@ import nca_cost
 
 # Load data
 dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+#dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+#dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
+
 Data = loadmat(dpath)
 
 data = np.float32(Data['Integ_X'])
+#data = np.float32(Data['Gene_X'])
+
 if np.min(Data['Survival']) < 0:
     Data['Survival'] = Data['Survival'] - np.min(Data['Survival']) + 1
 
 Survival = np.int32(Data['Survival'])
 Censored = np.int32(Data['Censored'])
 fnames = Data['Integ_Symbs']
+#fnames = Data['Gene_Symbs']
 
 # remove zero-variance features
 fvars = np.std(data, 0)
@@ -70,7 +76,7 @@ LEARN_RATE = 0.01
 MONITOR_STEP = 1
 
 # no of patients chosen randomly each time point
-N_SUBSET = 30
+N_SUBSET = 10
 
 #%%============================================================================
 # Setting things up
@@ -141,14 +147,6 @@ def survival_nca_cost(A, data, aliveStatus,
 # Optimize objective function
 #==============================================================================
 
-# This does not work - quickly runs out of memory
-#res = opt.minimize(fun = survival_nca_cost,
-#                   x0 = A,
-#                   args = (data, aliveStatus, OBJECTIVE, THRESH),
-#                   jac = True,
-#                   method = 'BFGS')
-
-
 costs = []
 step = 0
  
@@ -159,23 +157,19 @@ try:
         print("---- STEP = " + str(step))
         print("--------------------------------------------\n")
         
-        
         [cum_f, cum_gradf] = survival_nca_cost(A, data, aliveStatus, 
                                                OBJECTIVE = OBJECTIVE, 
                                                THRESH = THRESH, 
                                                N_SUBSET = N_SUBSET)
-        
         # update A
         A -= LEARN_RATE * cum_gradf
-        
+
         # update costs
         costs.append([step, cum_f])
         
         # monitor
         if step % MONITOR_STEP == 0:
-            
             cs = np.array(costs)
-            
             sUtils.plotMonitor(arr= cs, title= "cost vs. epoch", 
                                xlab= "epoch", ylab= "cost", 
                                savename= RESULTPATH + "cost.svg")
@@ -186,7 +180,7 @@ except KeyboardInterrupt:
     pass
 
 #%%============================================================================
-# Now parse the learned matrix A and save
+# Now rank features by how variant they are after the new transformation
 #==============================================================================
 
 def getRanks(A):
@@ -198,15 +192,13 @@ def getRanks(A):
     
     fvars = np.concatenate((fidx, fvars), 1)
     fvars = fvars[fvars[:,1].argsort()][::-1]
-    keep = fvars[:,1] < 100000
-    fvars = fvars[keep,:]
     
     fnames_ranked = fnames[np.int32(fvars[:,0])]
     
-    return fnames_ranked
+    return fvars, fnames_ranked
 
-ranks_init = getRanks(np.eye(D, DIMS))
-ranks = getRanks(A)
+fvars_init, ranks_init = getRanks(np.eye(D, DIMS))
+fvars, ranks = getRanks(A)
 
 # Save analysis result
 result = {'A': A,
@@ -217,7 +209,51 @@ result = {'A': A,
 savemat(RESULTPATH + 'result', result)
 
 
+#%%============================================================================
+# Visualize results
+#==============================================================================
+
+from matplotlib import cm
+import matplotlib.pylab as plt
+
+Ax = np.dot(data, A)
+fidx = np.arange(len(A)).reshape(DIMS, 1)
+
 #%%
+# plot stdev change
+#
 
+fig, ax = plt.subplots()
 
+ax.plot(fidx, fvars[:,1], 'b', linewidth=1.5, aa=False)
+ax.plot(fidx, fvars_init[:,1], 'k--', linewidth=1.5, aa=False)
 
+plt.ylim(ymax = 1.5)
+
+plt.title("feature stdev after transformation", fontsize =16, fontweight ='bold')
+plt.xlabel("feature index")
+plt.ylabel("feature stdev - \nbefore (k--) and after (b-) transformation")
+plt.savefig(RESULTPATH + "fvars.svg")
+plt.close()
+
+#%%
+# scatter patients by top two features
+#
+
+fig, ax = plt.subplots()
+
+keep = (Censored == 0).reshape(N)
+X1 = Ax[keep, int(fvars[0,0])]
+X2 = Ax[keep, int(fvars[1,0])]
+Ys = Survival[keep,:]
+
+colors = cm.seismic(np.linspace(0, 1, len(Ys)))
+#cs = [colors[i//len(X1)] for i in range(len(Ys)*len(X1))] #could be done with numpy's repmat
+
+ax.scatter(X1, X2, color=colors)
+plt.title("Top features (transformed) vs survival (color)", 
+          fontsize =16, fontweight ='bold')
+plt.xlabel(str(ranks[0]), fontsize=5)
+plt.ylabel(ranks[1], fontsize=5)
+plt.savefig(RESULTPATH + "scatterByTop2.svg")
+plt.close()

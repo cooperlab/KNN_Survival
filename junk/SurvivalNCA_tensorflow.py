@@ -35,31 +35,27 @@ import tensorflow as tf
 #==============================================================================
 
 # Load data
-dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+#dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+
 Data = loadmat(dpath)
 
-data = np.float32(Data['Integ_X'])
+#data = np.float32(Data['Integ_X'])
+data = np.float32(Data['Gene_X'])
+
 if np.min(Data['Survival']) < 0:
     Data['Survival'] = Data['Survival'] - np.min(Data['Survival']) + 1
 
 Survival = np.int32(Data['Survival'])
 Censored = np.int32(Data['Censored'])
-fnames = Data['Integ_Symbs']
-
-# Get split indices
-#splitIdxs = sUtils.getSplitIdxs(data)
-
-n = 50
-data = data[0:n,:]
-Survival = Survival[0:n,:]
-Censored = Censored[0:n,:]
+#fnames = Data['Integ_Symbs']
+fnames = Data['Gene_Symbs']
 
 # remove zero-variance features
 fvars = np.std(data, 0)
-toKeep = fvars > 0
-data = data[:, toKeep]
-fnames = fnames[toKeep]
-fvars = fvars[toKeep]
+keep = fvars > 0
+data = data[:, keep]
+fnames = fnames[keep]
 
 # Generate survival status - discretized into months
 aliveStatus = sUtils.getAliveStatus(Survival, Censored, scale = 30)

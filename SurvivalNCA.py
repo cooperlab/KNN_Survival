@@ -98,6 +98,10 @@ class SurvivalNCA(object):
             #A = np.eye(D, DIMS)
             self.A = np.zeros((self.D, self.DIMS))
             np.fill_diagonal(self.A, 1./(data.max(axis=0) - data.min(axis=0) + epsilon))
+            
+            # Initialize other
+            self.costs = []
+            self.ranks = None
 
 
     #%%===========================================================================
@@ -113,7 +117,6 @@ class SurvivalNCA(object):
         """save class as ModelAttributes.txt"""
         
         print("Saving model attributes and results...")
-        self._updateStepCount()
         with open(self.RESULTPATH + self.description + 'ModelAttributes.txt','wb') as file:
             file.write(_pickle.dumps(self.__dict__))
             file.close()
@@ -135,6 +138,7 @@ class SurvivalNCA(object):
     def getModelInfo(self):
         
         """ Returns relevant model attributes"""
+        
         attribs = {
             'RESULTPATH' : self.RESULTPATH,
             'description' : self.description,
@@ -147,6 +151,12 @@ class SurvivalNCA(object):
             'D' : self.D,
             'A' : self.A,
             }
+        
+        if len(self.costs) > 0:
+            attribs['costs'] = self.costs
+            
+        if self.ranks is not None:
+            attribs['ranks'] = self.ranks
         
         return attribs
     
@@ -202,7 +212,6 @@ class SurvivalNCA(object):
         
         """ learns feature matrix A to minimize objective function"""
         
-        self.costs = []
         step = 0
          
         try: 
@@ -235,11 +244,17 @@ class SurvivalNCA(object):
                 
         except KeyboardInterrupt:
             
-            print("\n Finished training model.")
+            # Discard non-diagnoal terms - i.e. just scale features
+            self.A *= np.eye(self.A.shape[0], self.A.shape[1])
+            
+            print("\nFinished training model.")
             
             # Save learned diagnoal elements of A (feature weights)
             A_diag = {'A_diag': np.diag(self.A)}
             savemat(self.RESULTPATH + self.description + 'A_diag', A_diag)
+            
+            # Save model
+            self.save()
     
     
     #==========================================================================
@@ -248,7 +263,7 @@ class SurvivalNCA(object):
         
         """rank features by how variant they are after the new transformation"""
         
-        print("\n Ranking features by variance after transformation ...")
+        print("Ranking features by variance after transformation ...")
     
         def _getRanks(A):
             
@@ -270,6 +285,9 @@ class SurvivalNCA(object):
         # save ranked features
         ranks = {'ranks': self.ranks}
         savemat(self.RESULTPATH + self.description + 'ranks', ranks)
+        
+        # Save model
+        self.save()
     
             
     
@@ -349,8 +367,6 @@ class SurvivalNCA(object):
         plt.close()
     
     
-
-
 #%% ###########################################################################
 #%%
 #%% ###########################################################################
@@ -394,7 +410,7 @@ if __name__ == '__main__':
     #==============================================================================
     
     ncaParams = {
-        'LOADPATH' : None,
+        'LOADPATH' : "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/GBMLGG_Integ_ModelAttributes.txt",
         'RESULTPATH' : "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/",
         'description' : "GBMLGG_Integ_",
         'DIMS' : data.shape[1],
@@ -402,22 +418,25 @@ if __name__ == '__main__':
         'THRESH' : None,
         'LEARN_RATE' : 0.01,
         'MONITOR_STEP' : 1,
-        'N_SUBSET' : 20,
+        'N_SUBSET' : 5,
         }
     
-
+    # instantiate model
     model = SurvivalNCA(data, aliveStatus, **ncaParams)
     modelInfo = model.getModelInfo()
     
-    model.train(data, aliveStatus)
+    #raise(Exception)
     
+    # train model and rank features
+    model.train(data, aliveStatus)
     model.rankFeats(data)
     
+    # inspect trained model
+    modelInfo = model.getModelInfo()
+    
+    # some visualizations
     model.plot_stdChange()
-    
-    ranks = model.ranks
-    
-    model.plot_scatterFeats(data, Survival, Censored, fidx1=0, fidx2=1)
+    model.plot_scatterFeats(data, Survival, Censored, fidx1=22, fidx2=34)
     
     
     

@@ -370,6 +370,8 @@ class SurvivalNCA(object):
 #%% ###########################################################################
 #%%
 #%% ###########################################################################
+#%%
+#%% ###########################################################################
 
 
 if __name__ == '__main__':
@@ -410,7 +412,7 @@ if __name__ == '__main__':
     #==============================================================================
     
     ncaParams = {
-        'LOADPATH' : "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/GBMLGG_Integ_ModelAttributes.txt",
+        'LOADPATH' : None, #"/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/GBMLGG_Integ_ModelAttributes.txt",
         'RESULTPATH' : "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/",
         'description' : "GBMLGG_Integ_",
         'DIMS' : data.shape[1],
@@ -418,7 +420,7 @@ if __name__ == '__main__':
         'THRESH' : None,
         'LEARN_RATE' : 0.01,
         'MONITOR_STEP' : 1,
-        'N_SUBSET' : 5,
+        'N_SUBSET' : 20,
         }
     
     # instantiate model

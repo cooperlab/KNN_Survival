@@ -164,7 +164,7 @@ class SurvivalNCA(object):
     # Core model
     #==============================================================================
     
-    def _survival_nca_cost(self, data, aliveStatus):
+    def _survival_nca_cost(self, data, aliveStatus, step = 0):
         
         """Gets cumulative cost and gradient for all time points"""
     
@@ -178,7 +178,7 @@ class SurvivalNCA(object):
         #t = 20
         for t in range(T):
         
-            print("t = {} of {}".format(t, T-1))
+            print("step {}: t = {} of {}".format(step, t, T-1))
                 
             # Get patients with known survival status at time t
             Y = aliveStatus[:, t]
@@ -221,7 +221,7 @@ class SurvivalNCA(object):
                 print("---- STEP = " + str(step))
                 print("--------------------------------------------\n")
                 
-                [cum_f, cum_gradf] = self._survival_nca_cost(data, aliveStatus)
+                [cum_f, cum_gradf] = self._survival_nca_cost(data, aliveStatus, step= step)
                 
                 # update A
                 self.A -= self.LEARN_RATE * cum_gradf
@@ -412,7 +412,7 @@ if __name__ == '__main__':
     #==============================================================================
     
     ncaParams = {
-        'LOADPATH' : None, #"/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/GBMLGG_Integ_ModelAttributes.txt",
+        'LOADPATH' : "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/GBMLGG_Integ_ModelAttributes.txt",
         'RESULTPATH' : "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/",
         'description' : "GBMLGG_Integ_",
         'DIMS' : data.shape[1],

@@ -4,13 +4,13 @@
 ## @TODO:
 	
 	- NCA Survival (Neighborhood Component Analysis):
-		- NCA for survival analysis -> cast as classification problem
-		- NCA for feature selection and clustering by survival
+		- (+/-) regularization
+		- KNN + and - NCA
 
 	--------------------------------------------------------------
 	- Port to python.
-	- Bagging -> combined prediction and feature ranking.
-	- Experiments with cumulative vs vs non-cumulative probability.
+	- cumulative vs vs non-cumulative probability.
+	- cox elastic net vs best formulation
 
 ## 0- Is it novel?
    tl;dr In this context, YES!

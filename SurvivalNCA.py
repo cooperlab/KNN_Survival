@@ -102,6 +102,7 @@ class SurvivalNCA(object):
             # Initialize other
             self.costs = []
             self.ranks = None
+            self.epochs = 0
 
 
     #%%===========================================================================
@@ -164,7 +165,7 @@ class SurvivalNCA(object):
     # Core model
     #==============================================================================
     
-    def _survival_nca_cost(self, data, aliveStatus, step = 0):
+    def _survival_nca_cost(self, data, aliveStatus):
         
         """Gets cumulative cost and gradient for all time points"""
     
@@ -178,7 +179,7 @@ class SurvivalNCA(object):
         #t = 20
         for t in range(T):
         
-            print("step {}: t = {} of {}".format(step, t, T-1))
+            print("epoch {}: t = {} of {}".format(self.epochs, t, T-1))
                 
             # Get patients with known survival status at time t
             Y = aliveStatus[:, t]
@@ -211,17 +212,15 @@ class SurvivalNCA(object):
     def train(self, data, aliveStatus):
         
         """ learns feature matrix A to minimize objective function"""
-        
-        step = 0
          
         try: 
             while True:
                 
                 print("\n--------------------------------------------")
-                print("---- STEP = " + str(step))
+                print("---- EPOCH = " + str(self.epochs))
                 print("--------------------------------------------\n")
                 
-                [cum_f, cum_gradf] = self._survival_nca_cost(data, aliveStatus, step= step)
+                [cum_f, cum_gradf] = self._survival_nca_cost(data, aliveStatus)
                 
                 # update A
                 self.A -= self.LEARN_RATE * cum_gradf
@@ -230,17 +229,17 @@ class SurvivalNCA(object):
                 self.A *= np.eye(self.A.shape[0], self.A.shape[1])
         
                 # update costs
-                self.costs.append([step, cum_f])
+                self.costs.append([self.epochs, cum_f])
                 
                 # monitor
-                if (step % self.MONITOR_STEP == 0) and (step > 0):
+                if (self.epochs % self.MONITOR_STEP == 0) and (self.epochs > 0):
                     cs = np.array(self.costs)
                     self._plotMonitor(arr= cs, title= "cost vs. epoch", 
                                       xlab= "epoch", ylab= "cost", 
                                       savename= self.RESULTPATH + 
                                       self.description + "cost.svg")
                 
-                step += 1
+                self.epochs += 1
                 
         except KeyboardInterrupt:
             

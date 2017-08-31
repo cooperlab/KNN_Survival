@@ -53,8 +53,8 @@ class SurvivalNCA(object):
     def __init__(self, data, aliveStatus, 
                  RESULTPATH, description="", 
                  LOADPATH = None,
-                 OBJECTIVE = 'Mahalanobis', 
-                 SIGMA = 1, LEARN_RATE = 0.01, 
+                 SIGMA = 1, LAMBDA = 0,
+                 LEARN_RATE = 0.01, 
                  MONITOR_STEP = 1, N_SUBSET = 25):
         
         """Instantiate a survival NCA object"""
@@ -77,12 +77,11 @@ class SurvivalNCA(object):
             # prefix to all saved results
             self.description = description
             
-            # "KL-divergence" of "Mahalanobis"
-            self.OBJECTIVE = OBJECTIVE
-            
-            # None or between [0, 1], 
-            # the larger the more emphasis on farther neighbors
+            # [0 -> Inf], as SIGMA >> 0, only nearest neighbor is considered
             self.SIGMA = SIGMA
+            
+            # regularization parameter
+            self.LAMBDA = LAMBDA
             
             self.LEARN_RATE = LEARN_RATE
             self.MONITOR_STEP = MONITOR_STEP
@@ -97,11 +96,9 @@ class SurvivalNCA(object):
             # Get dims
             self.D = data.shape[1]
             
-            # Initialize A to a scaling matrix
+            # Initialize weighing matrix
             epsilon = 1e-7
-            #A = np.eye(D)
-            self.A = np.zeros((self.D, self.D))
-            np.fill_diagonal(self.A, 1./(data.max(axis=0) - data.min(axis=0) + epsilon))
+            self.A = 1./(data.max(axis=0) - data.min(axis=0) + epsilon)
             
             # Initialize other
             self.costs = []
@@ -147,8 +144,8 @@ class SurvivalNCA(object):
         attribs = {
             'RESULTPATH' : self.RESULTPATH,
             'description' : self.description,
-            'OBJECTIVE' : self.OBJECTIVE,
             'SIGMA' : self.SIGMA,
+            'LAMBDA': self.LAMBDA,
             'LEARN_RATE' : self.LEARN_RATE,
             'MONITOR_STEP' : self.MONITOR_STEP,
             'N_SUBSET' : self.N_SUBSET,
@@ -199,10 +196,9 @@ class SurvivalNCA(object):
             Y = Y[keep]
             X = X[keep, :]
             
-            if self.OBJECTIVE == 'Mahalanobis':
-                f, gradf = nca_cost.cost(self.A.T, X.T, Y, SIGMA=self.SIGMA)
-            elif self.OBJECTIVE == 'KL-divergence':
-                f, gradf = nca_cost.cost_g(self.A.T, X.T, Y, SIGMA=self.SIGMA)
+            f, gradf = nca_cost.cost(self.A.T, X.T, Y, 
+                                     SIGMA=self.SIGMA,
+                                     LAMBDA = self.LAMBDA)
                 
             cum_f += f
             cum_gradf += gradf.T # sum of derivative is derivative of sum
@@ -234,10 +230,10 @@ class SurvivalNCA(object):
                 # monitor
                 if (self.epochs % self.MONITOR_STEP == 0) and (self.epochs > 0):
                     cs = np.array(self.costs)
-                    self._plotMonitor(arr= cs, title= "cost vs. epoch", 
-                                      xlab= "epoch", ylab= "cost", 
+                    self._plotMonitor(arr= cs, title= "objective vs. epoch", 
+                                      xlab= "epoch", ylab= "objective", 
                                       savename= self.RESULTPATH + 
-                                      self.description + "cost.svg")
+                                      self.description + "objective.svg")
                 
                 self.epochs += 1
                 
@@ -245,9 +241,8 @@ class SurvivalNCA(object):
             
             print("\nFinished training model.")
             
-            # Save learned diagnoal elements of A (feature weights)
-            A_diag = {'A_diag': np.diag(self.A)}
-            savemat(self.RESULTPATH + self.description + 'A_diag', A_diag)
+            # Save learned feature weights
+            savemat(self.RESULTPATH + self.description + 'A', {'A': self.A})
             
             # Save model
             self.save()
@@ -255,35 +250,35 @@ class SurvivalNCA(object):
     
     #==========================================================================
     
-    def rankFeats(self, data):
-        
-        """rank features by how variant they are after the new transformation"""
-        
-        print("Ranking features by variance after transformation ...")
-    
-        def _getRanks(A):
-            
-            Ax = np.dot(data, A)
-        
-            fvars = np.std(Ax, 0).reshape(self.D, 1)
-            fidx = np.arange(len(A)).reshape(self.D, 1)
-            
-            fvars = np.concatenate((fidx, fvars), 1)
-            fvars = fvars[fvars[:,1].argsort()][::-1]
-            
-            fnames_ranked = fnames[np.int32(fvars[:,0])]
-            
-            return fvars, fnames_ranked
-        
-        self.fvars_init, _ = _getRanks(np.eye(self.D, self.D))
-        self.fvars, self.ranks = _getRanks(self.A)
-        
-        # save ranked features
-        ranks = {'ranks': self.ranks}
-        savemat(self.RESULTPATH + self.description + 'ranks', ranks)
-        
-        # Save model
-        self.save()
+#    def rankFeats(self, data):
+#        
+#        """rank features by how variant they are after the new transformation"""
+#        
+#        print("Ranking features by variance after transformation ...")
+#    
+#        def _getRanks(A):
+#            
+#            Ax = np.dot(data, A)
+#        
+#            fvars = np.std(Ax, 0).reshape(self.D, 1)
+#            fidx = np.arange(len(A)).reshape(self.D, 1)
+#            
+#            fvars = np.concatenate((fidx, fvars), 1)
+#            fvars = fvars[fvars[:,1].argsort()][::-1]
+#            
+#            fnames_ranked = fnames[np.int32(fvars[:,0])]
+#            
+#            return fvars, fnames_ranked
+#        
+#        self.fvars_init, _ = _getRanks(np.eye(self.D, self.D))
+#        self.fvars, self.ranks = _getRanks(self.A)
+#        
+#        # save ranked features
+#        ranks = {'ranks': self.ranks}
+#        savemat(self.RESULTPATH + self.description + 'ranks', ranks)
+#        
+#        # Save model
+#        self.save()
     
             
     
@@ -410,12 +405,12 @@ if __name__ == '__main__':
     ncaParams = {
         'LOADPATH' : None, #"/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/GBMLGG_Integ_ModelAttributes.txt",
         'RESULTPATH' : "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/",
-        'description' : "BRCA_Integ_",
-        'OBJECTIVE' : 'Mahalanobis',
+        'description' : "GBMLGG_Gene_",
         'SIGMA' : 1,
+        'LAMBDA': 0,
         'LEARN_RATE' : 0.01,
         'MONITOR_STEP' : 1,
-        'N_SUBSET' : 20,
+        'N_SUBSET' : 10,
         }
     
     # instantiate model
@@ -426,14 +421,15 @@ if __name__ == '__main__':
     
     # train model and rank features
     model.train(data, aliveStatus)
-    model.rankFeats(data)
     
-    # inspect trained model
+#    model.rankFeats(data)
+#    
+#    # inspect trained model
     modelInfo = model.getModelInfo()
-    
-    # some visualizations
-    model.plot_stdChange()
-    model.plot_scatterFeats(data, Survival, Censored, fidx1=10, fidx2=11)
+#    
+#    # some visualizations
+#    model.plot_stdChange()
+#    model.plot_scatterFeats(data, Survival, Censored, fidx1=10, fidx2=11)
     
     
     

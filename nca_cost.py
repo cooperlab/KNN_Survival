@@ -59,9 +59,10 @@ def _get_P(AX, y, kernel = 1):
     return Pij, P, mask
     
 
-def cost(A, X, y, kernel=1):
+def cost(A, X, y, kernel = 1, implementation = "matrix"):
     
-    """Compute the cost function and the gradient
+    """
+    Compute the cost function and the gradient
     This is the objective function to be minimized
     Parameters:
     -----------
@@ -79,14 +80,20 @@ def cost(A, X, y, kernel=1):
         The gradient of the objective function, shape = [dim * n_features]
     """
 
+    # Setting things up
+    #==========================================================================
+    
     # fix and check dims
     (D, N) = np.shape(X)
-    A = np.reshape(A, (np.int32(np.size(A) / np.size(X, axis=0)), np.size(X, axis=0))) #mohamed
+    A = np.reshape(A, (np.int32(np.size(A) / np.size(X, axis=0)), np.size(X, axis=0)))
     (d, aux) = np.shape(A)
     assert D == aux
 
     # transform feats according to current A
     AX = np.dot(A, X)
+    
+    # Get objective function
+    #==========================================================================
     
     # Get Pij, Pi and mask of label equality
     Pij, P, mask = _get_P(AX, y, kernel = kernel)
@@ -95,23 +102,45 @@ def cost(A, X, y, kernel=1):
     # (N - sum(Pi)) -> as it >> 0, means perfect classification
     f = np.sum(P)
     f = np.size(X, 1) - f
-
+    
+    # Get gradient of f w.r.t A 
+    #==========================================================================
+    
+    # Expand dims of X to [n_samples, n_samples, n_features], where
+    # each "channel" in the first dimension is the difference between
+    # one sample and all other samples
     Xi = X[:, :, None] - X[:, None, :]
     Xi = np.swapaxes(Xi, 0, 2)
-
     Xi = Pij[:, :, None] * Xi
 
-    Xij = Xi[:, :, :, None] * Xi[:, :, None, :]
-
-    gradf = np.sum(P[:, None, None] * np.sum(Xij[:], axis=1), axis=0)
-
-    # To optimize (use mask ?)
-    for i in range(N):
-        aux = np.sum(Xij[i, mask[i]], axis=0)
-        gradf -= aux
-
-    gradf = 2 * np.dot(A, gradf)
-    gradf = -np.reshape(gradf, A.shape) #mohamed
+    if implementation == "matrix":
+        
+        #
+        # A more efficient but memory-hogging implementation
+        # suitable for small datasets
+        #
+        
+        Xij = Xi[:, :, :, None] * Xi[:, :, None, :]
+    
+        gradf = np.sum(P[:, None, None] * np.sum(Xij[:], axis=1), axis=0)
+    
+        # To optimize (use mask ?)
+        for i in range(N):
+            aux = np.sum(Xij[i, mask[i]], axis=0)
+            gradf -= aux
+            
+    elif implementation == "loop":
+        
+        #
+        # A less efficient but not memory-intensive implementation
+        # suitable for large datasets
+        #
+        
+        pass
+    
+    
+    # notice the negative sign (since the goal is to minimize objective)
+    gradf = -2 * np.dot(A, gradf)
 
     return [f, gradf]
 

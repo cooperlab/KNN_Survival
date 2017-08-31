@@ -37,14 +37,24 @@ class SurvivalNCA(object):
     
     """
     Extension of NCA to right-censored settings.
-    Key reference: http://www.cs.toronto.edu/~fritz/absps/nca.pdf
+    
+    Key references: 
+        
+        1- J Goldberger, GE Hinton, ST Roweis, RR Salakhutdinov. 
+        Neighbourhood components analysis. 
+        Advances in neural information processing systems, 513-520
+        
+        2- Yang, W., K. Wang, W. Zuo. 
+        Neighborhood Component Feature Selection for High-Dimensional Data.
+        Journal of Computers. Vol. 7, Number 1, January, 2012.
+        
     """
     
     def __init__(self, data, aliveStatus, 
                  RESULTPATH, description="", 
                  LOADPATH = None,
                  DIMS = None, OBJECTIVE = 'Mahalanobis', 
-                 THRESH = None, LEARN_RATE = 0.01, 
+                 KERNEL = 1, LEARN_RATE = 0.01, 
                  MONITOR_STEP = 1, N_SUBSET = 25):
         
         """Instantiate a survival NCA object"""
@@ -77,8 +87,8 @@ class SurvivalNCA(object):
             self.OBJECTIVE = OBJECTIVE
             
             # None or between [0, 1], 
-            # the smaller the more emphasis on closer neighbors
-            self.THRESH = THRESH
+            # the larger the more emphasis on farther neighbors
+            self.KERNEL = KERNEL
             
             self.LEARN_RATE = LEARN_RATE
             self.MONITOR_STEP = MONITOR_STEP
@@ -145,7 +155,7 @@ class SurvivalNCA(object):
             'description' : self.description,
             'DIMS' : self.DIMS,
             'OBJECTIVE' : self.OBJECTIVE,
-            'THRESH' : self.THRESH,
+            'KERNEL' : self.KERNEL,
             'LEARN_RATE' : self.LEARN_RATE,
             'MONITOR_STEP' : self.MONITOR_STEP,
             'N_SUBSET' : self.N_SUBSET,
@@ -197,9 +207,9 @@ class SurvivalNCA(object):
             X = X[keep, :]
             
             if self.OBJECTIVE == 'Mahalanobis':
-                f, gradf = nca_cost.cost(self.A.T, X.T, Y, threshold=self.THRESH)
+                f, gradf = nca_cost.cost(self.A.T, X.T, Y, kernel=self.KERNEL)
             elif self.OBJECTIVE == 'KL-divergence':
-                f, gradf = nca_cost.cost_g(self.A.T, X.T, Y, threshold=self.THRESH)
+                f, gradf = nca_cost.cost_g(self.A.T, X.T, Y, kernel=self.KERNEL)
                 
             cum_f += f
             cum_gradf += gradf.T # sum of derivative is derivative of sum
@@ -416,7 +426,7 @@ if __name__ == '__main__':
         'description' : "BRCA_Integ_",
         'DIMS' : data.shape[1],
         'OBJECTIVE' : 'Mahalanobis',
-        'THRESH' : None,
+        'KERNEL' : None,
         'LEARN_RATE' : 0.01,
         'MONITOR_STEP' : 1,
         'N_SUBSET' : 20,

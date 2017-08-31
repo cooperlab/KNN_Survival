@@ -67,7 +67,7 @@ def cost(A, X, y, kernel = 1, implementation = "matrix"):
     Parameters:
     -----------
     A : array-like
-        Projection matrix, shape = [dim, n_features] with dim <= n_features
+        Feature weights, shape = [n_features]
     X : array-like
         Training data, shape = [n_features, n_samples]
     y : array-like
@@ -77,7 +77,8 @@ def cost(A, X, y, kernel = 1, implementation = "matrix"):
     f : float
         The value of the objective function
     gradf : array-like
-        The gradient of the objective function, shape = [dim * n_features]
+        The gradient of the objective function wrt feature weights, 
+        shape = [n_features]
     """
 
     # Setting things up
@@ -85,12 +86,18 @@ def cost(A, X, y, kernel = 1, implementation = "matrix"):
     
     # fix and check dims
     (D, N) = np.shape(X)
-    A = np.reshape(A, (np.int32(np.size(A) / np.size(X, axis=0)), np.size(X, axis=0)))
-    (d, aux) = np.shape(A)
-    assert D == aux
+    assert D == len(A)
+    
+    # avoid division by zero
+    assert kernel > 0
+    
+    # diagonalize weights
+    A_diag = np.zeros((D, D))
+    np.fill_diagonal(A_diag, A)
 
     # transform feats according to current A
-    AX = np.dot(A, X)
+    AX = np.dot(A_diag, X)
+    A_diag = None
     
     # Get objective function
     #==========================================================================
@@ -103,45 +110,59 @@ def cost(A, X, y, kernel = 1, implementation = "matrix"):
     f = np.sum(P)
     f = np.size(X, 1) - f
     
-    # Get gradient of f w.r.t A 
+    # Get gradient of f w.r.t feature weights 
     #==========================================================================
     
     # Expand dims of X to [n_samples, n_samples, n_features], where
     # each "channel" in the first dimension is the difference between
     # one sample and all other samples
-    # then * Pij
+    # then multiply by Pij
     Xi = X[:, :, None] - X[:, None, :]
     Xi = np.swapaxes(Xi, 0, 2)
     Xi = Pij[:, :, None] * Xi
 
-    if implementation == "matrix":
+#    if implementation == "matrix":
+#        
+#        #
+#        # A more efficient but memory-hogging implementation
+#        # suitable for small datasets
+#        #
+#        
+#        Xij = Xi[:, :, :, None] * Xi[:, :, None, :]
+#    
+#        gradf = np.sum(P[:, None, None] * np.sum(Xij[:], axis=1), axis=0)
+#    
+#        # To optimize (use mask ?)
+#        for i in range(N):
+#            aux = np.sum(Xij[i, mask[i]], axis=0)
+#            gradf -= aux
+#            
+#        # notice the negative sign (since the goal is to minimize objective)
+#        gradf = -2 * np.dot(A, gradf / kernel)
+#            
+#    elif implementation == "loop":
         
-        #
-        # A more efficient but memory-hogging implementation
-        # suitable for small datasets
-        #
+    #
+    # A less efficient but not memory-intensive implementation
+    # suitable for large datasets
+    #
+    
+    gradf = np.zeros(A.shape)
+    
+    l = 0
+    # for l in range(D)
+    
+    left = P * np.sum(Xi[:, :, l], axis=1)
+    right = np.sum(Xi[:, :, l] * mask, axis=1)
+    gradf[l, l] = 
+    
+    
+    #right = np.sum(mask * Xi[:, :, l])
         
-        Xij = Xi[:, :, :, None] * Xi[:, :, None, :]
-    
-        gradf = np.sum(P[:, None, None] * np.sum(Xij[:], axis=1), axis=0)
-    
-        # To optimize (use mask ?)
-        for i in range(N):
-            aux = np.sum(Xij[i, mask[i]], axis=0)
-            gradf -= aux
-            
-    elif implementation == "loop":
         
-        #
-        # A less efficient but not memory-intensive implementation
-        # suitable for large datasets
-        #
-        
-        pass
     
     
-    # notice the negative sign (since the goal is to minimize objective)
-    gradf = -2 * np.dot(A, gradf)
+    
 
     return [f, gradf]
 

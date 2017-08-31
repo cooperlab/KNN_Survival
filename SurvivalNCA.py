@@ -380,22 +380,22 @@ if __name__ == '__main__':
     #==============================================================================
     
     # Load data
-    dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+    dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
     #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
     
     Data = loadmat(dpath)
     
-    data = np.float32(Data['Integ_X'])
-    #data = np.float32(Data['Gene_X'])
+    #data = np.float32(Data['Integ_X'])
+    data = np.float32(Data['Gene_X'])
     
     if np.min(Data['Survival']) < 0:
         Data['Survival'] = Data['Survival'] - np.min(Data['Survival']) + 1
     
     Survival = np.int32(Data['Survival'])
     Censored = np.int32(Data['Censored'])
-    fnames = Data['Integ_Symbs']
-    #fnames = Data['Gene_Symbs']
+    #fnames = Data['Integ_Symbs']
+    fnames = Data['Gene_Symbs']
     
     # remove zero-variance features
     fvars = np.std(data, 0)
@@ -411,9 +411,9 @@ if __name__ == '__main__':
     #==============================================================================
     
     ncaParams = {
-        'LOADPATH' : "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/GBMLGG_Integ_ModelAttributes.txt",
+        'LOADPATH' : None, #"/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/GBMLGG_Integ_ModelAttributes.txt",
         'RESULTPATH' : "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/",
-        'description' : "GBMLGG_Integ_",
+        'description' : "BRCA_Integ_",
         'DIMS' : data.shape[1],
         'OBJECTIVE' : 'Mahalanobis',
         'THRESH' : None,
@@ -437,7 +437,7 @@ if __name__ == '__main__':
     
     # some visualizations
     model.plot_stdChange()
-    model.plot_scatterFeats(data, Survival, Censored, fidx1=22, fidx2=34)
+    model.plot_scatterFeats(data, Survival, Censored, fidx1=10, fidx2=11)
     
     
     

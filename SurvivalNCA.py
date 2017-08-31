@@ -54,7 +54,7 @@ class SurvivalNCA(object):
                  RESULTPATH, description="", 
                  LOADPATH = None,
                  OBJECTIVE = 'Mahalanobis', 
-                 KERNEL = 1, LEARN_RATE = 0.01, 
+                 SIGMA = 1, LEARN_RATE = 0.01, 
                  MONITOR_STEP = 1, N_SUBSET = 25):
         
         """Instantiate a survival NCA object"""
@@ -82,7 +82,7 @@ class SurvivalNCA(object):
             
             # None or between [0, 1], 
             # the larger the more emphasis on farther neighbors
-            self.KERNEL = KERNEL
+            self.SIGMA = SIGMA
             
             self.LEARN_RATE = LEARN_RATE
             self.MONITOR_STEP = MONITOR_STEP
@@ -148,7 +148,7 @@ class SurvivalNCA(object):
             'RESULTPATH' : self.RESULTPATH,
             'description' : self.description,
             'OBJECTIVE' : self.OBJECTIVE,
-            'KERNEL' : self.KERNEL,
+            'SIGMA' : self.SIGMA,
             'LEARN_RATE' : self.LEARN_RATE,
             'MONITOR_STEP' : self.MONITOR_STEP,
             'N_SUBSET' : self.N_SUBSET,
@@ -200,9 +200,9 @@ class SurvivalNCA(object):
             X = X[keep, :]
             
             if self.OBJECTIVE == 'Mahalanobis':
-                f, gradf = nca_cost.cost(self.A.T, X.T, Y, kernel=self.KERNEL)
+                f, gradf = nca_cost.cost(self.A.T, X.T, Y, SIGMA=self.SIGMA)
             elif self.OBJECTIVE == 'KL-divergence':
-                f, gradf = nca_cost.cost_g(self.A.T, X.T, Y, kernel=self.KERNEL)
+                f, gradf = nca_cost.cost_g(self.A.T, X.T, Y, SIGMA=self.SIGMA)
                 
             cum_f += f
             cum_gradf += gradf.T # sum of derivative is derivative of sum
@@ -214,7 +214,7 @@ class SurvivalNCA(object):
     
     def train(self, data, aliveStatus):
         
-        """ learns feature matrix A to minimize objective function"""
+        """ learns feature matrix A to maximize objective function"""
          
         try: 
             while True:
@@ -226,10 +226,7 @@ class SurvivalNCA(object):
                 [cum_f, cum_gradf] = self._survival_nca_cost(data, aliveStatus)
                 
                 # update A
-                self.A -= self.LEARN_RATE * cum_gradf
-                
-                # Discard non-diagnoal terms - i.e. just scale features
-                self.A *= np.eye(self.A.shape[0], self.A.shape[1])
+                self.A += self.LEARN_RATE * cum_gradf
         
                 # update costs
                 self.costs.append([self.epochs, cum_f])
@@ -245,9 +242,6 @@ class SurvivalNCA(object):
                 self.epochs += 1
                 
         except KeyboardInterrupt:
-            
-            # Discard non-diagnoal terms - i.e. just scale features
-            self.A *= np.eye(self.A.shape[0], self.A.shape[1])
             
             print("\nFinished training model.")
             
@@ -418,7 +412,7 @@ if __name__ == '__main__':
         'RESULTPATH' : "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/",
         'description' : "BRCA_Integ_",
         'OBJECTIVE' : 'Mahalanobis',
-        'KERNEL' : None,
+        'SIGMA' : 1,
         'LEARN_RATE' : 0.01,
         'MONITOR_STEP' : 1,
         'N_SUBSET' : 20,

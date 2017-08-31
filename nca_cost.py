@@ -7,7 +7,7 @@ Modified from: https://github.com/RolT/NCA-python
 import numpy as np
 
 
-def _get_P(AX, y, kernel = 1):
+def _get_P(AX, y, SIGMA = 1):
     
     """
     Gets Pi - the probability that i is correctly classified
@@ -16,9 +16,9 @@ def _get_P(AX, y, kernel = 1):
     -----------
     AX - transformed matrix X, array-like, shape = [n_features, n_samples]
     y - labels, array-like, shape = [n_samples]
-    kernel - [0 -> Inf], as kernel >> 0, only nearest neighbor is considered, 
-             while as kernel >> Inf, all points have the same chance.
-             Set kernel = 1 to strictly follow the original implementation
+    SIGMA - [0 -> Inf], as SIGMA >> 0, only nearest neighbor is considered, 
+             while as SIGMA >> Inf, all points have the same chance.
+             Set SIGMA = 1 to strictly follow the original implementation
              of NCA.
     
     Returns:
@@ -38,14 +38,14 @@ def _get_P(AX, y, kernel = 1):
     # one sample and all other samples
     normAX = AX[:, :, None] - AX[:, None, :]
     
-    # Now get the euclidian distance (Fobenius norm) between
+    # Now get the squared euclidian distance between
     # every patient and all others -> [n_samples, n_samples]
-    normAX = np.linalg.norm(normAX, axis=0)
+    normAX = np.sum(normAX ** 2, axis=0)
 
     # Calculate Pij, the probability that j will be chosen 
     # as i's neighbor, for all i's
     def kappa(z):
-        return np.exp(-z / kernel)
+        return np.exp(-z / SIGMA)
     denomSum = np.sum(kappa(normAX[:, :]), axis=0)
     Pij = kappa(normAX) / denomSum[:, None]
 
@@ -59,7 +59,7 @@ def _get_P(AX, y, kernel = 1):
     return Pij, P, mask
     
 
-def cost(A, X, y, kernel = 1, implementation = "matrix"):
+def cost(A, X, y, SIGMA = 1, LAMBDA = 0):
     
     """
     Compute the cost function and the gradient
@@ -72,6 +72,10 @@ def cost(A, X, y, kernel = 1, implementation = "matrix"):
         Training data, shape = [n_features, n_samples]
     y : array-like
         Target values, shape = [n_samples]
+    SIGMA: float
+        sigma of kernel that determines emphasis on close neighbors
+    LAMBDA: float
+        reguarization parameter
     Returns:
     --------
     f : float
@@ -89,7 +93,7 @@ def cost(A, X, y, kernel = 1, implementation = "matrix"):
     assert D == len(A)
     
     # avoid division by zero
-    assert kernel > 0
+    assert SIGMA > 0
     
     # diagonalize weights
     A_diag = np.zeros((D, D))
@@ -103,12 +107,10 @@ def cost(A, X, y, kernel = 1, implementation = "matrix"):
     #==========================================================================
     
     # Get Pij, Pi and mask of label equality
-    Pij, P, mask = _get_P(AX, y, kernel = kernel)
+    Pij, P, mask = _get_P(AX, y, SIGMA = SIGMA)
 
-    # Get objective function to be minimized - 
-    # (N - sum(Pi)) -> as it >> 0, means perfect classification
-    f = np.sum(P)
-    f = np.size(X, 1) - f
+    # Get objective function to be maximized
+    f = np.sum(P) - LAMBDA * np.sum(A ** 2)
     
     # Get gradient of f w.r.t feature weights 
     #==========================================================================
@@ -138,7 +140,7 @@ def cost(A, X, y, kernel = 1, implementation = "matrix"):
 #            gradf -= aux
 #            
 #        # notice the negative sign (since the goal is to minimize objective)
-#        gradf = -2 * np.dot(A, gradf / kernel)
+#        gradf = -2 * np.dot(A, gradf / SIGMA)
 #            
 #    elif implementation == "loop":
         
@@ -147,14 +149,14 @@ def cost(A, X, y, kernel = 1, implementation = "matrix"):
     # suitable for large datasets
     #
     
-    gradf = np.zeros(A.shape)
+    gradf = np.zeros(D)
     
     l = 0
     # for l in range(D)
     
     left = P * np.sum(Xi[:, :, l], axis=1)
     right = np.sum(Xi[:, :, l] * mask, axis=1)
-    gradf[l, l] = 
+    gradf[l] = np.sum(left - right) / SIGMA
     
     
     #right = np.sum(mask * Xi[:, :, l])

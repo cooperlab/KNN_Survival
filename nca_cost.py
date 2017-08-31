@@ -109,6 +109,7 @@ def cost(A, X, y, kernel = 1, implementation = "matrix"):
     # Expand dims of X to [n_samples, n_samples, n_features], where
     # each "channel" in the first dimension is the difference between
     # one sample and all other samples
+    # then * Pij
     Xi = X[:, :, None] - X[:, None, :]
     Xi = np.swapaxes(Xi, 0, 2)
     Xi = Pij[:, :, None] * Xi

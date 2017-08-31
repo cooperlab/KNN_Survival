@@ -53,7 +53,7 @@ class SurvivalNCA(object):
     def __init__(self, data, aliveStatus, 
                  RESULTPATH, description="", 
                  LOADPATH = None,
-                 DIMS = None, OBJECTIVE = 'Mahalanobis', 
+                 OBJECTIVE = 'Mahalanobis', 
                  KERNEL = 1, LEARN_RATE = 0.01, 
                  MONITOR_STEP = 1, N_SUBSET = 25):
         
@@ -77,12 +77,6 @@ class SurvivalNCA(object):
             # prefix to all saved results
             self.description = description
             
-            # set DIMS < D to reduce dimensions
-            if DIMS is None:
-                self.DIMS = data.shape[1]
-            else:
-                self.DIMS = DIMS
-            
             # "KL-divergence" of "Mahalanobis"
             self.OBJECTIVE = OBJECTIVE
             
@@ -105,8 +99,8 @@ class SurvivalNCA(object):
             
             # Initialize A to a scaling matrix
             epsilon = 1e-7
-            #A = np.eye(D, DIMS)
-            self.A = np.zeros((self.D, self.DIMS))
+            #A = np.eye(D)
+            self.A = np.zeros((self.D, self.D))
             np.fill_diagonal(self.A, 1./(data.max(axis=0) - data.min(axis=0) + epsilon))
             
             # Initialize other
@@ -153,7 +147,6 @@ class SurvivalNCA(object):
         attribs = {
             'RESULTPATH' : self.RESULTPATH,
             'description' : self.description,
-            'DIMS' : self.DIMS,
             'OBJECTIVE' : self.OBJECTIVE,
             'KERNEL' : self.KERNEL,
             'LEARN_RATE' : self.LEARN_RATE,
@@ -278,8 +271,8 @@ class SurvivalNCA(object):
             
             Ax = np.dot(data, A)
         
-            fvars = np.std(Ax, 0).reshape(self.DIMS, 1)
-            fidx = np.arange(len(A)).reshape(self.DIMS, 1)
+            fvars = np.std(Ax, 0).reshape(self.D, 1)
+            fidx = np.arange(len(A)).reshape(self.D, 1)
             
             fvars = np.concatenate((fidx, fvars), 1)
             fvars = fvars[fvars[:,1].argsort()][::-1]
@@ -288,7 +281,7 @@ class SurvivalNCA(object):
             
             return fvars, fnames_ranked
         
-        self.fvars_init, _ = _getRanks(np.eye(self.D, self.DIMS))
+        self.fvars_init, _ = _getRanks(np.eye(self.D, self.D))
         self.fvars, self.ranks = _getRanks(self.A)
         
         # save ranked features
@@ -328,7 +321,7 @@ class SurvivalNCA(object):
         
         print("Plotting feature stdev after transformation")
         
-        fidx = np.arange(len(self.A)).reshape(self.DIMS, 1)
+        fidx = np.arange(len(self.A)).reshape(self.D, 1)
         
         fig, ax = plt.subplots()
         
@@ -424,7 +417,6 @@ if __name__ == '__main__':
         'LOADPATH' : None, #"/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/GBMLGG_Integ_ModelAttributes.txt",
         'RESULTPATH' : "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/",
         'description' : "BRCA_Integ_",
-        'DIMS' : data.shape[1],
         'OBJECTIVE' : 'Mahalanobis',
         'KERNEL' : None,
         'LEARN_RATE' : 0.01,

@@ -45,7 +45,7 @@ class comput_graph(object):
     # Random useful methods
     #==========================================================================
     
-    def _variable_summaries(var):
+    def _variable_summaries(self, var):
         
       """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
       

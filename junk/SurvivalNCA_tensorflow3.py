@@ -57,18 +57,12 @@ fnames = fnames[keep]
 # Function params
 #==============================================================================
 
+
 EPOCHS = 3000
-NONLIN = "Tanh"
-OPTIM = "RMSProp"
-LEARN_RATE = 0.01
-KEEP_PROB = 0.9
-DEPTH = 2
-MAXWIDTH = 200
 MONITOR = True
 DISPLAY_STEP = 1
 GETLOGS = False
 PERC_TRAIN = 0.5
-LINEAR_READOUT = False
 IS_TESTING = False
 MODELSAVE_STEP = 10
 
@@ -117,137 +111,18 @@ WEIGHTPATH = RESULTPATH + description + "weights/"
 os.system("mkdir " + WEIGHTPATH)
 
 
-# Define sizes of weights and biases
-#==============================================================================
-
-dim_in = dim_input
-
-if DEPTH == 1:
-    dim_out = dim_input 
-else:
-    dim_out = MAXWIDTH
-
-weights_sizes = {'layer_1': [dim_in, dim_out]}
-biases_sizes = {'layer_1': [dim_out]}
-dim_in = dim_out
-
-if DEPTH > 2:
-    for i in range(2, DEPTH):                
-        dim_out = int(dim_out)
-        weights_sizes['layer_{}'.format(i)] = [dim_in, dim_out]
-        biases_sizes['layer_{}'.format(i)] = [dim_out]
-        dim_in = dim_out
- 
-if DEPTH > 1:
-    dim_out = dim_input
-    weights_sizes['layer_{}'.format(DEPTH)] = [dim_in, dim_out]
-    biases_sizes['layer_{}'.format(DEPTH)] = [dim_out]
-    dim_in = dim_out
 
 
-# Useful tensorflow functions
-#==============================================================================
 
-def variable_summaries(var):
-    
-  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-  
-  with tf.name_scope('summaries'):
-    mean = tf.reduce_mean(var)
-    tf.summary.scalar('mean', mean)
-    with tf.name_scope('stddev'):
-      stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-    tf.summary.scalar('stddev', stddev)
-    tf.summary.scalar('max', tf.reduce_max(var))
-    tf.summary.scalar('min', tf.reduce_min(var))
-    tf.summary.histogram('histogram', var)
+
 
 
 #%%============================================================================
 # Build the core network
 #==============================================================================
 
-# clear lurking tensors
-tf.reset_default_graph()
 
 
-# Placeholders
-#==============================================================================
-
-with tf.variable_scope("Inputs"):
-    
-    X_input = tf.placeholder("float", [None, dim_input], name='X_input')
-    keep_prob = tf.placeholder(tf.float32, name='keep_prob') #for dropout
-    
-    T = tf.placeholder("float", [None], name='T')
-    O = tf.placeholder("float", [None], name='O')
-    At_Risk = tf.placeholder("float", [None], name='At_Risk')
-
-
-# Actual layers
-#==============================================================================
-
-def _add_layer(layer_name, Input, APPLY_NONLIN = True,
-               Mode = "Encoder", Drop = True):
-    
-    """ adds a single fully-connected layer"""
-    
-    with tf.variable_scope(layer_name):
-        
-        # initialize using xavier method
-        
-        m_w = weights_sizes[layer_name][0]
-        n_w = weights_sizes[layer_name][1]
-        m_b = biases_sizes[layer_name][0]
-        
-        xavier = tf.contrib.layers.xavier_initializer()
-        
-        w = tf.get_variable("weights", shape=[m_w, n_w], initializer= xavier)
-        #variable_summaries(w)
-     
-        b = tf.get_variable("biases", shape=[m_b], initializer= xavier)
-        #variable_summaries(b)
-            
-        # Do the matmul and apply nonlin
-        
-        with tf.name_scope("pre_activations"):   
-            if Mode == "Encoder":
-                l = tf.add(tf.matmul(Input, w),b) 
-            elif Mode == "Decoder":
-                l = tf.matmul(tf.add(Input,b), w) 
-            #tf.summary.histogram('pre_activations', l)
-        
-        if APPLY_NONLIN:
-            if NONLIN == "Sigmoid":  
-                l = tf.nn.sigmoid(l, name= 'activation')
-            elif NONLIN == "ReLU":  
-                l = tf.nn.relu(l, name= 'activation')
-            elif NONLIN == "Tanh":  
-                l = tf.nn.tanh(l, name= 'activation') 
-            #tf.summary.histogram('activations', l)
-        
-        # Dropout
-        
-        if Drop:
-            with tf.name_scope('dropout'):
-                l = tf.nn.dropout(l, keep_prob)
-            
-        return l
-
-
-# Now add the layers
-    
-with tf.variable_scope("FFNetwork"):
-    
-    l_in = X_input
-    
-    for i in range(1, DEPTH):
-         l_in = _add_layer("layer_{}".format(i), l_in)
-         
-    # outer layer (prediction)
-    l_out = _add_layer("layer_{}".format(DEPTH), l_in,
-                      APPLY_NONLIN = not(LINEAR_READOUT),
-                      Drop=False)
 
 
 #%%============================================================================

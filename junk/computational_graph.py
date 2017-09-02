@@ -19,7 +19,9 @@ class comput_graph(object):
     Builds the computational graph for Survival NCA.
     """
     
-    def __init__(self, dim_input):
+    def __init__(self, dim_input, 
+                 transform_type = "linear",
+                 nn_params = {'DEPTH': 2}):
         
         """
         Instantiate a computational graph for survival NCA.
@@ -37,8 +39,19 @@ class comput_graph(object):
         # clear lurking tensors
         tf.reset_default_graph()
         
-        # add placeholders
+        # placeholders
         self._add_placeholders()
+        
+        # fature space transform
+        if transform_type == "linear":
+            X_transformed = self.add_linear_transform()
+        elif transform_type == "ffNetwork":
+            X_transformed = self.add_ffNetwork(**nn_params)
+        
+        # get Pij
+        Pij = self.get_Pij(X_transformed)
+            
+        
 
 
     #%%========================================================================
@@ -64,7 +77,7 @@ class comput_graph(object):
     # Add placeholders to graph  
     #==========================================================================
     
-    def _add_placeholders(self):
+    def add_placeholders(self):
     
         """ Adds graph inputs as placeholders in graph """
         
@@ -213,4 +226,104 @@ class comput_graph(object):
         return X_transformed
 
 
+    #%%========================================================================
+    # Get Pij 
+    #==========================================================================
+
+    def get_Pij(self, X_transformed):
+        
+        """ 
+        Calculate Pij, the probability that j will be chosen 
+        as i's neighbor, for all i's
+        
+        Inspired by: https://github.com/RolT/NCA-python
+        """
+        
+        with tf.name_scope("getting_Pij"):
+            # transpose so that feats are in rows
+            AX = tf.transpose(X_transformed)
+            
+            # Expand dims of AX to [n_features, n_samples, n_samples], where
+            # each "channel" in the third dimension is the difference between
+            # one sample and all other samples
+            normAX = AX[:, :, None] - AX[:, None, :]
+            
+            # Now get the euclidian distance between
+            # every patient and all others -> [n_samples, n_samples]
+            normAX = tf.norm(normAX, axis=0)
+            
+            # Calculate Pij, the probability that j will be chosen 
+            # as i's neighbor, for all i's
+            denomSum = tf.reduce_sum(tf.exp(-normAX), axis=0)
+            Pij = tf.exp(-normAX) / denomSum[:, None]
+        
+        return Pij
     
+    
+#%%
+#%%
+#%%
+
+import os
+import sys
+
+def conditionalAppend(Dir):
+    """ Append dir to sys path"""
+    if Dir not in sys.path:
+        sys.path.append(Dir)
+
+cwd = os.getcwd()
+conditionalAppend(cwd+"/../")
+import SurvivalUtils as sUtils
+
+import numpy as np
+from scipy.io import loadmat
+
+KEEP_PROB = 0.9
+
+# Load data
+dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+#dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+#dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
+
+Data = loadmat(dpath)
+
+Features = np.float32(Data['Integ_X'])
+#Features = np.float32(Data['Gene_X'])
+
+N, D = Features.shape
+
+if np.min(Data['Survival']) < 0:
+    Data['Survival'] = Data['Survival'] - np.min(Data['Survival']) + 1
+
+Survival = np.int32(Data['Survival']).reshape([N,])
+Censored = np.int32(Data['Censored']).reshape([N,])
+fnames = Data['Integ_Symbs']
+#fnames = Data['Gene_Symbs']
+
+# remove zero-variance features
+fvars = np.std(Features, 0)
+keep = fvars > 0
+Features = Features[:, keep]
+fnames = fnames[keep]
+
+# Getting at-risk groups (trainign set)
+Features, Survival, Observed, at_risk = \
+  sUtils.calc_at_risk(Features, Survival, 1-Censored)
+
+#%%
+
+g = comput_graph(dim_input = D)
+
+sess = tf.InteractiveSession()
+
+sess.run(tf.global_variables_initializer())
+
+feed_dict={g.X_input: Features,
+           g.T: Survival,
+           g.O: Observed,
+           g.At_Risk: at_risk,
+           g.keep_prob: KEEP_PROB}
+
+#pij = Pij.eval(feed_dict = feed_dict)
+

@@ -123,7 +123,7 @@ os.system("mkdir " + WEIGHTPATH)
 dim_in = dim_input
 
 if DEPTH == 1:
-    dim_out = 1 
+    dim_out = dim_input 
 else:
     dim_out = MAXWIDTH
 
@@ -139,7 +139,7 @@ if DEPTH > 2:
         dim_in = dim_out
  
 if DEPTH > 1:
-    dim_out = 1
+    dim_out = dim_input
     weights_sizes['layer_{}'.format(DEPTH)] = [dim_in, dim_out]
     biases_sizes['layer_{}'.format(DEPTH)] = [dim_out]
     dim_in = dim_out

@@ -63,7 +63,7 @@ class comput_graph(object):
     # Linear feature transformation (scaling matrix A)
     #==========================================================================
 
-    def add_scalingMatrix(self, Drop = True):
+    def add_linear_transform(self, Drop = True):
         
         """ 
         Transform features in a linear fashion for better interpretability

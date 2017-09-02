@@ -42,6 +42,25 @@ class comput_graph(object):
 
 
     #%%========================================================================
+    # Random useful methods
+    #==========================================================================
+    
+    def _variable_summaries(var):
+        
+      """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+      
+      with tf.name_scope('summaries'):
+        mean = tf.reduce_mean(var)
+        tf.summary.scalar('mean', mean)
+        with tf.name_scope('stddev'):
+          stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+        tf.summary.scalar('stddev', stddev)
+        tf.summary.scalar('max', tf.reduce_max(var))
+        tf.summary.scalar('min', tf.reduce_min(var))
+        tf.summary.histogram('histogram', var)
+
+
+    #%%========================================================================
     # Add placeholders to graph  
     #==========================================================================
     
@@ -60,7 +79,7 @@ class comput_graph(object):
             
             
     #%%========================================================================
-    # Linear feature transformation (scaling matrix A)
+    # Linear transformation (for interpretability)
     #==========================================================================
 
     def add_linear_transform(self, Drop = True):
@@ -138,9 +157,9 @@ class comput_graph(object):
             """ adds a single fully-connected layer"""
             
             with tf.variable_scope(layer_name):
-                
+                #
                 # initialize using xavier method
-                
+                #
                 m_w = weights_sizes[layer_name][0]
                 n_w = weights_sizes[layer_name][1]
                 m_b = biases_sizes[layer_name][0]
@@ -152,9 +171,10 @@ class comput_graph(object):
                 b = tf.get_variable("biases", shape=[m_b], 
                                     initializer= tf.contrib.layers.xavier_initializer())
                 #variable_summaries(b)
-                    
+                
+                #
                 # Do the matmul and apply nonlin
-                 
+                # 
                 if Mode == "Encoder":
                     l = tf.add(tf.matmul(Input, w),b) 
                 elif Mode == "Decoder":
@@ -170,7 +190,6 @@ class comput_graph(object):
                     #tf.summary.histogram('activations', l)
                 
                 # Dropout
-                
                 if Drop:
                     l = tf.nn.dropout(l, self.keep_prob)
                     
@@ -195,20 +214,3 @@ class comput_graph(object):
 
 
     
-    #%%========================================================================
-    # Useful tensorflow functions
-    #==========================================================================
-    
-    def _variable_summaries(var):
-        
-      """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-      
-      with tf.name_scope('summaries'):
-        mean = tf.reduce_mean(var)
-        tf.summary.scalar('mean', mean)
-        with tf.name_scope('stddev'):
-          stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-        tf.summary.scalar('stddev', stddev)
-        tf.summary.scalar('max', tf.reduce_max(var))
-        tf.summary.scalar('min', tf.reduce_min(var))
-        tf.summary.histogram('histogram', var)

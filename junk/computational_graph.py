@@ -7,13 +7,13 @@ Created on Sat Sep  2 12:57:55 2017
 """
 
 import tensorflow as tf
-
+#import numpy as np
 
 #%%============================================================================
 # Computational graph class
 #==============================================================================
 
-class computational_graph(object):
+class comput_graph(object):
     
     """
     Builds the computational graph for Survival NCA.
@@ -57,15 +57,41 @@ class computational_graph(object):
             self.T = tf.placeholder("float", [None], name='T')
             self.O = tf.placeholder("float", [None], name='O')
             self.At_Risk = tf.placeholder("float", [None], name='At_Risk')
+            
+            
+    #%%========================================================================
+    # Linear feature transformation (scaling matrix A)
+    #==========================================================================
 
-
+    def add_scalingMatrix(self, Drop = True):
+        
+        """ 
+        Transform features in a linear fashion for better interpretability
+        """
+        
+        with tf.variable_scope("linear_transform"):
+            
+            # feature scales/weights
+            self.w = tf.get_variable("weights", shape=[self.dim_input], 
+                            initializer= tf.contrib.layers.xavier_initializer())
+            
+            self.b = tf.get_variable("biases", shape=[self.dim_input], 
+                            initializer= tf.contrib.layers.xavier_initializer())
+            
+            # diagonalize and matmul
+            W = tf.diag(self.w)
+            X_transformed = tf.add(tf.matmul(self.X_input, W), self.b) 
+            
+        return X_transformed
+    
 
     #%%========================================================================
     # Nonlinear feature transformation (feed forward network)
     #==========================================================================
 
     def add_ffNetwork(self, DEPTH = 2, MAXWIDTH = 200, 
-                      NONLIN = "Tanh", LINEAR_READOUT = False):
+                      NONLIN = "Tanh", LINEAR_READOUT = False,
+                      DIM_OUT = None):
         """ 
         Adds a feedforward network to the computational graph,
         which performs a series of non-linear transformations to
@@ -75,10 +101,14 @@ class computational_graph(object):
         # Define sizes of weights and biases
         #======================================================================
         
+        if DIM_OUT is None:
+            # do not do any dimensionality reduction
+            DIM_OUT = self.dim_input
+        
         dim_in = self.dim_input
         
         if DEPTH == 1:
-            dim_out = self.dim_input 
+            dim_out = DIM_OUT
         else:
             dim_out = MAXWIDTH
         
@@ -86,18 +116,18 @@ class computational_graph(object):
         biases_sizes = {'layer_1': [dim_out]}
         dim_in = dim_out
         
+        # intermediate layers
         if DEPTH > 2:
             for i in range(2, DEPTH):                
                 dim_out = int(dim_out)
                 weights_sizes['layer_{}'.format(i)] = [dim_in, dim_out]
                 biases_sizes['layer_{}'.format(i)] = [dim_out]
                 dim_in = dim_out
-         
+        
+        # last layer
         if DEPTH > 1:
-            dim_out = self.dim_input
-            weights_sizes['layer_{}'.format(DEPTH)] = [dim_in, dim_out]
-            biases_sizes['layer_{}'.format(DEPTH)] = [dim_out]
-            dim_in = dim_out
+            weights_sizes['layer_{}'.format(DEPTH)] = [dim_in, DIM_OUT]
+            biases_sizes['layer_{}'.format(DEPTH)] = [DIM_OUT]
         
         # Define a layer
         #======================================================================
@@ -115,22 +145,20 @@ class computational_graph(object):
                 n_w = weights_sizes[layer_name][1]
                 m_b = biases_sizes[layer_name][0]
                 
-                xavier = tf.contrib.layers.xavier_initializer()
-                
-                w = tf.get_variable("weights", shape=[m_w, n_w], initializer= xavier)
+                w = tf.get_variable("weights", shape=[m_w, n_w], 
+                                    initializer= tf.contrib.layers.xavier_initializer())
                 #variable_summaries(w)
              
-                b = tf.get_variable("biases", shape=[m_b], initializer= xavier)
+                b = tf.get_variable("biases", shape=[m_b], 
+                                    initializer= tf.contrib.layers.xavier_initializer())
                 #variable_summaries(b)
                     
                 # Do the matmul and apply nonlin
-                
-                with tf.name_scope("pre_activations"):   
-                    if Mode == "Encoder":
-                        l = tf.add(tf.matmul(Input, w),b) 
-                    elif Mode == "Decoder":
-                        l = tf.matmul(tf.add(Input,b), w) 
-                    #tf.summary.histogram('pre_activations', l)
+                 
+                if Mode == "Encoder":
+                    l = tf.add(tf.matmul(Input, w),b) 
+                elif Mode == "Decoder":
+                    l = tf.matmul(tf.add(Input,b), w) 
                 
                 if APPLY_NONLIN:
                     if NONLIN == "Sigmoid":  
@@ -144,8 +172,7 @@ class computational_graph(object):
                 # Dropout
                 
                 if Drop:
-                    with tf.name_scope('dropout'):
-                        l = tf.nn.dropout(l, self.keep_prob)
+                    l = tf.nn.dropout(l, self.keep_prob)
                     
                 return l
         
@@ -160,11 +187,11 @@ class computational_graph(object):
                  l_in = _add_layer("layer_{}".format(i), l_in)
                  
             # outer layer (prediction)
-            self.l_out = _add_layer("layer_{}".format(DEPTH), l_in,
+            X_transformed = _add_layer("layer_{}".format(DEPTH), l_in,
                               APPLY_NONLIN = not(LINEAR_READOUT),
                               Drop=False)
             
-        return self.l_out
+        return X_transformed
 
 
     

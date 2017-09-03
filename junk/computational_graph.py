@@ -21,7 +21,9 @@ class comput_graph(object):
     
     def __init__(self, dim_input, 
                  transform_type = "linear",
-                 nn_params = {'DEPTH': 2}):
+                 nn_params = {'DEPTH': 2},
+                 OPTIM = 'GD',
+                 LEARN_RATE = 0.01):
         
         """
         Instantiate a computational graph for survival NCA.
@@ -36,6 +38,10 @@ class comput_graph(object):
         
         # set up instace attributes
         self.dim_input = dim_input
+        self.transform_type = "linear"
+        self.nn_params = nn_params
+        self.OPTIM = OPTIM
+        self.LEARN_RATE = LEARN_RATE
         
         # clear lurking tensors
         tf.reset_default_graph()
@@ -46,19 +52,18 @@ class comput_graph(object):
         # fature space transform
         if transform_type == "linear":
             print("Adding linear feature transform.")
-            X_transformed = self.add_linear_transform()
+            self.add_linear_transform()
         elif transform_type == "ffNetwork":
             print("Adding ffNetwork transform.")
-            X_transformed = self.add_ffNetwork(**nn_params)
+            self.add_ffNetwork(**nn_params)
             
-        # add weighted log likelihood
         print("Adding weighted log likelihood.")
-        self.add_weighted_loglikelihood(X_transformed)
-            
+        self.add_weighted_loglikelihood()
         
-            
+        print("Adding optimizer.")
+        self.add_optimizer()
         
-
+        
 
     #%%========================================================================
     # Random useful methods
@@ -124,9 +129,7 @@ class comput_graph(object):
             
             # diagonalize and matmul
             W = tf.diag(self.w)
-            X_transformed = tf.add(tf.matmul(self.X_input, W), self.b) 
-            
-        return X_transformed
+            self.X_transformed = tf.add(tf.matmul(self.X_input, W), self.b) 
     
 
     #%%========================================================================
@@ -231,18 +234,16 @@ class comput_graph(object):
                  l_in = _add_layer("layer_{}".format(i), l_in)
                  
             # outer layer (prediction)
-            X_transformed = _add_layer("layer_{}".format(DEPTH), l_in,
-                              APPLY_NONLIN = not(LINEAR_READOUT),
-                              Drop=False)
-            
-        return X_transformed
+            self.X_transformed = _add_layer("layer_{}".format(DEPTH), l_in,
+                                APPLY_NONLIN = not(LINEAR_READOUT),
+                                Drop=False)
 
 
     #%%========================================================================
     # Get Pij 
     #==========================================================================
 
-    def _get_Pij(self, X_transformed):
+    def _get_Pij(self):
         
         """ 
         Calculate Pij, the probability that j will be chosen 
@@ -253,7 +254,7 @@ class comput_graph(object):
         
         with tf.name_scope("getting_Pij"):
             # transpose so that feats are in rows
-            AX = tf.transpose(X_transformed)
+            AX = tf.transpose(self.X_transformed)
             
             # Expand dims of AX to [n_features, n_samples, n_samples], where
             # each "channel" in the third dimension is the difference between
@@ -265,26 +266,29 @@ class comput_graph(object):
             normAX = tf.norm(normAX, axis=0)
             
             # Calculate Pij, the probability that j will be chosen 
-            # as i's neighbor, for all i's
+            # as i's neighbor, for all i's. Pij has shape
+            # [n_samples, n_samples] and ** is NOT symmetrical **.
+            # Because the data is normalized using softmax, values
+            # add to 1 in rows, that is i (central patients) are
+            # represented in rows
             denomSum = tf.reduce_sum(tf.exp(-normAX), axis=0)
             Pij = tf.exp(-normAX) / denomSum[:, None]
         
         return Pij
     
 
-
     #%%========================================================================
     #  Loss function - weighted log likelihood   
     #==========================================================================
 
-    def add_weighted_loglikelihood(self, X_transformed):
+    def add_weighted_loglikelihood(self):
         
         """
         Adds weighted likelihood to computational graph        
         """
     
         # Get Pij, probability j will be i's neighbor
-        #Pij = self._get_Pij(X_transformed)
+        Pij = self._get_Pij()
         
         def _add_to_cumSum(Idx, cumsum):
         
@@ -292,14 +296,20 @@ class comput_graph(object):
             
             # Get survival of current patient and corresponding at-risk cases
             # i.e. those with higher survival or last follow-up time
-            Pred_ThisPatient = self.T[Idx]
-            Pred_AtRisk = self.T[self.At_Risk[Idx]:tf.size(self.T)-1]
+            Pred_thisPatient = self.T[Idx]
+            Pred_atRisk = self.T[self.At_Risk[Idx]:tf.size(self.T)-1]
+            
+            # Get Pij of at-risk cases from this patient's perspective
+            Pij_thisPatient = Pij[Idx, self.At_Risk[Idx]:tf.size(self.T)-1]
+            
+            # exponentiate and weigh Pred_AtRisk
+            Pred_atRisk = tf.multiply(tf.exp(Pred_atRisk), Pij_thisPatient)
             
             # Get log partial sum of prediction for those at risk
-            LogPartialSum = tf.log(tf.reduce_sum(tf.exp(Pred_AtRisk)))
+            LogPartialSum = tf.log(tf.reduce_sum(Pred_atRisk))
             
             # Get difference
-            Diff_ThisPatient = tf.subtract(Pred_ThisPatient, LogPartialSum)
+            Diff_ThisPatient = tf.subtract(Pred_thisPatient, LogPartialSum)
             
             # Add to cumulative log partial likeliood sum
             cumsum = tf.add(cumsum, Diff_ThisPatient)
@@ -334,16 +344,42 @@ class comput_graph(object):
             b = lambda Idx, cumSum: _add_if_observed(Idx, cumSum)
             Idx, cumSum = tf.while_loop(c, b, [Idx, cumSum])
             
+            # cost is negative weighted log likelihood
+            self.cost = -cumSum
             
-            self.weighted_log_likelihood = cumSum
+            # for tensorboard
+            tf.summary.scalar('cost', -cumSum) 
 
 
-#%%
+    #%%========================================================================
+    #  Optimizer
+    #==========================================================================
+
+    def add_optimizer(self):
+        
+        """
+        Adds optimizer to computational graph        
+        """
+        
+        with tf.variable_scope("optimizer"):
+
+            # Define optimizer and minimize loss
+            if self.OPTIM == "RMSProp":
+                self.optimizer = tf.train.RMSPropOptimizer(self.LEARN_RATE).\
+                    minimize(self.cost)
+                    
+            elif self.OPTIM == "GD":
+                self.optimizer = tf.train.GradientDescentOptimizer(self.LEARN_RATE).\
+                    minimize(self.cost)
+                    
+            elif self.OPTIM == "Adam":
+                self.optimizer = tf.train.AdamOptimizer(self.LEARN_RATE).\
+                    minimize(self.cost)
+
+        # Merge all summaries for tensorboard
+        self.tbsummaries = tf.summary.merge_all()
 
 
-
-    
-    
 #%% ###########################################################################
 #%%
 #%% ###########################################################################
@@ -396,14 +432,25 @@ fnames = fnames[keep]
 # Getting at-risk groups (trainign set)
 Features, Survival, Observed, at_risk = \
   sUtils.calc_at_risk(Features, Survival, 1-Censored)
+  
+# Limit N (for prototyping)  
+n = 50
+Features = Features[0:n, :]
+Survival = Survival[0:n]
+Observed = Observed[0:n]
+at_risk = at_risk[0:n]
+
 
 #%%
 
-g = comput_graph(dim_input = D)
+g = comput_graph(dim_input = D,
+                 transform_type = "ffNetwork")
 
 
+# *************************************************************
 # Z-scoring survival to prevent numerical errors
 Survival = (Survival - np.mean(Survival)) / np.std(Survival)
+# *************************************************************
 
 
 #%%
@@ -416,7 +463,22 @@ feed_dict={g.X_input: Features,
            g.O: Observed,
            g.At_Risk: at_risk,
            g.keep_prob: KEEP_PROB}
+
+for epoch in range(30):
+    
+    _, cost = sess.run([g.optimizer, g.cost], feed_dict = feed_dict)
+                                          
+    print("epoch {}, likelihood = {}".format(epoch, cost))
            
-weighted_log_likelihood = g.weighted_log_likelihood.eval(feed_dict = feed_dict)
+#cost = g.cost.eval(feed_dict = feed_dict)
+#Pij = g.Pij.eval(feed_dict = feed_dict)
 
 sess.close()
+
+
+
+#%%
+
+#AX = Features.T
+#normAX = AX[:, :, None] - AX[:, None, :]
+#normAX = np.linalg.norm(normAX, axis=0)

@@ -20,6 +20,8 @@ class comput_graph(object):
     
     def __init__(self, dim_input, 
                  transform_type = "linear",
+                 ALPHA = 0.5,
+                 LAMBDA = 1,
                  nn_params = {'DEPTH': 2},
                  OPTIM = 'GD',
                  LEARN_RATE = 0.01):
@@ -38,6 +40,8 @@ class comput_graph(object):
         # set up instace attributes
         self.dim_input = dim_input
         self.transform_type = "linear"
+        self.ALPHA = ALPHA
+        self.LAMBDA = LAMBDA
         self.nn_params = nn_params
         self.OPTIM = OPTIM
         self.LEARN_RATE = LEARN_RATE
@@ -321,11 +325,12 @@ class comput_graph(object):
         
             """ Add to cumsum if current patient'd death time is observed """
             
-            cumsum = tf.cond(tf.equal(self.O[Idx], 1), 
-                            lambda: _add_to_cumSum(Idx, cumsum),
-                            lambda: tf.cast(cumsum, tf.float32))                                    
-
-            Idx = tf.cast(tf.add(Idx, 1), tf.int32)
+            with tf.name_scope("add_if_observed"):
+                cumsum = tf.cond(tf.equal(self.O[Idx], 1), 
+                                lambda: _add_to_cumSum(Idx, cumsum),
+                                lambda: tf.cast(cumsum, tf.float32))                                    
+    
+                Idx = tf.cast(tf.add(Idx, 1), tf.int32)
             
             return Idx, cumsum
             
@@ -336,7 +341,7 @@ class comput_graph(object):
             https://github.com/glm-tools/pyglmnet/blob/master/pyglmnet/pyglmnet.py
             """
             
-            with tf.name_scope("Elastic_net_penalty"):
+            with tf.name_scope("Elastic_net"):
                 # Lasso-like penalty
                 L1penalty = self.LAMBDA * tf.reduce_sum(tf.abs(W), axis=0)
                 
@@ -513,6 +518,8 @@ if __name__ == '__main__':
     
     graph_params = {'dim_input' : D,
                     'transform_type' : "linear",
+                    'ALPHA': 0.5,
+                    'LAMBDA': 1.0,
                     'nn_params' : nn_params,
                     'OPTIM' : 'Adam',
                     'LEARN_RATE' : 0.01,

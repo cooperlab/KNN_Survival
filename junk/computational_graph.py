@@ -194,11 +194,11 @@ class comput_graph(object):
                 
                 w = tf.get_variable("weights", shape=[m_w, n_w], 
                                     initializer= tf.contrib.layers.xavier_initializer())
-                #variable_summaries(w)
+                self._variable_summaries(w)
              
                 b = tf.get_variable("biases", shape=[m_b], 
                                     initializer= tf.contrib.layers.xavier_initializer())
-                #variable_summaries(b)
+                #self._variable_summaries(b)
                 
                 #
                 # Do the matmul and apply nonlin
@@ -272,9 +272,10 @@ class comput_graph(object):
             # add to 1 in rows, that is i (central patients) are
             # represented in rows
             denomSum = tf.reduce_sum(tf.exp(-normAX), axis=0)
-            Pij = tf.exp(-normAX) / denomSum[:, None]
-        
-        return Pij
+            epsilon = 1e-5
+            denomSum = denomSum + epsilon            
+            
+            self.Pij = tf.exp(-normAX) / denomSum[:, None]
     
 
     #%%========================================================================
@@ -288,7 +289,7 @@ class comput_graph(object):
         """
     
         # Get Pij, probability j will be i's neighbor
-        Pij = self._get_Pij()
+        self._get_Pij()
         
         def _add_to_cumSum(Idx, cumsum):
         
@@ -300,7 +301,7 @@ class comput_graph(object):
             Pred_atRisk = self.T[self.At_Risk[Idx]:tf.size(self.T)-1]
             
             # Get Pij of at-risk cases from this patient's perspective
-            Pij_thisPatient = Pij[Idx, self.At_Risk[Idx]:tf.size(self.T)-1]
+            Pij_thisPatient = self.Pij[Idx, self.At_Risk[Idx]:tf.size(self.T)-1]
             
             # exponentiate and weigh Pred_AtRisk
             Pred_atRisk = tf.multiply(tf.exp(Pred_atRisk), Pij_thisPatient)
@@ -348,7 +349,7 @@ class comput_graph(object):
             self.cost = -cumSum
             
             # for tensorboard
-            tf.summary.scalar('cost', -cumSum) 
+            #tf.summary.scalar('cost', cumSum) 
 
 
     #%%========================================================================
@@ -464,9 +465,17 @@ feed_dict={g.X_input: Features,
            g.At_Risk: at_risk,
            g.keep_prob: KEEP_PROB}
 
+
+## for tensorboard visualization
+RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
+train_writer = tf.summary.FileWriter(RESULTPATH + '/tensorboard', sess.graph)
+tbsummaries = sess.run([g.tbsummaries], feed_dict = feed_dict)
+#train_writer.add_summary(tbsummaries, 0)
+
+# do the training
 for epoch in range(30):
     
-    _, cost = sess.run([g.optimizer, g.cost], feed_dict = feed_dict)
+    _, cost, Pij = sess.run([g.optimizer, g.cost, g.Pij], feed_dict = feed_dict)
                                           
     print("epoch {}, likelihood = {}".format(epoch, cost))
            

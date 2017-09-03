@@ -39,7 +39,7 @@ class comput_graph(object):
         
         # set up instace attributes
         self.dim_input = dim_input
-        self.transform_type = "linear"
+        self.transform_type = transform_type
         self.ALPHA = ALPHA
         self.LAMBDA = LAMBDA
         self.nn_params = nn_params
@@ -342,6 +342,7 @@ class comput_graph(object):
             """
             
             with tf.name_scope("Elastic_net"):
+                
                 # Lasso-like penalty
                 L1penalty = self.LAMBDA * tf.reduce_sum(tf.abs(W), axis=0)
                 
@@ -518,7 +519,7 @@ if __name__ == '__main__':
     
     graph_params = {'dim_input' : D,
                     'transform_type' : "linear",
-                    'ALPHA': 0.5,
+                    'ALPHA': 0.1,
                     'LAMBDA': 1.0,
                     'nn_params' : nn_params,
                     'OPTIM' : 'Adam',

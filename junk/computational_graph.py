@@ -310,10 +310,12 @@ class comput_graph(object):
         
             """ Add to cumsum if current patient'd death time is observed """
             
-            cumsum = tf.cond(tf.equal(self.O[Idx], tf.constant(1, dtype=tf.int32)), 
+            cumsum = tf.cond(tf.equal(self.O[Idx], 1), 
                             lambda: _add_to_cumSum(Idx, cumsum),
-                            lambda: cumSum)
+                            lambda: tf.cast(cumsum, tf.float32))                                    
+
             Idx = tf.cast(tf.add(Idx, 1), tf.int32)
+            
             return Idx, cumsum
         
         
@@ -398,6 +400,10 @@ Features, Survival, Observed, at_risk = \
 #%%
 
 g = comput_graph(dim_input = D)
+
+
+# Z-scoring survival to prevent numerical errors
+Survival = (Survival - np.mean(Survival)) / np.std(Survival)
 
 
 #%%

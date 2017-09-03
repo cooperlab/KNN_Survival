@@ -56,8 +56,8 @@ class comput_graph(object):
             print("Adding ffNetwork transform.")
             self.add_ffNetwork(**nn_params)
             
-        print("Adding weighted log likelihood.")
-        self.add_weighted_loglikelihood()
+        print("Adding regularized weighted log likelihood.")
+        self.add_cost()
         
         print("Adding optimizer.")
         self.add_optimizer()
@@ -251,6 +251,7 @@ class comput_graph(object):
         """
         
         with tf.name_scope("getting_Pij"):
+            
             # transpose so that feats are in rows
             AX = tf.transpose(self.X_transformed)
             
@@ -281,15 +282,14 @@ class comput_graph(object):
     #  Loss function - weighted log likelihood   
     #==========================================================================
 
-    def add_weighted_loglikelihood(self):
+    def add_cost(self):
         
         """
-        Adds weighted likelihood to computational graph        
+        Adds penalized weighted likelihood to computational graph        
         """
     
         # Get Pij, probability j will be i's neighbor
         self._get_Pij()
-        #self.Pij = tf.eye(self.dim_input)
         
         def _add_to_cumSum(Idx, cumsum):
         
@@ -328,6 +328,25 @@ class comput_graph(object):
             Idx = tf.cast(tf.add(Idx, 1), tf.int32)
             
             return Idx, cumsum
+            
+        def _penalty(W):
+    
+            """
+            Elastic net penalty. Inspired by: 
+            https://github.com/glm-tools/pyglmnet/blob/master/pyglmnet/pyglmnet.py
+            """
+            
+            with tf.name_scope("Elastic_net_penalty"):
+                # Lasso-like penalty
+                L1penalty = self.LAMBDA * tf.reduce_sum(tf.abs(W), axis=0)
+                
+                # Compute the L2 penalty (ridge-like)
+                L2penalty = self.LAMBDA * tf.reduce_sum(W ** 2, axis=0)
+                    
+                # Combine L1 and L2 penalty terms
+                P = 0.5 * (self.ALPHA * L1penalty + (1 - self.ALPHA) * L2penalty)
+            
+            return P
         
         
         with tf.variable_scope("loss"):
@@ -347,6 +366,10 @@ class comput_graph(object):
             
             # cost is negative weighted log likelihood
             self.cost = -cumSum
+            
+            # Add elastic-net penalty
+            if self.transform_type == "linear":
+                self.cost = self.cost + _penalty(self.w)
 
 
     #%%========================================================================
@@ -388,6 +411,10 @@ class comput_graph(object):
 #==============================================================================
 
 if __name__ == '__main__':
+    
+    #%%========================================================================
+    # Prepare inputs
+    #==========================================================================
 
     import os
     import sys
@@ -448,8 +475,9 @@ if __name__ == '__main__':
     Survival = (Survival - np.mean(Survival)) / np.std(Survival)
     # *************************************************************
     
-    
-    #%%
+    #%%============================================================================
+    # Define relevant methods
+    #==============================================================================
     
     import matplotlib.pylab as plt
     
@@ -470,9 +498,11 @@ if __name__ == '__main__':
     
     RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
     MONITOR_STEP = 10
-    description = "test_"
+    description = "GBMLGG_Integ_"
     
-    #%%   
+    #%%============================================================================
+    #  Define computational graph   
+    #==============================================================================
 
     nn_params = {'DEPTH' : 2, 
                  'MAXWIDTH' : 200, 
@@ -490,7 +520,9 @@ if __name__ == '__main__':
     
     g = comput_graph(**graph_params)
     
-    #%%
+    #%%============================================================================
+    #   Run session
+    #==============================================================================
     
     with tf.Session() as sess:
         
@@ -539,3 +571,25 @@ if __name__ == '__main__':
             
             # Save model
             #self.save()
+            
+    #%%============================================================================
+    # Rank features
+    #==============================================================================
+    
+    fidx = np.arange(D).reshape(D, 1)
+    W = W.reshape(D, 1)
+    fwights = np.concatenate((fidx, W), 1)    
+    
+    # rank by absolute feature weight
+    fwights = fwights[np.abs(fwights[:,1]).argsort()][::-1]
+    fnames_ranked = fnames[np.int32(fwights[:,0])].reshape(D, 1)
+    fw = fwights[:,1].reshape(D, 1) 
+    fnames_ranked = np.concatenate((fnames_ranked, fw), 1)
+    
+    # save results
+    
+    savename = RESULTPATH + description + "featnames_ranked.txt"
+    with open(savename,'wb') as f:
+        np.savetxt(f,fnames_ranked,fmt='%s', delimiter='\t')
+    
+#    fnames_ranked.tofile(savename, delimiter='\t', sep='\n', format='%s')

@@ -25,7 +25,6 @@ class comput_graph(object):
         
         """
         Instantiate a computational graph for survival NCA.
-        This also adds placeholders.
         
         Args:
         ------
@@ -33,23 +32,30 @@ class comput_graph(object):
         
         """
         
+        print("Building computational graph for survival NCA.")        
+        
         # set up instace attributes
         self.dim_input = dim_input
         
         # clear lurking tensors
         tf.reset_default_graph()
         
-        # placeholders
-        self._add_placeholders()
+        print("Adding placeholders.")
+        self.add_placeholders()
         
         # fature space transform
         if transform_type == "linear":
+            print("Adding linear feature transform.")
             X_transformed = self.add_linear_transform()
         elif transform_type == "ffNetwork":
+            print("Adding ffNetwork transform.")
             X_transformed = self.add_ffNetwork(**nn_params)
+            
+        # add weighted log likelihood
+        print("Adding weighted log likelihood.")
+        self.add_weighted_loglikelihood(X_transformed)
+            
         
-        # get Pij
-        Pij = self.get_Pij(X_transformed)
             
         
 
@@ -90,12 +96,18 @@ class comput_graph(object):
             self.O = tf.placeholder("float", [None], name='O')
             self.At_Risk = tf.placeholder("float", [None], name='At_Risk')
             
+            # type conversions
+            self.T = tf.cast(self.T, tf.float32)
+            self.O = tf.cast(self.O, tf.int32)
+            self.At_Risk = tf.cast(self.At_Risk, tf.int32)
+            
+            
             
     #%%========================================================================
     # Linear transformation (for interpretability)
     #==========================================================================
 
-    def add_linear_transform(self, Drop = True):
+    def add_linear_transform(self):
         
         """ 
         Transform features in a linear fashion for better interpretability
@@ -230,7 +242,7 @@ class comput_graph(object):
     # Get Pij 
     #==========================================================================
 
-    def get_Pij(self, X_transformed):
+    def _get_Pij(self, X_transformed):
         
         """ 
         Calculate Pij, the probability that j will be chosen 
@@ -259,10 +271,82 @@ class comput_graph(object):
         
         return Pij
     
+
+
+    #%%========================================================================
+    #  Loss function - weighted log likelihood   
+    #==========================================================================
+
+    def add_weighted_loglikelihood(self, X_transformed):
+        
+        """
+        Adds weighted likelihood to computational graph        
+        """
     
+        # Get Pij, probability j will be i's neighbor
+        #Pij = self._get_Pij(X_transformed)
+        
+        def _add_to_cumSum(Idx, cumsum):
+        
+            """Add patient to log partial likelihood sum """
+            
+            # Get survival of current patient and corresponding at-risk cases
+            # i.e. those with higher survival or last follow-up time
+            Pred_ThisPatient = self.T[Idx]
+            Pred_AtRisk = self.T[self.At_Risk[Idx]:tf.size(self.T)-1]
+            
+            # Get log partial sum of prediction for those at risk
+            LogPartialSum = tf.log(tf.reduce_sum(tf.exp(Pred_AtRisk)))
+            
+            # Get difference
+            Diff_ThisPatient = tf.subtract(Pred_ThisPatient, LogPartialSum)
+            
+            # Add to cumulative log partial likeliood sum
+            cumsum = tf.add(cumsum, Diff_ThisPatient)
+            
+            return cumsum
+    
+        def _add_if_observed(Idx, cumsum):
+        
+            """ Add to cumsum if current patient'd death time is observed """
+            
+            cumsum = tf.cond(tf.equal(self.O[Idx], tf.constant(1, dtype=tf.int32)), 
+                            lambda: _add_to_cumSum(Idx, cumsum),
+                            lambda: cumSum)
+            Idx = tf.cast(tf.add(Idx, 1), tf.int32)
+            return Idx, cumsum
+        
+        
+        with tf.variable_scope("loss"):
+    
+            cumSum = tf.cast(tf.Variable([0.0]), tf.float32)
+            Idx = tf.cast(tf.Variable(0), tf.int32)
+            
+            # Doing the following admittedly odd step because tensorflow's loop
+            # requires both the condition and body to have same number of inputs
+            def _cmp_pred(Idx, cumSum):
+                return tf.less(Idx, tf.cast(tf.size(self.T)-1, tf.int32))
+            
+            # Go through all uncensored cases and add to cumulative sum
+            c = lambda Idx, cumSum: _cmp_pred(Idx, cumSum)
+            b = lambda Idx, cumSum: _add_if_observed(Idx, cumSum)
+            Idx, cumSum = tf.while_loop(c, b, [Idx, cumSum])
+            
+            
+            self.weighted_log_likelihood = cumSum
+
+
 #%%
+
+
+
+    
+    
+#%% ###########################################################################
 #%%
+#%% ###########################################################################
 #%%
+#%% ###########################################################################
 
 import os
 import sys
@@ -315,6 +399,8 @@ Features, Survival, Observed, at_risk = \
 
 g = comput_graph(dim_input = D)
 
+
+#%%
 sess = tf.InteractiveSession()
 
 sess.run(tf.global_variables_initializer())
@@ -324,6 +410,7 @@ feed_dict={g.X_input: Features,
            g.O: Observed,
            g.At_Risk: at_risk,
            g.keep_prob: KEEP_PROB}
+           
+weighted_log_likelihood = g.weighted_log_likelihood.eval(feed_dict = feed_dict)
 
-#pij = Pij.eval(feed_dict = feed_dict)
-
+sess.close()

@@ -123,6 +123,12 @@ class comput_graph(object):
             # feature scales/weights
             self.w = tf.get_variable("weights", shape=[self.dim_input], 
                             initializer= tf.contrib.layers.xavier_initializer())
+            #self.w = tf.ones([self.dim_input])
+            #initial = 1 / (tf.argmax(self.X_input, axis=0) - tf.argmin(self.X_input, axis=0))
+            #initial = tf.divide(tf.ones(self.dim_input), 
+            #                    (tf.reduce_max(self.X_input, axis=0) - 
+            #                    tf.reduce_min(self.X_input, axis=0)))
+            #self.w = tf.get_variable("weights", initializer= initial)
             
             self.b = tf.get_variable("biases", shape=[self.dim_input], 
                             initializer= tf.contrib.layers.xavier_initializer())
@@ -137,7 +143,7 @@ class comput_graph(object):
     #==========================================================================
 
     def add_ffNetwork(self, DEPTH = 2, MAXWIDTH = 200, 
-                      NONLIN = "Tanh", LINEAR_READOUT = False,
+                      NONLIN = "ReLU", LINEAR_READOUT = False,
                       DIM_OUT = None):
         """ 
         Adds a feedforward network to the computational graph,
@@ -276,6 +282,10 @@ class comput_graph(object):
             denomSum = denomSum + epsilon            
             
             self.Pij = tf.exp(-normAX) / denomSum[:, None]
+            
+            # TEST *****
+            # self.Pij = self.Pij * 10
+            # ***********
     
 
     #%%========================================================================
@@ -290,6 +300,7 @@ class comput_graph(object):
     
         # Get Pij, probability j will be i's neighbor
         self._get_Pij()
+        #self.Pij = tf.eye(self.dim_input)
         
         def _add_to_cumSum(Idx, cumsum):
         
@@ -305,6 +316,7 @@ class comput_graph(object):
             
             # exponentiate and weigh Pred_AtRisk
             Pred_atRisk = tf.multiply(tf.exp(Pred_atRisk), Pij_thisPatient)
+            #Pred_atRisk = tf.exp(tf.multiply(Pred_atRisk, Pij_thisPatient))
             
             # Get log partial sum of prediction for those at risk
             LogPartialSum = tf.log(tf.reduce_sum(Pred_atRisk))
@@ -445,7 +457,7 @@ at_risk = at_risk[0:n]
 #%%
 
 g = comput_graph(dim_input = D,
-                 transform_type = "ffNetwork")
+                 transform_type = "linear")
 
 
 # *************************************************************
@@ -469,11 +481,11 @@ feed_dict={g.X_input: Features,
 ## for tensorboard visualization
 RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
 train_writer = tf.summary.FileWriter(RESULTPATH + '/tensorboard', sess.graph)
-tbsummaries = sess.run([g.tbsummaries], feed_dict = feed_dict)
+#tbsummaries = sess.run([g.tbsummaries], feed_dict = feed_dict)
 #train_writer.add_summary(tbsummaries, 0)
 
 # do the training
-for epoch in range(30):
+for epoch in range(5):
     
     _, cost, Pij = sess.run([g.optimizer, g.cost, g.Pij], feed_dict = feed_dict)
                                           

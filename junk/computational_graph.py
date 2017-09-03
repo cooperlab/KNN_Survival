@@ -269,7 +269,8 @@ class comput_graph(object):
             
             # Now get the euclidian distance between
             # every patient and all others -> [n_samples, n_samples]
-            normAX = tf.norm(normAX, axis=0)
+            #normAX = tf.norm(normAX, axis=0)
+            normAX = tf.reduce_sum(normAX ** 2, axis=0)
             
             # Calculate Pij, the probability that j will be chosen 
             # as i's neighbor, for all i's. Pij has shape
@@ -446,60 +447,94 @@ fnames = fnames[keep]
 Features, Survival, Observed, at_risk = \
   sUtils.calc_at_risk(Features, Survival, 1-Censored)
   
-# Limit N (for prototyping)  
-n = 50
-Features = Features[0:n, :]
-Survival = Survival[0:n]
-Observed = Observed[0:n]
-at_risk = at_risk[0:n]
-
-
-#%%
-
-g = comput_graph(dim_input = D,
-                 transform_type = "linear")
-
+## Limit N (for prototyping)  
+#n = 100
+#Features = Features[0:n, :]
+#Survival = Survival[0:n]
+#Observed = Observed[0:n]
+#at_risk = at_risk[0:n]
 
 # *************************************************************
 # Z-scoring survival to prevent numerical errors
-Survival = (Survival - np.mean(Survival)) / np.std(Survival)
+#Survival = (Survival - np.mean(Survival)) / np.std(Survival)
 # *************************************************************
 
 
 #%%
-sess = tf.InteractiveSession()
 
-sess.run(tf.global_variables_initializer())
+import matplotlib.pylab as plt
 
-feed_dict={g.X_input: Features,
-           g.T: Survival,
-           g.O: Observed,
-           g.At_Risk: at_risk,
-           g.keep_prob: KEEP_PROB}
-
-
-## for tensorboard visualization
-RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
-train_writer = tf.summary.FileWriter(RESULTPATH + '/tensorboard', sess.graph)
-#tbsummaries = sess.run([g.tbsummaries], feed_dict = feed_dict)
-#train_writer.add_summary(tbsummaries, 0)
-
-# do the training
-for epoch in range(5):
+def _plotMonitor(self, arr, title, xlab, ylab, savename):
+                        
+    """ plots cost/other metric to monitor progress """
     
-    _, cost, Pij = sess.run([g.optimizer, g.cost, g.Pij], feed_dict = feed_dict)
-                                          
-    print("epoch {}, likelihood = {}".format(epoch, cost))
-           
-#cost = g.cost.eval(feed_dict = feed_dict)
-#Pij = g.Pij.eval(feed_dict = feed_dict)
+    print("Plotting " + title)
+    
+    fig, ax = plt.subplots() 
+    ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+    plt.title(title, fontsize =16, fontweight ='bold')
+    plt.xlabel(xlab)
+    plt.ylabel(ylab) 
+    plt.tight_layout()
+    plt.savefig(savename)
+    plt.close()
 
-sess.close()
+RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
+MONITOR_STEP = 10
+description = "test_"
 
-
+#%%   
+   
+g = comput_graph(dim_input = D,
+                 transform_type = "linear")
 
 #%%
 
-#AX = Features.T
-#normAX = AX[:, :, None] - AX[:, None, :]
-#normAX = np.linalg.norm(normAX, axis=0)
+with tf.Session() as sess:
+    
+    sess.run(tf.global_variables_initializer())
+    
+    
+    ## for tensorboard visualization
+    train_writer = tf.summary.FileWriter(RESULTPATH + '/tensorboard', sess.graph)
+
+    feed_dict={g.X_input: Features,
+               g.T: Survival,
+               g.O: Observed,
+               g.At_Risk: at_risk,
+               g.keep_prob: KEEP_PROB}
+
+    costs = []
+    epochs = 0
+    
+    try: 
+        while True:
+            
+            print("\n--------------------------------------------")
+            print("---- EPOCH = " + str(epochs))
+            print("--------------------------------------------\n")
+            
+            _, cost = sess.run([g.optimizer, g.cost], feed_dict = feed_dict)
+    
+            # update costs
+            costs.append([epochs, cost])
+            
+            # monitor
+            if (epochs % MONITOR_STEP == 0) and (epochs > 0):
+                cs = np.array(costs)
+                _plotMonitor(arr= cs, title= "objective vs. epoch", 
+                             xlab= "epoch", ylab= "objective", 
+                             savename= RESULTPATH + 
+                             description + "cost.svg")
+            
+            epochs += 1
+            
+    except KeyboardInterrupt:
+        
+        print("\nFinished training model.")
+        print("Obtaining final results.")
+        W, B, X_transformed = sess.run([g.w, g.b, g.X_transformed], 
+                                       feed_dict = feed_dict)
+        
+        # Save model
+        #self.save()

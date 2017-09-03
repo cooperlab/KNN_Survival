@@ -7,7 +7,6 @@ Created on Sat Sep  2 12:57:55 2017
 """
 
 import tensorflow as tf
-#import numpy as np
 
 #%%============================================================================
 # Computational graph class
@@ -76,12 +75,12 @@ class comput_graph(object):
       with tf.name_scope('summaries'):
         mean = tf.reduce_mean(var)
         tf.summary.scalar('mean', mean)
-        with tf.name_scope('stddev'):
-          stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-        tf.summary.scalar('stddev', stddev)
-        tf.summary.scalar('max', tf.reduce_max(var))
-        tf.summary.scalar('min', tf.reduce_min(var))
-        tf.summary.histogram('histogram', var)
+        #with tf.name_scope('stddev'):
+        #  stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+        #tf.summary.scalar('stddev', stddev)
+        #tf.summary.scalar('max', tf.reduce_max(var))
+        #tf.summary.scalar('min', tf.reduce_min(var))
+        #tf.summary.histogram('histogram', var)
 
 
     #%%========================================================================
@@ -123,12 +122,6 @@ class comput_graph(object):
             # feature scales/weights
             self.w = tf.get_variable("weights", shape=[self.dim_input], 
                             initializer= tf.contrib.layers.xavier_initializer())
-            #self.w = tf.ones([self.dim_input])
-            #initial = 1 / (tf.argmax(self.X_input, axis=0) - tf.argmin(self.X_input, axis=0))
-            #initial = tf.divide(tf.ones(self.dim_input), 
-            #                    (tf.reduce_max(self.X_input, axis=0) - 
-            #                    tf.reduce_min(self.X_input, axis=0)))
-            #self.w = tf.get_variable("weights", initializer= initial)
             
             self.b = tf.get_variable("biases", shape=[self.dim_input], 
                             initializer= tf.contrib.layers.xavier_initializer())
@@ -204,7 +197,6 @@ class comput_graph(object):
              
                 b = tf.get_variable("biases", shape=[m_b], 
                                     initializer= tf.contrib.layers.xavier_initializer())
-                #self._variable_summaries(b)
                 
                 #
                 # Do the matmul and apply nonlin
@@ -283,10 +275,6 @@ class comput_graph(object):
             denomSum = denomSum + epsilon            
             
             self.Pij = tf.exp(-normAX) / denomSum[:, None]
-            
-            # TEST *****
-            # self.Pij = self.Pij * 10
-            # ***********
     
 
     #%%========================================================================
@@ -317,7 +305,6 @@ class comput_graph(object):
             
             # exponentiate and weigh Pred_AtRisk
             Pred_atRisk = tf.multiply(tf.exp(Pred_atRisk), Pij_thisPatient)
-            #Pred_atRisk = tf.exp(tf.multiply(Pred_atRisk, Pij_thisPatient))
             
             # Get log partial sum of prediction for those at risk
             LogPartialSum = tf.log(tf.reduce_sum(Pred_atRisk))
@@ -360,9 +347,6 @@ class comput_graph(object):
             
             # cost is negative weighted log likelihood
             self.cost = -cumSum
-            
-            # for tensorboard
-            #tf.summary.scalar('cost', cumSum) 
 
 
     #%%========================================================================
@@ -394,145 +378,164 @@ class comput_graph(object):
         self.tbsummaries = tf.summary.merge_all()
 
 
-#%% ###########################################################################
-#%%
-#%% ###########################################################################
-#%%
-#%% ###########################################################################
+#%%############################################################################ 
+#%%############################################################################ 
+#%%############################################################################
+#%%############################################################################
 
-import os
-import sys
+#%%============================================================================
+# test methods - quick and dirty
+#==============================================================================
 
-def conditionalAppend(Dir):
-    """ Append dir to sys path"""
-    if Dir not in sys.path:
-        sys.path.append(Dir)
+if __name__ == '__main__':
 
-cwd = os.getcwd()
-conditionalAppend(cwd+"/../")
-import SurvivalUtils as sUtils
-
-import numpy as np
-from scipy.io import loadmat
-
-KEEP_PROB = 0.9
-
-# Load data
-dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-#dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
-#dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
-
-Data = loadmat(dpath)
-
-Features = np.float32(Data['Integ_X'])
-#Features = np.float32(Data['Gene_X'])
-
-N, D = Features.shape
-
-if np.min(Data['Survival']) < 0:
-    Data['Survival'] = Data['Survival'] - np.min(Data['Survival']) + 1
-
-Survival = np.int32(Data['Survival']).reshape([N,])
-Censored = np.int32(Data['Censored']).reshape([N,])
-fnames = Data['Integ_Symbs']
-#fnames = Data['Gene_Symbs']
-
-# remove zero-variance features
-fvars = np.std(Features, 0)
-keep = fvars > 0
-Features = Features[:, keep]
-fnames = fnames[keep]
-
-# Getting at-risk groups (trainign set)
-Features, Survival, Observed, at_risk = \
-  sUtils.calc_at_risk(Features, Survival, 1-Censored)
-  
-## Limit N (for prototyping)  
-#n = 100
-#Features = Features[0:n, :]
-#Survival = Survival[0:n]
-#Observed = Observed[0:n]
-#at_risk = at_risk[0:n]
-
-# *************************************************************
-# Z-scoring survival to prevent numerical errors
-Survival = (Survival - np.mean(Survival)) / np.std(Survival)
-# *************************************************************
-
-
-#%%
-
-import matplotlib.pylab as plt
-
-def _plotMonitor(arr, title, xlab, ylab, savename):
-                        
-    """ plots cost/other metric to monitor progress """
+    import os
+    import sys
     
-    print("Plotting " + title)
+    def conditionalAppend(Dir):
+        """ Append dir to sys path"""
+        if Dir not in sys.path:
+            sys.path.append(Dir)
     
-    fig, ax = plt.subplots() 
-    ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
-    plt.title(title, fontsize =16, fontweight ='bold')
-    plt.xlabel(xlab)
-    plt.ylabel(ylab) 
-    plt.tight_layout()
-    plt.savefig(savename)
-    plt.close()
-
-RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
-MONITOR_STEP = 10
-description = "test_"
-
-#%%   
-   
-g = comput_graph(dim_input = D,
-                 transform_type = "linear")
-
-#%%
-
-with tf.Session() as sess:
+    cwd = os.getcwd()
+    conditionalAppend(cwd+"/../")
+    import SurvivalUtils as sUtils
     
-    sess.run(tf.global_variables_initializer())
+    import numpy as np
+    from scipy.io import loadmat
+    
+    KEEP_PROB = 0.9
+    
+    # Load data
+    dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
+    
+    Data = loadmat(dpath)
+    
+    Features = np.float32(Data['Integ_X'])
+    #Features = np.float32(Data['Gene_X'])
+    
+    N, D = Features.shape
+    
+    if np.min(Data['Survival']) < 0:
+        Data['Survival'] = Data['Survival'] - np.min(Data['Survival']) + 1
+    
+    Survival = np.int32(Data['Survival']).reshape([N,])
+    Censored = np.int32(Data['Censored']).reshape([N,])
+    fnames = Data['Integ_Symbs']
+    #fnames = Data['Gene_Symbs']
+    
+    # remove zero-variance features
+    fvars = np.std(Features, 0)
+    keep = fvars > 0
+    Features = Features[:, keep]
+    fnames = fnames[keep]
+    
+    # Getting at-risk groups (trainign set)
+    Features, Survival, Observed, at_risk = \
+      sUtils.calc_at_risk(Features, Survival, 1-Censored)
+      
+    ## Limit N (for prototyping)  
+    #n = 100
+    #Features = Features[0:n, :]
+    #Survival = Survival[0:n]
+    #Observed = Observed[0:n]
+    #at_risk = at_risk[0:n]
+    
+    # *************************************************************
+    # Z-scoring survival to prevent numerical errors
+    Survival = (Survival - np.mean(Survival)) / np.std(Survival)
+    # *************************************************************
     
     
-    ## for tensorboard visualization
-    train_writer = tf.summary.FileWriter(RESULTPATH + '/tensorboard', sess.graph)
-
-    feed_dict={g.X_input: Features,
-               g.T: Survival,
-               g.O: Observed,
-               g.At_Risk: at_risk,
-               g.keep_prob: KEEP_PROB}
-
-    costs = []
-    epochs = 0
+    #%%
     
-    try: 
-        while True:
-            
-            _, cost = sess.run([g.optimizer, g.cost], feed_dict = feed_dict)
-            
-            print("epoch {}, cost = {}".format(epochs, cost))
+    import matplotlib.pylab as plt
     
-            # update costs
-            costs.append([epochs, cost])
-            
-            # monitor
-            if (epochs % MONITOR_STEP == 0) and (epochs > 0):
-                cs = np.array(costs)
-                _plotMonitor(arr= cs, title= "objective vs. epoch", 
-                             xlab= "epoch", ylab= "objective", 
-                             savename= RESULTPATH + 
-                             description + "cost.svg")
-            
-            epochs += 1
-            
-    except KeyboardInterrupt:
+    def _plotMonitor(arr, title, xlab, ylab, savename):
+                            
+        """ plots cost/other metric to monitor progress """
         
-        print("\nFinished training model.")
-        print("Obtaining final results.")
-        W, B, X_transformed = sess.run([g.w, g.b, g.X_transformed], 
-                                       feed_dict = feed_dict)
+        print("Plotting " + title)
         
-        # Save model
-        #self.save()
+        fig, ax = plt.subplots() 
+        ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+        plt.title(title, fontsize =16, fontweight ='bold')
+        plt.xlabel(xlab)
+        plt.ylabel(ylab) 
+        plt.tight_layout()
+        plt.savefig(savename)
+        plt.close()
+    
+    RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
+    MONITOR_STEP = 10
+    description = "test_"
+    
+    #%%   
+
+    nn_params = {'DEPTH' : 2, 
+                 'MAXWIDTH' : 200, 
+                 'NONLIN' : "Tanh", 
+                 'LINEAR_READOUT' : False,
+                 'DIM_OUT' : None,
+                 }
+    
+    graph_params = {'dim_input' : D,
+                    'transform_type' : "linear",
+                    'nn_params' : nn_params,
+                    'OPTIM' : 'Adam',
+                    'LEARN_RATE' : 0.01,
+                    }
+    
+    g = comput_graph(**graph_params)
+    
+    #%%
+    
+    with tf.Session() as sess:
+        
+        sess.run(tf.global_variables_initializer())
+        
+        # for tensorboard visualization
+        train_writer = tf.summary.FileWriter(RESULTPATH + '/tensorboard', sess.graph)
+    
+        feed_dict={g.X_input: Features,
+                   g.T: Survival,
+                   g.O: Observed,
+                   g.At_Risk: at_risk,
+                   g.keep_prob: KEEP_PROB}
+    
+        costs = []
+        epochs = 0
+        
+        try: 
+            while True:
+                
+                _, cost = sess.run([g.optimizer, g.cost], feed_dict = feed_dict)
+                
+                print("epoch {}, cost = {}".format(epochs, cost))
+        
+                # update costs
+                costs.append([epochs, cost])
+                
+                # monitor
+                if (epochs % MONITOR_STEP == 0) and (epochs > 0):
+                    cs = np.array(costs)
+                    _plotMonitor(arr= cs, title= "objective vs. epoch", 
+                                 xlab= "epoch", ylab= "objective", 
+                                 savename= RESULTPATH + 
+                                 description + "cost.svg")
+                
+                epochs += 1
+                
+        except KeyboardInterrupt:
+            
+            print("\nFinished training model.")
+            print("Obtaining final results.")
+            
+            if graph_params['transform_type'] == 'linear':
+                W, B, X_transformed = sess.run([g.w, g.b, g.X_transformed], 
+                                               feed_dict = feed_dict)
+            
+            # Save model
+            #self.save()

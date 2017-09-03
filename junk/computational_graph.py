@@ -456,7 +456,7 @@ Features, Survival, Observed, at_risk = \
 
 # *************************************************************
 # Z-scoring survival to prevent numerical errors
-#Survival = (Survival - np.mean(Survival)) / np.std(Survival)
+Survival = (Survival - np.mean(Survival)) / np.std(Survival)
 # *************************************************************
 
 
@@ -464,7 +464,7 @@ Features, Survival, Observed, at_risk = \
 
 import matplotlib.pylab as plt
 
-def _plotMonitor(self, arr, title, xlab, ylab, savename):
+def _plotMonitor(arr, title, xlab, ylab, savename):
                         
     """ plots cost/other metric to monitor progress """
     
@@ -510,11 +510,9 @@ with tf.Session() as sess:
     try: 
         while True:
             
-            print("\n--------------------------------------------")
-            print("---- EPOCH = " + str(epochs))
-            print("--------------------------------------------\n")
-            
             _, cost = sess.run([g.optimizer, g.cost], feed_dict = feed_dict)
+            
+            print("epoch {}, cost = {}".format(epochs, cost))
     
             # update costs
             costs.append([epochs, cost])

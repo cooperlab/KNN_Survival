@@ -140,8 +140,7 @@ class comput_graph(object):
     #==========================================================================
 
     def add_ffNetwork(self, DEPTH = 2, MAXWIDTH = 200, 
-                      NONLIN = "ReLU", LINEAR_READOUT = False,
-                      DIM_OUT = None):
+                      NONLIN = "ReLU", LINEAR_READOUT = False):
         """ 
         Adds a feedforward network to the computational graph,
         which performs a series of non-linear transformations to
@@ -151,9 +150,7 @@ class comput_graph(object):
         # Define sizes of weights and biases
         #======================================================================
         
-        if DIM_OUT is None:
-            # do not do any dimensionality reduction
-            DIM_OUT = self.dim_input
+        DIM_OUT = self.dim_input
         
         dim_in = self.dim_input
         
@@ -183,7 +180,8 @@ class comput_graph(object):
         #======================================================================
         
         def _add_layer(layer_name, Input, APPLY_NONLIN = True,
-                       Mode = "Encoder", Drop = True):
+                       Mode = "Encoder", 
+                       Drop = True):
             
             """ adds a single fully-connected layer"""
             
@@ -437,17 +435,17 @@ if __name__ == '__main__':
     import numpy as np
     from scipy.io import loadmat
     
-    KEEP_PROB = 0.9
+    print("Loading and preprocessing data.")
     
     # Load data
-    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-    dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+    dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
     #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
     
     Data = loadmat(dpath)
     
-    #Features = np.float32(Data['Integ_X'])
-    Features = np.float32(Data['Gene_X'])
+    Features = np.float32(Data['Integ_X'])
+    #Features = np.float32(Data['Gene_X'])
     
     N, D = Features.shape
     
@@ -456,8 +454,8 @@ if __name__ == '__main__':
     
     Survival = np.int32(Data['Survival']).reshape([N,])
     Censored = np.int32(Data['Censored']).reshape([N,])
-    #fnames = Data['Integ_Symbs']
-    fnames = Data['Gene_Symbs']
+    fnames = Data['Integ_Symbs']
+    #fnames = Data['Gene_Symbs']
     
     # remove zero-variance features
     fvars = np.std(Features, 0)
@@ -470,12 +468,13 @@ if __name__ == '__main__':
     Features, Survival, Observed, at_risk = \
       sUtils.calc_at_risk(Features, Survival, 1-Censored)
       
-    ## Limit N (for prototyping)  
+    ## Limit N (for prototyping) ----
     #n = 100
     #Features = Features[0:n, :]
     #Survival = Survival[0:n]
     #Observed = Observed[0:n]
     #at_risk = at_risk[0:n]
+    #--------------------------------    
     
     # *************************************************************
     # Z-scoring survival to prevent numerical errors
@@ -505,21 +504,20 @@ if __name__ == '__main__':
     
     RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
     MONITOR_STEP = 10
-    description = "GBMLGG_Gene_"
+    description = "GBMLGG_Integ_"
     
     #%%============================================================================
     #  Define computational graph   
     #==============================================================================
 
-    nn_params = {'DEPTH' : 2, 
-                 'MAXWIDTH' : 200, 
-                 'NONLIN' : "Tanh", 
-                 'LINEAR_READOUT' : False,
-                 'DIM_OUT' : None,
+    nn_params = {'DEPTH' : 1, 
+                 'MAXWIDTH' : 20, 
+                 'NONLIN' : "Sigmoid", 
+                 'LINEAR_READOUT' : True,
                  }
     
     graph_params = {'dim_input' : D,
-                    'transform_type' : "linear",
+                    'transform_type' : "ffNetwork",
                     'ALPHA': 0.1,
                     'LAMBDA': 1.0,
                     'nn_params' : nn_params,
@@ -533,6 +531,8 @@ if __name__ == '__main__':
     #   Run session
     #==============================================================================
     
+    print("Running session.")
+    
     with tf.Session() as sess:
         
         sess.run(tf.global_variables_initializer())
@@ -544,7 +544,7 @@ if __name__ == '__main__':
                    g.T: Survival,
                    g.O: Observed,
                    g.At_Risk: at_risk,
-                   g.keep_prob: KEEP_PROB}
+                   g.keep_prob: 0.9}
     
         costs = []
         epochs = 0
@@ -563,7 +563,7 @@ if __name__ == '__main__':
                 if (epochs % MONITOR_STEP == 0) and (epochs > 0):
                     cs = np.array(costs)
                     _plotMonitor(arr= cs, title= "cost vs. epoch", 
-                                 xlab= "epoch", ylab= "objective", 
+                                 xlab= "epoch", ylab= "cost", 
                                  savename= RESULTPATH + 
                                  description + "cost.svg")
                 
@@ -577,6 +577,10 @@ if __name__ == '__main__':
             if graph_params['transform_type'] == 'linear':
                 W, B, X_transformed = sess.run([g.w, g.b, g.X_transformed], 
                                                feed_dict = feed_dict)
+                                               
+            elif graph_params['transform_type'] == 'ffNetwork':
+                X_transformed = g.X_transformed.eval(feed_dict = feed_dict)
+                
             
             # Save model
             #self.save()
@@ -584,19 +588,36 @@ if __name__ == '__main__':
     #%%============================================================================
     # Rank features
     #==============================================================================
-    
+            
+    print("Ranking features.")
+
     fidx = np.arange(D).reshape(D, 1)
-    W = W.reshape(D, 1)
-    fweights = np.concatenate((fidx, W), 1)   
     
-    # Plot feature weights
-    _plotMonitor(fweights, "feature_weights", "feature_index", "weight", 
+    if graph_params['transform_type'] == 'linear':
+        # rank by absolute feature weight
+        ranking_metric = np.abs(W.reshape(D, 1))
+    elif graph_params['transform_type'] == 'ffNetwork':
+        # rank by variance after transform
+        ranking_metric = np.std(X_transformed, 0).reshape(D, 1)
+    
+    ranking_metric = np.concatenate((fidx, ranking_metric), 1)      
+
+    # Plot feature weights/variance
+    if D <= 500:
+        n_plot = ranking_metric.shape[0]
+    else:
+        n_plot = 500
+    _plotMonitor(ranking_metric[0:n_plot,:], 
+                 "feature_weights/variance", 
+                 "feature_index", "weight/variance", 
                  RESULTPATH + description + "featweights.svg")
     
-    # rank by absolute feature weight
-    fweights = fweights[np.abs(fweights[:,1]).argsort()][::-1]
-    fnames_ranked = fnames[np.int32(fweights[:,0])].reshape(D, 1)
-    fw = fweights[:,1].reshape(D, 1) 
+    
+    # rank features
+    ranking = ranking_metric[ranking_metric[:,1].argsort()][::-1]
+    
+    fnames_ranked = fnames[np.int32(ranking[:,0])].reshape(D, 1)
+    fw = ranking[:,1].reshape(D, 1) 
     fnames_ranked = np.concatenate((fnames_ranked, fw), 1)
     
     # save results

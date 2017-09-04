@@ -19,10 +19,8 @@ class comput_graph(object):
     """
     
     def __init__(self, dim_input, 
-                 transform_type = "linear",
                  ALPHA = 0.5,
                  LAMBDA = 1,
-                 nn_params = {'DEPTH': 2},
                  OPTIM = 'GD',
                  LEARN_RATE = 0.01):
         
@@ -39,10 +37,8 @@ class comput_graph(object):
         
         # set up instace attributes
         self.dim_input = dim_input
-        self.transform_type = transform_type
         self.ALPHA = ALPHA
         self.LAMBDA = LAMBDA
-        self.nn_params = nn_params
         self.OPTIM = OPTIM
         self.LEARN_RATE = LEARN_RATE
         
@@ -52,39 +48,14 @@ class comput_graph(object):
         print("Adding placeholders.")
         self.add_placeholders()
         
-        # fature space transform
-        if transform_type == "linear":
-            print("Adding linear feature transform.")
-            self.add_linear_transform()
-        elif transform_type == "ffNetwork":
-            print("Adding ffNetwork transform.")
-            self.add_ffNetwork(**nn_params)
+        print("Adding linear feature transform.")
+        self.add_linear_transform()
             
         print("Adding regularized weighted log likelihood.")
         self.add_cost()
         
         print("Adding optimizer.")
         self.add_optimizer()
-        
-        
-
-    #%%========================================================================
-    # Random useful methods
-    #==========================================================================
-    
-    def _variable_summaries(self, var):
-        
-      """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-      
-      with tf.name_scope('summaries'):
-        mean = tf.reduce_mean(var)
-        tf.summary.scalar('mean', mean)
-        #with tf.name_scope('stddev'):
-        #  stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-        #tf.summary.scalar('stddev', stddev)
-        #tf.summary.scalar('max', tf.reduce_max(var))
-        #tf.summary.scalar('min', tf.reduce_min(var))
-        #tf.summary.histogram('histogram', var)
 
 
     #%%========================================================================
@@ -98,7 +69,6 @@ class comput_graph(object):
         with tf.variable_scope("Inputs"):
         
             self.X_input = tf.placeholder("float", [None, self.dim_input], name='X_input')
-            self.keep_prob = tf.placeholder(tf.float32, name='keep_prob') #for dropout
             
             self.T = tf.placeholder("float", [None], name='T')
             self.O = tf.placeholder("float", [None], name='O')
@@ -109,8 +79,7 @@ class comput_graph(object):
             self.O = tf.cast(self.O, tf.int32)
             self.At_Risk = tf.cast(self.At_Risk, tf.int32)
             
-            
-            
+                 
     #%%========================================================================
     # Linear transformation (for interpretability)
     #==========================================================================
@@ -124,123 +93,18 @@ class comput_graph(object):
         with tf.variable_scope("linear_transform"):
             
             # feature scales/weights
-            self.w = tf.get_variable("weights", shape=[self.dim_input], 
+            w = tf.get_variable("weights", shape=[self.dim_input], 
                             initializer= tf.contrib.layers.xavier_initializer())
-            
-            self.b = tf.get_variable("biases", shape=[self.dim_input], 
+            self.B = tf.get_variable("biases", shape=[self.dim_input], 
                             initializer= tf.contrib.layers.xavier_initializer())
             
             # diagonalize and matmul
-            W = tf.diag(self.w)
-            self.X_transformed = tf.add(tf.matmul(self.X_input, W), self.b) 
+            self.W = tf.diag(w)
+            #self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_input], 
+            #                initializer= tf.contrib.layers.xavier_initializer())
+                        
+            self.X_transformed = tf.add(tf.matmul(self.X_input, self.W), self.B) 
     
-
-    #%%========================================================================
-    # Nonlinear feature transformation (feed forward network)
-    #==========================================================================
-
-    def add_ffNetwork(self, DEPTH = 2, MAXWIDTH = 200, 
-                      NONLIN = "ReLU", LINEAR_READOUT = False,
-                      DIM_OUT = None):
-        """ 
-        Adds a feedforward network to the computational graph,
-        which performs a series of non-linear transformations to
-        the input matrix and outputs a matrix of the same dimss.
-        """
-        
-        # Define sizes of weights and biases
-        #======================================================================
-        
-        if DIM_OUT is None:
-            # do not do any dimensionality reduction
-            DIM_OUT = self.dim_input
-        
-        dim_in = self.dim_input
-        
-        if DEPTH == 1:
-            dim_out = DIM_OUT
-        else:
-            dim_out = MAXWIDTH
-        
-        weights_sizes = {'layer_1': [dim_in, dim_out]}
-        biases_sizes = {'layer_1': [dim_out]}
-        dim_in = dim_out
-        
-        # intermediate layers
-        if DEPTH > 2:
-            for i in range(2, DEPTH):                
-                dim_out = int(dim_out)
-                weights_sizes['layer_{}'.format(i)] = [dim_in, dim_out]
-                biases_sizes['layer_{}'.format(i)] = [dim_out]
-                dim_in = dim_out
-        
-        # last layer
-        if DEPTH > 1:
-            weights_sizes['layer_{}'.format(DEPTH)] = [dim_in, DIM_OUT]
-            biases_sizes['layer_{}'.format(DEPTH)] = [DIM_OUT]
-        
-        # Define a layer
-        #======================================================================
-        
-        def _add_layer(layer_name, Input, APPLY_NONLIN = True,
-                       Mode = "Encoder", Drop = True):
-            
-            """ adds a single fully-connected layer"""
-            
-            with tf.variable_scope(layer_name):
-                #
-                # initialize using xavier method
-                #
-                m_w = weights_sizes[layer_name][0]
-                n_w = weights_sizes[layer_name][1]
-                m_b = biases_sizes[layer_name][0]
-                
-                w = tf.get_variable("weights", shape=[m_w, n_w], 
-                                    initializer= tf.contrib.layers.xavier_initializer())
-                self._variable_summaries(w)
-             
-                b = tf.get_variable("biases", shape=[m_b], 
-                                    initializer= tf.contrib.layers.xavier_initializer())
-                
-                #
-                # Do the matmul and apply nonlin
-                # 
-                if Mode == "Encoder":
-                    l = tf.add(tf.matmul(Input, w),b) 
-                elif Mode == "Decoder":
-                    l = tf.matmul(tf.add(Input,b), w) 
-                
-                if APPLY_NONLIN:
-                    if NONLIN == "Sigmoid":  
-                        l = tf.nn.sigmoid(l, name= 'activation')
-                    elif NONLIN == "ReLU":  
-                        l = tf.nn.relu(l, name= 'activation')
-                    elif NONLIN == "Tanh":  
-                        l = tf.nn.tanh(l, name= 'activation') 
-                    #tf.summary.histogram('activations', l)
-                
-                # Dropout
-                if Drop:
-                    l = tf.nn.dropout(l, self.keep_prob)
-                    
-                return l
-        
-        # Add the layers
-        #======================================================================
-            
-        with tf.variable_scope("ffNetwork"):
-            
-            l_in = self.X_input
-            
-            for i in range(1, DEPTH):
-                 l_in = _add_layer("layer_{}".format(i), l_in)
-                 
-            # outer layer (prediction)
-            self.X_transformed = _add_layer("layer_{}".format(DEPTH), l_in,
-                                APPLY_NONLIN = not(LINEAR_READOUT),
-                                Drop=False)
-
-
     #%%========================================================================
     # Get Pij 
     #==========================================================================
@@ -344,10 +208,10 @@ class comput_graph(object):
             with tf.name_scope("Elastic_net"):
                 
                 # Lasso-like penalty
-                L1penalty = self.LAMBDA * tf.reduce_sum(tf.abs(W), axis=0)
+                L1penalty = self.LAMBDA * tf.reduce_sum(tf.abs(W))
                 
                 # Compute the L2 penalty (ridge-like)
-                L2penalty = self.LAMBDA * tf.reduce_sum(W ** 2, axis=0)
+                L2penalty = self.LAMBDA * tf.reduce_sum(W ** 2)
                     
                 # Combine L1 and L2 penalty terms
                 P = 0.5 * (self.ALPHA * L1penalty + (1 - self.ALPHA) * L2penalty)
@@ -374,9 +238,7 @@ class comput_graph(object):
             self.cost = -cumSum
             
             # Add elastic-net penalty
-            if self.transform_type == "linear":
-                self.cost = self.cost + _penalty(self.w)
-
+            self.cost = self.cost + _penalty(self.W)
 
     #%%========================================================================
     #  Optimizer
@@ -437,17 +299,17 @@ if __name__ == '__main__':
     import numpy as np
     from scipy.io import loadmat
     
-    KEEP_PROB = 0.9
+    print("Loading and preprocessing data.")
     
     # Load data
     #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-    dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
-    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
+    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+    dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
     
     Data = loadmat(dpath)
     
-    #Features = np.float32(Data['Integ_X'])
-    Features = np.float32(Data['Gene_X'])
+    Features = np.float32(Data['Integ_X'])
+    #Features = np.float32(Data['Gene_X'])
     
     N, D = Features.shape
     
@@ -456,31 +318,65 @@ if __name__ == '__main__':
     
     Survival = np.int32(Data['Survival']).reshape([N,])
     Censored = np.int32(Data['Censored']).reshape([N,])
-    #fnames = Data['Integ_Symbs']
-    fnames = Data['Gene_Symbs']
+    fnames = Data['Integ_Symbs']
+    #fnames = Data['Gene_Symbs']
+    
+    RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
+    MONITOR_STEP = 10
+    description = "BRCA_Integ_"
+    
+    #  Preprocessing  
+    #%%============================================================================
     
     # remove zero-variance features
     fvars = np.std(Features, 0)
     keep = fvars > 0
     Features = Features[:, keep]
     fnames = fnames[keep]
-    N, D = Features.shape # after feature removal
     
-    # Getting at-risk groups (trainign set)
-    Features, Survival, Observed, at_risk = \
-      sUtils.calc_at_risk(Features, Survival, 1-Censored)
-      
-    ## Limit N (for prototyping)  
+    ## Limit N (for prototyping) ----
     #n = 100
     #Features = Features[0:n, :]
     #Survival = Survival[0:n]
-    #Observed = Observed[0:n]
-    #at_risk = at_risk[0:n]
+    #Censored = Censored[0:n]
+    #--------------------------------    
     
     # *************************************************************
     # Z-scoring survival to prevent numerical errors
     Survival = (Survival - np.mean(Survival)) / np.std(Survival)
     # *************************************************************
+    
+    #  Separate out validation set   
+    #%%============================================================================
+    
+    idxs = np.arange(N)
+    np.random.shuffle(idxs)
+    
+    N_valid = 100
+    valid_idx = idxs[0:N_valid]
+    train_idxs = idxs[N_valid:]
+    
+    Features_valid = Features[valid_idx, :]
+    Survival_valid = Survival[valid_idx]
+    Censored_valid = Censored[valid_idx]
+    
+    Features = Features[train_idxs, :]
+    Survival = Survival[train_idxs]
+    Censored = Censored[train_idxs]
+    
+    N, D = Features.shape # after feature removal
+    
+    #  Getting at-risk groups
+    #%%============================================================================
+    
+    # Getting at-risk groups (trainign set)
+    Features, Survival, Observed, at_risk = \
+      sUtils.calc_at_risk(Features, Survival, 1-Censored)
+      
+    # Getting at-risk groups (validation set)
+    Features_valid, Survival_valid, Observed_valid, at_risk_valid = \
+      sUtils.calc_at_risk(Features_valid, Survival_valid, 1-Censored_valid)
+      
     
     #%%============================================================================
     # Define relevant methods
@@ -488,7 +384,7 @@ if __name__ == '__main__':
     
     import matplotlib.pylab as plt
     
-    def _plotMonitor(arr, title, xlab, ylab, savename):
+    def _plotMonitor(arr, title, xlab, ylab, savename, arr2 = None):
                             
         """ plots cost/other metric to monitor progress """
         
@@ -496,6 +392,8 @@ if __name__ == '__main__':
         
         fig, ax = plt.subplots() 
         ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+        if arr2 is not None:
+            ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
         plt.title(title, fontsize =16, fontweight ='bold')
         plt.xlabel(xlab)
         plt.ylabel(ylab) 
@@ -503,26 +401,13 @@ if __name__ == '__main__':
         plt.savefig(savename)
         plt.close()
     
-    RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
-    MONITOR_STEP = 10
-    description = "GBMLGG_Gene_"
-    
     #%%============================================================================
     #  Define computational graph   
     #==============================================================================
 
-    nn_params = {'DEPTH' : 2, 
-                 'MAXWIDTH' : 200, 
-                 'NONLIN' : "Tanh", 
-                 'LINEAR_READOUT' : False,
-                 'DIM_OUT' : None,
-                 }
-    
     graph_params = {'dim_input' : D,
-                    'transform_type' : "linear",
                     'ALPHA': 0.1,
                     'LAMBDA': 1.0,
-                    'nn_params' : nn_params,
                     'OPTIM' : 'Adam',
                     'LEARN_RATE' : 0.01,
                     }
@@ -533,6 +418,8 @@ if __name__ == '__main__':
     #   Run session
     #==============================================================================
     
+    print("Running session.")
+    
     with tf.Session() as sess:
         
         sess.run(tf.global_variables_initializer())
@@ -540,30 +427,48 @@ if __name__ == '__main__':
         # for tensorboard visualization
         train_writer = tf.summary.FileWriter(RESULTPATH + '/tensorboard', sess.graph)
     
-        feed_dict={g.X_input: Features,
-                   g.T: Survival,
-                   g.O: Observed,
-                   g.At_Risk: at_risk,
-                   g.keep_prob: KEEP_PROB}
+        feed_dict = {g.X_input: Features,
+                     g.T: Survival,
+                     g.O: Observed,
+                     g.At_Risk: at_risk,
+                     }
+                   
+        feed_dict_valid = {g.X_input: Features_valid,
+                           g.T: Survival_valid,
+                           g.O: Observed_valid,
+                           g.At_Risk: at_risk_valid,
+                           }
     
         costs = []
+        costs_valid = []
         epochs = 0
         
         try: 
             while True:
                 
                 _, cost = sess.run([g.optimizer, g.cost], feed_dict = feed_dict)
+                cost_valid = g.cost.eval(feed_dict = feed_dict_valid)
+
+                # Normalize cost for sample size
+                cost = cost / N
+                cost_valid = cost_valid / N_valid
                 
-                print("epoch {}, cost = {}".format(epochs, cost))
-        
+                print("epoch {}, cost_train = {}, cost_valid = {}"\
+                        .format(epochs, cost, cost_valid))
+                        
                 # update costs
                 costs.append([epochs, cost])
+                costs_valid.append([epochs, cost_valid])
                 
                 # monitor
                 if (epochs % MONITOR_STEP == 0) and (epochs > 0):
+                    
                     cs = np.array(costs)
-                    _plotMonitor(arr= cs, title= "cost vs. epoch", 
-                                 xlab= "epoch", ylab= "objective", 
+                    cs_valid = np.array(costs_valid)
+                    
+                    _plotMonitor(arr= cs, arr2= cs_valid[:,1],
+                                 title= "cost vs. epoch", 
+                                 xlab= "epoch", ylab= "cost", 
                                  savename= RESULTPATH + 
                                  description + "cost.svg")
                 
@@ -574,9 +479,12 @@ if __name__ == '__main__':
             print("\nFinished training model.")
             print("Obtaining final results.")
             
-            if graph_params['transform_type'] == 'linear':
-                W, B, X_transformed = sess.run([g.w, g.b, g.X_transformed], 
-                                               feed_dict = feed_dict)
+            W, B, X_transformed = sess.run([g.W, g.B, g.X_transformed], 
+                                           feed_dict = feed_dict_valid)
+                                           
+            #X_transformed = g.X_transformed.eval(feed_dict = feed_dict)
+            #W = np.ones(2)
+                
             
             # Save model
             #self.save()
@@ -584,23 +492,54 @@ if __name__ == '__main__':
     #%%============================================================================
     # Rank features
     #==============================================================================
+
+        
+    def rankFeats(W, rank_type = "weights"):
+        
+        """ ranks features by feature weights or variance after transform"""
+        
+        print("Ranking features by " + rank_type)
     
-    fidx = np.arange(D).reshape(D, 1)
-    W = W.reshape(D, 1)
-    fweights = np.concatenate((fidx, W), 1)   
+        fidx = np.arange(D).reshape(D, 1)
+        
+        if rank_type == 'weights':
+            # rank by feature weight
+            ranking_metric = W.reshape(D, 1)
+        elif rank_type == 'stdev':
+            # rank by variance after transform
+            ranking_metric = np.std(X_transformed, 0).reshape(D, 1)
+        
+        ranking_metric = np.concatenate((fidx, ranking_metric), 1)      
     
-    # Plot feature weights
-    _plotMonitor(fweights, "feature_weights", "feature_index", "weight", 
-                 RESULTPATH + description + "featweights.svg")
-    
-    # rank by absolute feature weight
-    fweights = fweights[np.abs(fweights[:,1]).argsort()][::-1]
-    fnames_ranked = fnames[np.int32(fweights[:,0])].reshape(D, 1)
-    fw = fweights[:,1].reshape(D, 1) 
-    fnames_ranked = np.concatenate((fnames_ranked, fw), 1)
-    
-    # save results
-    
-    savename = RESULTPATH + description + "featnames_ranked.txt"
-    with open(savename,'wb') as f:
-        np.savetxt(f,fnames_ranked,fmt='%s', delimiter='\t')
+        # Plot feature weights/variance
+        if D <= 500:
+            n_plot = ranking_metric.shape[0]
+        else:
+            n_plot = 500
+        _plotMonitor(ranking_metric[0:n_plot,:], 
+                     "feature " + rank_type, 
+                     "feature_index", rank_type, 
+                     RESULTPATH + description + "feat_"+rank_type+"_.svg")
+        
+        
+        # rank features
+        
+        if rank_type == "weights":
+            # sort by absolute weight but keep sign
+            ranking = ranking_metric[np.abs(ranking_metric[:,1]).argsort()][::-1]
+        elif rank_type == 'stdev':    
+            ranking = ranking_metric[ranking_metric[:,1].argsort()][::-1]
+        
+        fnames_ranked = fnames[np.int32(ranking[:,0])].reshape(D, 1)
+        fw = ranking[:,1].reshape(D, 1) 
+        fnames_ranked = np.concatenate((fnames_ranked, fw), 1)
+        
+        # save results
+        
+        savename = RESULTPATH + description + rank_type + "_ranked.txt"
+        with open(savename,'wb') as f:
+            np.savetxt(f,fnames_ranked,fmt='%s', delimiter='\t')
+
+
+    rankFeats(np.diag(W), rank_type = "weights")
+    rankFeats(W, rank_type = "stdev")

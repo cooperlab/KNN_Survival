@@ -4,15 +4,20 @@
 ## @TODO:
 	
 	- NCA Survival (Neighborhood Component Analysis):
-		- (+/-) regularization
+		- Apply to gene expression data
 		- KNN + and - NCA
-
+		- Does NCA improve prediction from other methods? (eg random forests?)
 	--------------------------------------------------------------
 	- Port to python.
 	- cumulative vs vs non-cumulative probability.
 	- cox elastic net vs best formulation
 
 ## 0- Is it novel?
+
+   - NCA has not been applied to right-censored settings before.
+
+   As for the modified KNN method:
+
    tl;dr In this context, YES!
    - KNN has been used in genomics for a long time, but not in right-censored settings.
    - This is corroborated by the relatively recent paper from Gad Getz that only used linear models and random survival forests.
@@ -44,14 +49,13 @@
    c- Deep survival models
 
 ## 3- Can it rank features?
-   - Univariate -> use trained model to predict survival of censored cases then use simple correlation between each feature and survival. Essentially, the model is used to "impute" censored cases to enable cimple correlations to be made.
-   - Multivariate -> a random forest-like technique. This is what I used in the project to rank features. Essentially, random subsets of features are used to calculate the distance between patient pairs, such that each feature appears randomly in a number of different models, each with its own calculated accuracy. Features are then ranked by the median accuracy of models in which they were used. In other words, how much does feature Xi contribute to improving the prediction accuracy (c-index) of models in which it appears.
+   - NCA solved this issue. 
 
 ## 4- Cumulative vs. non-cumulative survival probability.
    - Which one is better? (confirm in different cancer types)
    - What factors affect this? Possible candidate: number of censored cases.
 
-## 5- Handling of missing values: 
+## 5- Handling of missing values: (+/-) 
    - Need to do comparison with imputation
 
 ## 6- Calculating survival based on non-cumulative (vs cumulative) probability:

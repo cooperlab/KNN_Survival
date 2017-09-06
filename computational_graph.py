@@ -302,14 +302,14 @@ if __name__ == '__main__':
     print("Loading and preprocessing data.")
     
     # Load data
-    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
-    dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
+    #dpath = "/home/mtageld/Desktop/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+    dpath = "/home/mtageld/Desktop/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+    #dpath = "/home/mtageld/Desktop/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
     
     Data = loadmat(dpath)
     
-    Features = np.float32(Data['Integ_X'])
-    #Features = np.float32(Data['Gene_X'])
+    #Features = np.float32(Data['Integ_X'])
+    Features = np.float32(Data['Gene_X'])
     
     N, D = Features.shape
     
@@ -318,12 +318,12 @@ if __name__ == '__main__':
     
     Survival = np.int32(Data['Survival']).reshape([N,])
     Censored = np.int32(Data['Censored']).reshape([N,])
-    fnames = Data['Integ_Symbs']
-    #fnames = Data['Gene_Symbs']
+    #fnames = Data['Integ_Symbs']
+    fnames = Data['Gene_Symbs']
     
-    RESULTPATH = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/"
+    RESULTPATH = "/home/mtageld/Desktop/KNN_Survival/Results/tmp/"
     MONITOR_STEP = 10
-    description = "BRCA_Integ_"
+    description = "GBMLGG_Gene_"
     
     #  Preprocessing  
     #%%============================================================================
@@ -470,7 +470,7 @@ if __name__ == '__main__':
                                  title= "cost vs. epoch", 
                                  xlab= "epoch", ylab= "cost", 
                                  savename= RESULTPATH + 
-                                 description + "cost.svg")
+                                 description + "cost.png")
                 
                 epochs += 1
                 
@@ -519,7 +519,7 @@ if __name__ == '__main__':
         _plotMonitor(ranking_metric[0:n_plot,:], 
                      "feature " + rank_type, 
                      "feature_index", rank_type, 
-                     RESULTPATH + description + "feat_"+rank_type+"_.svg")
+                     RESULTPATH + description + "feat_"+rank_type+"_.png")
         
         
         # rank features

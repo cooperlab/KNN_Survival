@@ -11,23 +11,30 @@ import tensorflow as tf
 #%%
 
 n = 10; d = 30
-#x_transformed = np.random.rand(n, d)
-#
-#
-#normax = np.zeros((n, n))
-#
-##sid = 0
-#
-#for sid in range(n):
-#    patient = x_transformed[sid, :]
-#    patient_normax = (patient[None, :] - x_transformed)**2
-#    normax[:,sid] = np.sum(patient_normax, axis=1)
+x_transformed = np.random.rand(n, d)
+
+def get_normAX_numpy(x_transformed):
+    
+    """just to check I get the same results with numpy as a sanity check"""
+    
+    normax = np.zeros((n, n))
+    
+    #sid = 0
+    
+    for sid in range(n):
+        patient = x_transformed[sid, :]
+        patient_normax = (patient[None, :] - x_transformed)**2
+        normax[:,sid] = np.sum(patient_normax, axis=1)
+        
+    return normax
+
+normAX_NPversion = get_normAX_numpy(x_transformed)
 
 #%%
 
 tf.reset_default_graph()
 
-AX = tf.random_normal((n, d))
+AX = tf.Variable(x_transformed)
 
 # first patient
 sID = 0
@@ -56,9 +63,22 @@ def _append_normAX(sID, normAX):
     
 
 # Go through all patients and add normAX
-sID = tf.cast(tf.Variable(0), tf.int32)
+sID = tf.cast(tf.Variable(1), tf.int32)
 
 c = lambda sID, normAX: tf.less(sID, tf.cast(n, tf.int32))
 b = lambda sID, normAX: _append_normAX(sID, normAX)
 
-normAX = tf.while_loop(c, b, [sID, normAX])
+(sID, normAX) = tf.while_loop(c, b, 
+                loop_vars = [sID, normAX], 
+                shape_invariants = 
+                [sID.get_shape(), tf.TensorShape([None, n])])
+                       
+#%%
+                       
+with tf.Session() as sess:
+    
+    sess.run(tf.global_variables_initializer())
+    
+    normAX_TFversion = sess.run(normAX)
+    
+    

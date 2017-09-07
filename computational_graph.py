@@ -368,17 +368,17 @@ if __name__ == '__main__':
     
     # Load data
 
-    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
 
-    dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-    #dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+    #dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+    dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
     #dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
     
     Data = loadmat(dpath)
     
-    Features = np.float32(Data['Integ_X'])
-    #Features = np.float32(Data['Gene_X'])
+    #Features = np.float32(Data['Integ_X'])
+    Features = np.float32(Data['Gene_X'])
     
     N, D = Features.shape
     
@@ -387,8 +387,8 @@ if __name__ == '__main__':
     
     Survival = np.int32(Data['Survival']).reshape([N,])
     Censored = np.int32(Data['Censored']).reshape([N,])
-    fnames = Data['Integ_Symbs']
-    #fnames = Data['Gene_Symbs']
+    #fnames = Data['Integ_Symbs']
+    fnames = Data['Gene_Symbs']
     
     RESULTPATH = projectPath + "Results/tmp/"
     MONITOR_STEP = 10
@@ -404,10 +404,12 @@ if __name__ == '__main__':
     fnames = fnames[keep]
     
     ## Limit N (for prototyping) ----
-    #n = 100
-    #Features = Features[0:n, :]
-    #Survival = Survival[0:n]
-    #Censored = Censored[0:n]
+    n = 40
+    Features = Features[0:n, :]
+    Survival = Survival[0:n]
+    Censored = Censored[0:n] 
+    N, D = Features.shape
+
     #--------------------------------    
     
     # *************************************************************
@@ -421,7 +423,7 @@ if __name__ == '__main__':
     idxs = np.arange(N)
     np.random.shuffle(idxs)
     
-    N_valid = 100
+    N_valid = 20
     valid_idx = idxs[0:N_valid]
     train_idxs = idxs[N_valid:]
     

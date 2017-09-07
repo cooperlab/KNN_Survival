@@ -13,8 +13,8 @@ from IPython.core.display import Image, display
 
 #%%
 
-RESPATH = '/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/'
-#RESPATH = '/home/mtageld/Desktop/KNN_Survival/Results/tmp/'
+#RESPATH = '/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Results/tmp/'
+RESPATH = '/home/mtageld/Desktop/KNN_Survival/Results/tmp/'
 
 ext = '.png'
 

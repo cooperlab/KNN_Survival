@@ -21,9 +21,8 @@ class comput_graph(object):
     def __init__(self, dim_input, 
                  ALPHA = 0.5,
                  LAMBDA = 1,
-                 OPTIM = 'GD',
-                 LEARN_RATE = 0.01,
-                 PIJ_LOOP = False):
+                 OPTIM = 'Adam',
+                 LEARN_RATE = 0.01):
         
         """
         Instantiate a computational graph for survival NCA.
@@ -42,7 +41,6 @@ class comput_graph(object):
         self.LAMBDA = LAMBDA
         self.OPTIM = OPTIM
         self.LEARN_RATE = LEARN_RATE
-        self.PIJ_LOOP = PIJ_LOOP
         
         # clear lurking tensors
         tf.reset_default_graph()
@@ -116,92 +114,24 @@ class comput_graph(object):
         """ 
         Calculate Pij, the probability that j will be chosen 
         as i's neighbor, for all i's
-        """
-        
-        def get_pij_using_loop():
-            
-            """
-            Gets Pij by looping through patients. Is appropriate when the 
-            non-loop version causes memory errors.            
-            """
-            
-            with tf.name_scope("pij_loop"):
-                
-                n = tf.shape(self.X_transformed)[0]
-                n = tf.cast(n, tf.int32)
-                #n = self.X_transformed.get_shape().as_list()[0]
-                #n = tf.cast(tf.size(self.T)-1, tf.int32)
-                
-                # first patient
-                #sID = 0
-                #patient = self.X_transformed[sID, :]
-                #patient_normax = (patient[None, :] - self.X_transformed)**2
-                #normAX = tf.reduce_sum(patient_normax, axis=1)
-                #normAX = normAX[None, :]
-                normAX = tf.Variable(tf.zeros([n, n]), validate_shape=False)
-                
-                # all other patients
-                def _append_normAX(sID, normAX):
-                
-                    """append normAX for a single patient to existing normAX"""
-                    
-                    # calulate normAX for this patient    
-                    patient = self.X_transformed[sID, :]
-                    patient_normax = (patient[None, :] - self.X_transformed)**2
-                    patient_normax = tf.reduce_sum(patient_normax, axis=1)
-                    patient_normax = patient_normax[None, :]
-                
-                    # append to existing list
-                    #normAX = tf.concat((normAX, patient_normax[None, :]), axis=0)
-                    #a = normAX[sID, :]
-                    #normAX = tf.assign(normAX[sID, :], patient_normax[None, :])
-                    normAX = normAX[sID, :].assign(patient_normax[None, :])
-                    #normAX = tf.Variable(normAX)
-                    
-                    # sID++
-                    sID = tf.cast(tf.add(sID, 1), tf.int32)
-                    
-                    return sID, normAX
-                    
-                
-                
-                
-                # Go through all patients and add normAX
-                #sID = tf.cast(tf.Variable(1), tf.int32)
-                sID = tf.cast(tf.Variable(0), tf.int32)
-                
-                c = lambda sID, normAX: tf.less(sID, tf.cast(n, tf.int32))
-                b = lambda sID, normAX: _append_normAX(sID, normAX)
-                
-                (sID, normAX) = tf.while_loop(c, b, 
-                                loop_vars = [sID, normAX])#, 
-                                #shape_invariants = 
-                                #[sID.get_shape(), tf.TensorShape([None, n])])
-                            
-            return normAX
-        
+        """        
         
         with tf.name_scope("getting_Pij"):
             
-            if self.PIJ_LOOP:
-                # use if running into memory errors
-                normAX = get_pij_using_loop()
-                
-            else:
-                #
-                # Inspired by: https://github.com/RolT/NCA-python
-                #
-                
-                # Expand dims of AX to [n_samples, n_samples, n_features], where
-                # each "channel" in the third dimension is the difference between
-                # one sample and all other samples along one feature
-                normAX = self.X_transformed[None, :, :] - \
-                         self.X_transformed[:, None, :]
-                
-                # Now get the euclidian distance between
-                # every patient and all others -> [n_samples, n_samples]
-                #normAX = tf.norm(normAX, axis=0)
-                normAX = tf.reduce_sum(normAX ** 2, axis=2)
+            #
+            # Inspired by: https://github.com/RolT/NCA-python
+            #
+            
+            # Expand dims of AX to [n_samples, n_samples, n_features], where
+            # each "channel" in the third dimension is the difference between
+            # one sample and all other samples along one feature
+            normAX = self.X_transformed[None, :, :] - \
+                     self.X_transformed[:, None, :]
+            
+            # Now get the euclidian distance between
+            # every patient and all others -> [n_samples, n_samples]
+            #normAX = tf.norm(normAX, axis=0)
+            normAX = tf.reduce_sum(normAX ** 2, axis=2)
             
             # Calculate Pij, the probability that j will be chosen 
             # as i's neighbor, for all i's. Pij has shape
@@ -392,7 +322,7 @@ if __name__ == '__main__':
     
     RESULTPATH = projectPath + "Results/tmp/"
     MONITOR_STEP = 10
-    description = "GBMLGG_Integ_"
+    description = "GBMLGG_Gene_"
     
     #  Preprocessing  
     #%%============================================================================

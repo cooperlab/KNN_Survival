@@ -126,8 +126,11 @@ class comput_graph(object):
             """
             
             with tf.name_scope("pij_loop"):
-            
-                n = tf.cast(self.X_transformed.shape[0], tf.int32)
+                
+                #n = tf.shape(self.X_transformed)[0]
+                #n = tf.cast(n, tf.int32)
+                #n = self.X_transformed.get_shape().as_list()[0]
+                n = tf.cast(tf.size(self.T)-1, tf.int32)
                 
                 # first patient
                 sID = 0
@@ -135,6 +138,7 @@ class comput_graph(object):
                 patient_normax = (patient[None, :] - self.X_transformed)**2
                 normAX = tf.reduce_sum(patient_normax, axis=1)
                 normAX = normAX[None, :]
+                #normAX = tf.Variable(tf.zeros([n, n]))
                 
                 # all other patients
                 def _append_normAX(sID, normAX):
@@ -148,6 +152,7 @@ class comput_graph(object):
                 
                     # append to existing list
                     normAX = tf.concat((normAX, patient_normax[None, :]), axis=0)
+                    #normAX = tf.assign(normAX[sID, :], patient_normax[None, :])
                     
                     # sID++
                     sID = tf.cast(tf.add(sID, 1), tf.int32)
@@ -157,6 +162,7 @@ class comput_graph(object):
                 
                 # Go through all patients and add normAX
                 sID = tf.cast(tf.Variable(1), tf.int32)
+                #sID = tf.cast(tf.Variable(0), tf.int32)
                 
                 c = lambda sID, normAX: tf.less(sID, tf.cast(n, tf.int32))
                 b = lambda sID, normAX: _append_normAX(sID, normAX)
@@ -198,7 +204,7 @@ class comput_graph(object):
             # add to 1 in rows, that is i (central patients) are
             # represented in rows
             denomSum = tf.reduce_sum(tf.exp(-normAX), axis=0)
-            epsilon = 1e-5
+            epsilon = 1e-8
             denomSum = denomSum + epsilon            
             
             self.Pij = tf.exp(-normAX) / denomSum[:, None]
@@ -467,7 +473,7 @@ if __name__ == '__main__':
                     'LAMBDA': 1.0,
                     'OPTIM' : 'Adam',
                     'LEARN_RATE' : 0.01,
-                    'PIJ_LOOP' : False,
+                    'PIJ_LOOP' : True,
                     }
     
     g = comput_graph(**graph_params)

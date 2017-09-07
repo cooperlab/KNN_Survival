@@ -36,42 +36,66 @@ tf.reset_default_graph()
 
 AX = tf.Variable(x_transformed)
 
-# first patient
-sID = 0
-patient = AX[sID, :]
-patient_normax = (patient[None, :] - AX)**2
-normAX = tf.reduce_sum(patient_normax, axis=1)
-normAX = normAX[None, :]
+## first patient
+#sID = 0
+#patient = AX[sID, :]
+#patient_normax = (patient[None, :] - AX)**2
+#normAX = tf.reduce_sum(patient_normax, axis=1)
+#normAX = normAX[None, :]
+
+# WHILE LOOP ==================================================================
+## all other patients
+#def _append_normAX(sID, normAX):
+#
+#    """append normAX for a single patient to existing normAX"""
+#    
+#    # calulate normAX for this patient    
+#    patient = AX[sID, :]
+#    patient_normax = (patient[None, :] - AX)**2
+#    patient_normax = tf.reduce_sum(patient_normax, axis=1)
+#
+#    # append to existing list
+#    normAX = tf.concat((normAX, patient_normax[None, :]), axis=0)
+#    
+#    # sID++
+#    sID = tf.cast(tf.add(sID, 1), tf.int32)
+#    
+#    return sID, normAX
+#    
+#
+## Go through all patients and add normAX
+#sID = tf.cast(tf.Variable(1), tf.int32)
+#
+#c = lambda sID, normAX: tf.less(sID, tf.cast(n, tf.int32))
+#b = lambda sID, normAX: _append_normAX(sID, normAX)
+#
+#(sID, normAX) = tf.while_loop(c, b, 
+#                loop_vars = [sID, normAX], 
+#                shape_invariants = 
+#                [sID.get_shape(), tf.TensorShape([None, n])])
+# =============================================================================
+
+normAX = tf.Variable(tf.zeros([n, n]))
 
 # all other patients
-def _append_normAX(sID, normAX):
+def _append_normAX(normAX, patient):
 
     """append normAX for a single patient to existing normAX"""
     
     # calulate normAX for this patient    
-    patient = AX[sID, :]
     patient_normax = (patient[None, :] - AX)**2
     patient_normax = tf.reduce_sum(patient_normax, axis=1)
 
     # append to existing list
-    normAX = tf.concat((normAX, patient_normax[None, :]), axis=0)
-    
-    # sID++
-    sID = tf.cast(tf.add(sID, 1), tf.int32)
+    #normAX = tf.concat((normAX, patient_normax[None, :]), axis=0)
+
+    tf.assign(normAX[])
     
     return sID, normAX
-    
 
-# Go through all patients and add normAX
-sID = tf.cast(tf.Variable(1), tf.int32)
-
-c = lambda sID, normAX: tf.less(sID, tf.cast(n, tf.int32))
-b = lambda sID, normAX: _append_normAX(sID, normAX)
-
-(sID, normAX) = tf.while_loop(c, b, 
-                loop_vars = [sID, normAX], 
-                shape_invariants = 
-                [sID.get_shape(), tf.TensorShape([None, n])])
+AX = tf.identity(AX)
+initializer = normAX    
+normAX = tf.scan(_append_normAX, AX, initializer=initializer)
                        
 #%%
                        

@@ -224,13 +224,8 @@ class comput_graph(object):
             cumSum = tf.cast(tf.Variable([0.0]), tf.float32)
             Idx = tf.cast(tf.Variable(0), tf.int32)
             
-            # Doing the following admittedly odd step because tensorflow's loop
-            # requires both the condition and body to have same number of inputs
-            def _cmp_pred(Idx, cumSum):
-                return tf.less(Idx, tf.cast(tf.size(self.T)-1, tf.int32))
-            
             # Go through all uncensored cases and add to cumulative sum
-            c = lambda Idx, cumSum: _cmp_pred(Idx, cumSum)
+            c = lambda Idx, cumSum: tf.less(Idx, tf.cast(tf.size(self.T)-1, tf.int32))
             b = lambda Idx, cumSum: _add_if_observed(Idx, cumSum)
             Idx, cumSum = tf.while_loop(c, b, [Idx, cumSum])
             
@@ -302,14 +297,18 @@ if __name__ == '__main__':
     print("Loading and preprocessing data.")
     
     # Load data
-    #dpath = "/home/mtageld/Desktop/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-    dpath = "/home/mtageld/Desktop/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
-    #dpath = "/home/mtageld/Desktop/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
+
+    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+
+    dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+    #dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+    #dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
     
     Data = loadmat(dpath)
     
-    #Features = np.float32(Data['Integ_X'])
-    Features = np.float32(Data['Gene_X'])
+    Features = np.float32(Data['Integ_X'])
+    #Features = np.float32(Data['Gene_X'])
     
     N, D = Features.shape
     
@@ -318,12 +317,12 @@ if __name__ == '__main__':
     
     Survival = np.int32(Data['Survival']).reshape([N,])
     Censored = np.int32(Data['Censored']).reshape([N,])
-    #fnames = Data['Integ_Symbs']
-    fnames = Data['Gene_Symbs']
+    fnames = Data['Integ_Symbs']
+    #fnames = Data['Gene_Symbs']
     
-    RESULTPATH = "/home/mtageld/Desktop/KNN_Survival/Results/tmp/"
+    RESULTPATH = projectPath + "Results/tmp/"
     MONITOR_STEP = 10
-    description = "GBMLGG_Gene_"
+    description = "GBMLGG_Integ_"
     
     #  Preprocessing  
     #%%============================================================================

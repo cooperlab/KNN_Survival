@@ -156,6 +156,7 @@ class comput_graph(object):
                     #a = normAX[sID, :]
                     #normAX = tf.assign(normAX[sID, :], patient_normax[None, :])
                     normAX = normAX[sID, :].assign(patient_normax[None, :])
+                    #normAX = tf.Variable(normAX)
                     
                     # sID++
                     sID = tf.cast(tf.add(sID, 1), tf.int32)
@@ -478,7 +479,7 @@ if __name__ == '__main__':
                     'LAMBDA': 1.0,
                     'OPTIM' : 'Adam',
                     'LEARN_RATE' : 0.01,
-                    'PIJ_LOOP' : True,
+                    'PIJ_LOOP' : False,
                     }
     
     g = comput_graph(**graph_params)

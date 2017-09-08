@@ -90,7 +90,7 @@ def getSplitIdxs(N, OFFSET = 0,
 # Balanced splitting
 #==============================================================================
 
-def get_balanced_SplitIdxs(categories, OFFSET = 0, 
+def get_balanced_SplitIdxs(categories,
                            OPTIM_RATIO=0.2, OPTIM_TRAIN_RATIO=0.5,
                            K=5, SHUFFLES=5):
                                
@@ -138,13 +138,32 @@ def get_balanced_SplitIdxs(categories, OFFSET = 0,
         SplitIdxs_thiscateg = _get_category_SplitIdx(categories, category_identifier)
         
         # merge with existing lists of indices
-        SplitIdxs['idx_optim_train'] += SplitIdxs_thiscateg['idx_optim_train']
-        SplitIdxs['idx_optim_valid'] += SplitIdxs_thiscateg['idx_optim_valid']
+        if OPTIM_RATIO > 0:
+            SplitIdxs['idx_optim_train'] += SplitIdxs_thiscateg['idx_optim_train']
+            SplitIdxs['idx_optim_valid'] += SplitIdxs_thiscateg['idx_optim_valid']
         for k in range(K * SHUFFLES):
             SplitIdxs['fold_cv_train'][k] += SplitIdxs_thiscateg['fold_cv_train'][k]
             SplitIdxs['fold_cv_test'][k] += SplitIdxs_thiscateg['fold_cv_test'][k]
     
     return SplitIdxs
+
+ 
+#%%============================================================================
+# Balanced batches
+#==============================================================================
+
+def get_balanced_batches(categories, BATCH_SIZE):
+    
+    """
+    Gets indices for various batches (to be used for stochastic GD)
+    in a balanced fashion - i.e. so that the batches have nearly equal
+    representations of each category/property.
+    """
+    K = int(n / BATCH_SIZE)
+    batchIdxs = get_balanced_SplitIdxs(censored, OPTIM_RATIO=0, K=K, SHUFFLES=1)
+    batchIdxs = batchIdxs['fold_cv_test'][0:K]
+    
+    return batchIdxs
     
     
 #%%############################################################################
@@ -159,7 +178,7 @@ def get_balanced_SplitIdxs(categories, OFFSET = 0,
 if __name__ == '__main__':
     
     # Load data
-    n = 200
+    n = 500
 
     # method inputs
     censored = np.random.binomial(1, 0.2, n)
@@ -167,9 +186,13 @@ if __name__ == '__main__':
     OPTIM_TRAIN_RATIO=0.7
     K=5
     SHUFFLES=5
+    BATCH_SIZE = 11
     
     # get balanced split indices
     splitIdxs = get_balanced_SplitIdxs(\
-                           censored, OFFSET = 0, 
+                           censored,
                            OPTIM_RATIO=0.2, OPTIM_TRAIN_RATIO=0.5,
                            K=5, SHUFFLES=5)
+                           
+    # get balanced batches
+    batchIdxs = get_balanced_batches(censored, BATCH_SIZE = BATCH_SIZE)

@@ -1,8 +1,15 @@
+# images
 *.tif
 *.png
 *.svg
+
+# data
 *.mat
 *.npy
+*.csv
+
+# cache
 *.pyc
 __pycache__/*
-*.csv
+*.swp
+

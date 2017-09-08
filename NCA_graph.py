@@ -56,6 +56,8 @@ class comput_graph(object):
         
         print("Adding optimizer.")
         self.add_optimizer()
+        
+        print("\n Finished building graph.")
 
 
     #%%========================================================================

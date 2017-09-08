@@ -28,7 +28,10 @@ import matplotlib.pylab as plt
 
 import ProjectUtils as pUtils
 import SurvivalUtils as sUtils
+import DataManagement as dm
 import NCA_graph as graph
+
+raise(Exception)
 
 #%%============================================================================
 # NCAmodel class (trainable model)
@@ -148,20 +151,15 @@ class SurvivalNCA(object):
         attribs = {
             'RESULTPATH' : self.RESULTPATH,
             'description' : self.description,
-            'SIGMA' : self.SIGMA,
-            'LAMBDA': self.LAMBDA,
-            'LEARN_RATE' : self.LEARN_RATE,
-            'MONITOR_STEP' : self.MONITOR_STEP,
-            'N_SUBSET' : self.N_SUBSET,
             'D' : self.D,
-            'A' : self.A,
+            'Errors_epochLevel_train': self.Errors_epochLevel_train,
+            'Errors_epochLevel_valid': self.Errors_epochLevel_valid,
+            'Errors_batchLevel_train': self.Errors_batchLevel_train,
+            'Errors_batchLevel_valid': self.Errors_batchLevel_valid,
+            'BATCHES_RUN': self.BATCHES_RUN,
+            'EPOCHS_RUN': self.EPOCHS_RUN,
+            'COMPUT_GRAPH_PARAMS': self.COMPUT_GRAPH_PARAMS,
             }
-        
-        if len(self.costs) > 0:
-            attribs['costs'] = self.costs
-            
-        if self.ranks is not None:
-            attribs['ranks'] = self.ranks
         
         return attribs
     

@@ -6,7 +6,18 @@ Created on Sat Sep  2 12:57:55 2017
 @author: mohamed
 """
 
+import os
+import sys
+def conditionalAppend(Dir):
+    """ Append dir to sys path"""
+    if Dir not in sys.path:
+        sys.path.append(Dir)
+cwd = os.getcwd()
+conditionalAppend(cwd)
+
 import tensorflow as tf
+
+import ProjectUtils as pUtils
 
 #%%============================================================================
 # Computational graph class
@@ -33,7 +44,7 @@ class comput_graph(object):
         
         """
         
-        print("Building computational graph for survival NCA.")        
+        pUtils.Log_and_print("Building computational graph for survival NCA.")        
         
         # set up instace attributes
         self.dim_input = dim_input
@@ -45,19 +56,19 @@ class comput_graph(object):
         # clear lurking tensors
         tf.reset_default_graph()
         
-        print("Adding placeholders.")
+        pUtils.Log_and_print("Adding placeholders.")
         self.add_placeholders()
         
-        print("Adding linear feature transform.")
+        pUtils.Log_and_print("Adding linear feature transform.")
         self.add_linear_transform()
             
-        print("Adding regularized weighted log likelihood.")
+        pUtils.Log_and_print("Adding regularized weighted log likelihood.")
         self.add_cost()
         
-        print("Adding optimizer.")
+        pUtils.Log_and_print("Adding optimizer.")
         self.add_optimizer()
         
-        print("\nFinished building graph.")
+        pUtils.Log_and_print("\nFinished building graph.")
 
 
     #%%========================================================================
@@ -281,15 +292,6 @@ if __name__ == '__main__':
     # Prepare inputs
     #==========================================================================
 
-    import os
-    import sys
-    
-    def conditionalAppend(Dir):
-        """ Append dir to sys path"""
-        if Dir not in sys.path:
-            sys.path.append(Dir)
-    
-    cwd = os.getcwd()
     conditionalAppend(cwd+"/../")
     import SurvivalUtils as sUtils
     

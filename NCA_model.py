@@ -27,6 +27,9 @@ import tensorflow as tf
 #from matplotlib import cm
 #import matplotlib.pylab as plt
 
+import logging
+import datetime
+
 import ProjectUtils as pUtils
 import SurvivalUtils as sUtils
 import DataManagement as dm
@@ -105,6 +108,19 @@ class SurvivalNCA(object):
             #==================================================================
             
             self._makeSubdirs()
+            
+            # Configure logger
+            #==================================================================
+            
+            #
+            # Note: the logger will not work with iPython
+            #
+            
+            timestamp = str(datetime.datetime.today()).replace(' ','_')
+            self.log_savepath = self.RESULTPATH+"model/logs/" + timestamp
+            logging.basicConfig(filename = self.log_savepath +"_RunLogs.log", 
+                                level = logging.INFO,
+                                format = '%(levelname)s:%(message)s')
 
 
     #%%===========================================================================
@@ -119,7 +135,7 @@ class SurvivalNCA(object):
         
         """save class as ModelAttributes.txt"""
         
-        print("Saving model attributes and results...")
+        pUtils.Log_and_print("Saving model attributes and results...")
         with open(self.RESULTPATH + self.description + 'model/ModelAttributes.txt','wb') as file:
             file.write(_pickle.dumps(self.__dict__))
             file.close()
@@ -183,6 +199,7 @@ class SurvivalNCA(object):
         # Create a subdir to save the model
         pUtils.makeSubdir(self.RESULTPATH, 'model')
         pUtils.makeSubdir(self.RESULTPATH + 'model/', 'weights')
+        pUtils.makeSubdir(self.RESULTPATH + 'model/', 'logs')
         
     
     #%%============================================================================
@@ -231,7 +248,7 @@ class SurvivalNCA(object):
         # Initial preprocessing
         #====================================================================== 
         
-        print("Initial preprocessing.")
+        pUtils.Log_and_print("Initial preprocessing.")
         
         assert len(features_valid.shape) == 2
         assert len(survival.shape) == 1
@@ -280,7 +297,7 @@ class SurvivalNCA(object):
         # Begin session
         #======================================================================  
 
-#        print("Running TF session.")
+#        pUtils.Log_and_print("Running TF session.")
 #
 #        with tf.Session() as sess:
 #            
@@ -316,7 +333,7 @@ class SurvivalNCA(object):
 #                            
 #        """ plots cost/other metric to monitor progress """
 #        
-#        print("Plotting " + title)
+#        pUtils.Log_and_print("Plotting " + title)
 #        
 #        fig, ax = plt.subplots() 
 #        ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
@@ -335,7 +352,7 @@ class SurvivalNCA(object):
 #        
 #        """ plot stdev change"""
 #        
-#        print("Plotting feature stdev after transformation")
+#        pUtils.Log_and_print("Plotting feature stdev after transformation")
 #        
 #        fidx = np.arange(len(self.A)).reshape(self.D, 1)
 #        
@@ -363,7 +380,7 @@ class SurvivalNCA(object):
 #        be continuous.
 #        """
 #        
-#        print("Plotting Features (transformed) vs survival (color)")
+#        pUtils.Log_and_print("Plotting Features (transformed) vs survival (color)")
 #        
 #        Ax = np.dot(data, self.A)
 #        

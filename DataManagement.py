@@ -159,8 +159,8 @@ def get_balanced_batches(categories, BATCH_SIZE):
     in a balanced fashion - i.e. so that the batches have nearly equal
     representations of each category/property.
     """
-    K = int(n / BATCH_SIZE)
-    batchIdxs = get_balanced_SplitIdxs(censored, OPTIM_RATIO=0, K=K, SHUFFLES=1)
+    K = int(categories.shape[0] / BATCH_SIZE)
+    batchIdxs = get_balanced_SplitIdxs(categories, OPTIM_RATIO=0, K=K, SHUFFLES=1)
     batchIdxs = batchIdxs['fold_cv_test'][0:K]
     
     return batchIdxs

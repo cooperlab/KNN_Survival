@@ -22,9 +22,10 @@ conditionalAppend(cwd)
 
 import _pickle
 import numpy as np
-from scipy.io import loadmat, savemat
-from matplotlib import cm
-import matplotlib.pylab as plt
+import tensorflow as tf
+#from scipy.io import loadmat, savemat
+#from matplotlib import cm
+#import matplotlib.pylab as plt
 
 import ProjectUtils as pUtils
 import SurvivalUtils as sUtils
@@ -62,7 +63,7 @@ class SurvivalNCA(object):
                            'LAMBDA': 1.0, 
                            'OPTIM': 'Adam',
                            'LEARN_RATE': 0.01}
-    userspecified_graphParams = ['D',]
+    userspecified_graphParams = ['dim_input',]
     
     
     # Init
@@ -99,6 +100,11 @@ class SurvivalNCA(object):
             self.Errors_batchLevel_valid = []
             self.BATCHES_RUN = 0
             self.EPOCHS_RUN = 0
+            
+            # Create output dirs
+            #==================================================================
+            
+            self._makeSubdirs()
 
 
     #%%===========================================================================
@@ -106,15 +112,15 @@ class SurvivalNCA(object):
     #==============================================================================
     
     # The following load/save methods are inspired by:
-        # https://stackoverflow.com/questions/2345151/
-        # how-to-save-read-class-wholly-in-python
+    # https://stackoverflow.com/questions/2345151/
+    # how-to-save-read-class-wholly-in-python
         
     def save(self):
         
         """save class as ModelAttributes.txt"""
         
         print("Saving model attributes and results...")
-        with open(self.RESULTPATH + self.description + 'ModelAttributes.txt','wb') as file:
+        with open(self.RESULTPATH + self.description + 'model/ModelAttributes.txt','wb') as file:
             file.write(_pickle.dumps(self.__dict__))
             file.close()
     
@@ -150,6 +156,35 @@ class SurvivalNCA(object):
         
         return attribs
     
+    #==========================================================================
+    
+    def reset_TrainHistory(self):
+        
+        """Resets training history (errors etc)"""  
+        
+        self.EPOCHS_RUN = 0
+        self.BATCHES_RUN = 0    
+        self.Errors_batchLevel_train = []            
+        self.Errors_batchLevel_valid = []
+        self.Errors_epochLevel_train = []
+        self.Errors_epochLevel_valid = []
+        self.save()
+        
+    #==========================================================================    
+    
+    def _makeSubdirs(self):
+        
+        """ Create output directories"""
+        
+        # Create relevant result subdirectories
+        pUtils.makeSubdir(self.RESULTPATH, 'plots')
+        pUtils.makeSubdir(self.RESULTPATH, 'ranks')
+        
+        # Create a subdir to save the model
+        pUtils.makeSubdir(self.RESULTPATH, 'model')
+        pUtils.makeSubdir(self.RESULTPATH + 'model/', 'weights')
+        
+    
     #%%============================================================================
     # build computational graph
     #==============================================================================
@@ -162,7 +197,7 @@ class SurvivalNCA(object):
         """
         
         # Now that the computationl graph is provided D is always fixed
-        self.D = COMPUT_GRAPH_PARAMS['D']
+        self.D = COMPUT_GRAPH_PARAMS['dim_input']
 
         # Params for the computational graph
         self.COMPUT_GRAPH_PARAMS = \
@@ -172,7 +207,7 @@ class SurvivalNCA(object):
                     keys_Needed = self.userspecified_graphParams)
                     
         # instantiate computational graph
-        self.graph = cgraph(**self.COMPUT_GRAPH_PARAMS)
+        self.graph = cgraph.comput_graph(**self.COMPUT_GRAPH_PARAMS)
     
     
     #%%============================================================================
@@ -184,6 +219,7 @@ class SurvivalNCA(object):
             survival_valid = None, 
             censored_valid = None,
             COMPUT_GRAPH_PARAMS={},
+            BATCH_SIZE = 20,
             MONITOR_STEP = 10):
                 
         """
@@ -191,24 +227,25 @@ class SurvivalNCA(object):
         features - (N,D) np array
         survival and censored - (N,) np array
         """
+
+        # Initial preprocessing
+        #====================================================================== 
+        
+        print("Initial preprocessing.")
+        
+        assert len(features_valid.shape) == 2
+        assert len(survival.shape) == 1
+        assert len(censored.shape) == 1
         
         if features_valid is not None:
             USE_VALID = True
+            assert (features_valid.shape[1] == features.shape[1])
             assert (survival_valid is not None)
             assert (censored_valid is not None)
-
-        # define computational graph if non-existent
-        #======================================================================
         
-        if not hasattr(self, 'graph'):
-            COMPUT_GRAPH_PARAMS['D'] = features.shape[1]
-            self.build_computational_graph(COMPUT_GRAPH_PARAMS)
-        else:
-            assert self.graph.dim_input == features.shape[1]
-            
-        
+        #
         # Z-scoring survival (for numerical stability)
-        #====================================================================== 
+        #
         
         # Combine training and validation (for comparability)
         survival_all = survival[:, None]
@@ -224,25 +261,67 @@ class SurvivalNCA(object):
         if USE_VALID:        
             survival_valid = survival_all[len(survival):, 0]
         
+        #
+        # Getting at-risk for validation set
+        #
+        if USE_VALID:
+            features_valid, survival_valid, observed_valid, at_risk_valid = \
+                sUtils.calc_at_risk(features_valid, survival_valid, 1-censored_valid)       
+
+        # Define computational graph if non-existent
+        #======================================================================        
         
+        if not hasattr(self, 'graph'):
+            COMPUT_GRAPH_PARAMS['dim_input'] = features.shape[1]
+            self.build_computational_graph(COMPUT_GRAPH_PARAMS)
+        else:
+            assert self.graph.dim_input == features.shape[1]
         
-        # Initial preprocessing
-        #====================================================================== 
-    
+        # Begin session
+        #======================================================================  
+
+#        print("Running TF session.")
+#
+#        with tf.Session() as sess:
+#            
+#            sess
+#
+#            #
+#            # Shuffle so that training batches differ every epoch
+#            #
+#            idxs = np.arange(features.shape[0]);
+#            np.random.shuffle(idxs)
+#            features = features[idxs, :]
+#            survival = survival[idxs]
+#            censored  = censored[idxs]
 #    
+#            #
+#            # Divide into balanced batches
+#            #
+#            
+#            # Getting at-risk groups (trainign set)
+#            features, survival, observed, at_risk = \
+#              sUtils.calc_at_risk(features, survival, 1-censored)
+#              
+#            # Get balanced batches
+#            self.batchIdxs = dm.get_balanced_batches(observed, BATCH_SIZE = BATCH_SIZE)
+#            self.batchIdxs_valid = dm.get_balanced_batches(observed_valid, BATCH_SIZE = BATCH_SIZE)  
+    
 #    #%%============================================================================
 #    # Visualization methods
 #    #==============================================================================
 #    
 #    
-#    def _plotMonitor(self, arr, title, xlab, ylab, savename):
-#                        
+#    def _plotMonitor(arr, title, xlab, ylab, savename, arr2 = None):
+#                            
 #        """ plots cost/other metric to monitor progress """
 #        
 #        print("Plotting " + title)
 #        
 #        fig, ax = plt.subplots() 
 #        ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+#        if arr2 is not None:
+#            ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
 #        plt.title(title, fontsize =16, fontweight ='bold')
 #        plt.xlabel(xlab)
 #        plt.ylabel(ylab) 

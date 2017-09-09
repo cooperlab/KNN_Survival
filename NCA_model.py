@@ -92,6 +92,8 @@ class SurvivalNCA(object):
             #==================================================================
             
             self.RESULTPATH = RESULTPATH
+            self.LOGPATH = self.RESULTPATH + "model/logs/"
+            self.WEIGHTPATH = self.RESULTPATH + "model/weights/"
             
             # prefix to all saved results
             self.description = description
@@ -109,18 +111,15 @@ class SurvivalNCA(object):
             
             self._makeSubdirs()
             
-            # Configure logger
+            # Configure logger - will not work with iPython
             #==================================================================
             
-            #
-            # Note: the logger will not work with iPython
-            #
-            
             timestamp = str(datetime.datetime.today()).replace(' ','_')
-            self.log_savepath = self.RESULTPATH+"model/logs/" + timestamp
-            logging.basicConfig(filename = self.log_savepath +"_RunLogs.log", 
+            logging.basicConfig(filename = self.LOGPATH + timestamp + "_RunLogs.log", 
                                 level = logging.INFO,
                                 format = '%(levelname)s:%(message)s')
+                                
+            
 
 
     #%%===========================================================================
@@ -133,24 +132,39 @@ class SurvivalNCA(object):
         
     def save(self):
         
-        """save class as ModelAttributes.txt"""
+        """save relevant attributes as ModelAttributes.pkl"""
         
-        pUtils.Log_and_print("Saving model attributes and results...")
-        with open(self.RESULTPATH + self.description + 'model/ModelAttributes.txt','wb') as file:
-            file.write(_pickle.dumps(self.__dict__))
-            file.close()
+        pUtils.Log_and_print("Saving relevant attributes ...")
+
+        attribs = self.getModelInfo()
+                
+        with open(self.RESULTPATH + self.description + 
+                  'model/ModelAttributes.pkl','wb') as f:
+            _pickle.dump(attribs, f)
     
     #==========================================================================
     
     def load(self, LOADPATH):
         
-        """try to load ModelAttributes.txt"""
+        """load ModelAttributes.pkl"""
         
         print("Loading model attributes ...")
-        with open(LOADPATH,'rb') as file:
-            dataPickle = file.read()
-            file.close()
-            self.__dict__ = _pickle.loads(dataPickle)
+        
+        with open(LOADPATH,'rb') as f:
+            attribs = _pickle.load(f)
+            
+        # unpack dict
+        self.RESULTPATH = attribs['RESULTPATH']
+        self.description = attribs['description']
+        self.Errors_epochLevel_train = attribs['Errors_epochLevel_train']
+        self.Errors_epochLevel_valid = attribs['Errors_epochLevel_valid']
+        self.Errors_batchLevel_train = attribs['Errors_batchLevel_train']
+        self.Errors_batchLevel_valid = attribs['Errors_batchLevel_valid']
+        self.BATCHES_RUN = attribs['BATCHES_RUN']
+        self.EPOCHS_RUN = attribs['EPOCHS_RUN']
+        self.COMPUT_GRAPH_PARAMS = attribs['COMPUT_GRAPH_PARAMS']
+        self.LOGPATH = attribs['LOGPATH']
+        self.WEIGHTPATH = attribs['WEIGHTPATH']
             
     #==========================================================================
     
@@ -168,6 +182,8 @@ class SurvivalNCA(object):
             'BATCHES_RUN': self.BATCHES_RUN,
             'EPOCHS_RUN': self.EPOCHS_RUN,
             'COMPUT_GRAPH_PARAMS': self.COMPUT_GRAPH_PARAMS,
+            'LOGPATH': self.LOGPATH,
+            'WEIGHTPATH': self.WEIGHTPATH,
             }
         
         return attribs

@@ -99,10 +99,10 @@ class SurvivalNCA(object):
             self.description = description
             
             # new model inital attributes
-            self.Errors_epochLevel_train = []
-            self.Errors_epochLevel_valid = []
-            self.Errors_batchLevel_train = []
-            self.Errors_batchLevel_valid = []
+            self.Costs_epochLevel_train = []
+            self.Costs_epochLevel_valid = []
+            self.Costs_batchLevel_train = []
+            self.Costs_batchLevel_valid = []
             self.BATCHES_RUN = 0
             self.EPOCHS_RUN = 0
             
@@ -154,10 +154,10 @@ class SurvivalNCA(object):
         # unpack dict
         self.RESULTPATH = attribs['RESULTPATH']
         self.description = attribs['description']
-        self.Errors_epochLevel_train = attribs['Errors_epochLevel_train']
-        self.Errors_epochLevel_valid = attribs['Errors_epochLevel_valid']
-        self.Errors_batchLevel_train = attribs['Errors_batchLevel_train']
-        self.Errors_batchLevel_valid = attribs['Errors_batchLevel_valid']
+        self.Costs_epochLevel_train = attribs['Costs_epochLevel_train']
+        self.Costs_epochLevel_valid = attribs['Costs_epochLevel_valid']
+        self.Costs_batchLevel_train = attribs['Costs_batchLevel_train']
+        self.Costs_batchLevel_valid = attribs['Costs_batchLevel_valid']
         self.BATCHES_RUN = attribs['BATCHES_RUN']
         self.EPOCHS_RUN = attribs['EPOCHS_RUN']
         self.COMPUT_GRAPH_PARAMS = attribs['COMPUT_GRAPH_PARAMS']
@@ -173,10 +173,10 @@ class SurvivalNCA(object):
         attribs = {
             'RESULTPATH' : self.RESULTPATH,
             'description' : self.description,
-            'Errors_epochLevel_train': self.Errors_epochLevel_train,
-            'Errors_epochLevel_valid': self.Errors_epochLevel_valid,
-            'Errors_batchLevel_train': self.Errors_batchLevel_train,
-            'Errors_batchLevel_valid': self.Errors_batchLevel_valid,
+            'Costs_epochLevel_train': self.Costs_epochLevel_train,
+            'Costs_epochLevel_valid': self.Costs_epochLevel_valid,
+            'Costs_batchLevel_train': self.Costs_batchLevel_train,
+            'Costs_batchLevel_valid': self.Costs_batchLevel_valid,
             'BATCHES_RUN': self.BATCHES_RUN,
             'EPOCHS_RUN': self.EPOCHS_RUN,
             'COMPUT_GRAPH_PARAMS': self.COMPUT_GRAPH_PARAMS,
@@ -190,14 +190,14 @@ class SurvivalNCA(object):
     
     def reset_TrainHistory(self):
         
-        """Resets training history (errors etc)"""  
+        """Resets training history (Costs etc)"""  
         
         self.EPOCHS_RUN = 0
         self.BATCHES_RUN = 0    
-        self.Errors_batchLevel_train = []            
-        self.Errors_batchLevel_valid = []
-        self.Errors_epochLevel_train = []
-        self.Errors_epochLevel_valid = []
+        self.Costs_batchLevel_train = []            
+        self.Costs_batchLevel_valid = []
+        self.Costs_epochLevel_train = []
+        self.Costs_epochLevel_valid = []
         self.save()
         
     #==========================================================================    
@@ -254,7 +254,8 @@ class SurvivalNCA(object):
             censored_valid = None,
             COMPUT_GRAPH_PARAMS={},
             BATCH_SIZE = 20,
-            MONITOR_STEP = 10):
+            PLOT_STEP = 10,
+            MODEL_SAVE_STEP = 2):
                 
         """
         train a survivalNCA model
@@ -297,13 +298,7 @@ class SurvivalNCA(object):
         survival = survival_all[0:len(survival), 0]
         if USE_VALID:        
             survival_valid = survival_all[len(survival):, 0]
-        
-        #
-        # Getting at-risk for validation set
-        #
-        if USE_VALID:
-            features_valid, survival_valid, observed_valid, at_risk_valid = \
-                sUtils.calc_at_risk(features_valid, survival_valid, 1-censored_valid)       
+              
 
         # Define computational graph
         #======================================================================        
@@ -340,9 +335,18 @@ class SurvivalNCA(object):
             train_writer = tf.summary.FileWriter(self.RESULTPATH + 'model/tensorboard', 
                                                  sess.graph)
     
+            # Begin epochs
+            #==================================================================
             
             try: 
                 while True:
+                    
+                    pUtils.Log_and_print("\n=================================== " + \
+                                        "Training epoch {}".format(self.EPOCHS_RUN) + \
+                                        " ===================================")
+                                        
+                    cost_tot = 0
+                    cost_tot_valid = 0
                     
                     # Shuffle so that training batches differ every epoch
                     #==========================================================
@@ -355,43 +359,98 @@ class SurvivalNCA(object):
             
                     # Divide into balanced batches
                     #==========================================================
-                    
-                    # Getting at-risk groups (trainign set)
-                    features, survival, observed, at_risk = \
-                      sUtils.calc_at_risk(features, survival, 1-censored)
                       
                     # Get balanced batches
-                    self.batchIdxs = dm.get_balanced_batches(observed, BATCH_SIZE = BATCH_SIZE)
+                    batchIdxs = dm.get_balanced_batches(censored, BATCH_SIZE = BATCH_SIZE)
                     if USE_VALID:
-                        self.batchIdxs_valid = \
-                            dm.get_balanced_batches(observed_valid, BATCH_SIZE = BATCH_SIZE)  
+                        batchIdxs_valid = \
+                            dm.get_balanced_batches(censored_valid, BATCH_SIZE = BATCH_SIZE)  
                             
-                    # Graph inputs
+                    # Run over training set
                     #==========================================================
                             
-                    feed_dict = {graph.X_input: features,
-                                 graph.T: survival,
-                                 graph.O: observed,
-                                 graph.At_Risk: at_risk,
-                                 }        
-                    if USE_VALID:       
-                        feed_dict_valid = {graph.X_input: features_valid,
-                                           graph.T: survival_valid,
-                                           graph.O: observed_valid,
-                                           graph.At_Risk: at_risk_valid,
-                                           }
+                    for batchidx, batch in enumerate(batchIdxs):
+                        
+                        # Getting at-risk groups
+                        x_batch, t_batch, o_batch, at_risk_batch = \
+                            sUtils.calc_at_risk(features[batch, :], 
+                                                survival[batch], 
+                                                1-censored[batch])
+                        
+                        # run optimizer and fetch cost
+                        
+                        feed_dict = {graph.X_input: x_batch,
+                                     graph.T: t_batch,
+                                     graph.O: o_batch,
+                                     graph.At_Risk: at_risk_batch,
+                                     }  
+                                     
+                        _, cost = sess.run([graph.optimizer, graph.cost], \
+                                            feed_dict = feed_dict)
+                        
+                        # normalize cost for sample size
+                        cost = cost / len(batch)
+                        
+                        # record/append cost
+                        self.Costs_batchLevel_train.append(cost)                  
+                        cost_tot += cost                        
+                        
+                        pUtils.Log_and_print("Training: Batch {} of {}, cost = {}".\
+                             format(batchidx, len(batchIdxs)-1, cost[0]))
+                     
+
+                    # Run over validation set
+                    #==========================================================
+                    if USE_VALID:        
+                        for batchidx, batch in enumerate(batchIdxs_valid):
+                            
+                            # Getting at-risk groups
+                            x_batch, t_batch, o_batch, at_risk_batch = \
+                                sUtils.calc_at_risk(features[batch, :], 
+                                                    survival[batch], 
+                                                    1-censored[batch])
+                            
+                            # fetch cost
+                            
+                            feed_dict = {graph.X_input: x_batch,
+                                         graph.T: t_batch,
+                                         graph.O: o_batch,
+                                         graph.At_Risk: at_risk_batch,
+                                         }  
+                                         
+                            cost = sess.run(graph.cost, feed_dict = feed_dict)
     
+                            # normalize cost for sample size
+                            cost = cost / len(batch)
+                            
+                            # record/append cost
+                            self.Costs_batchLevel_valid.append(cost)
+                            cost_tot_valid += cost
+                            
+                            pUtils.Log_and_print("Validation: Batch {} of {}, cost = {}".\
+                                 format(batchidx, len(batchIdxs)-1, cost[0]))
 
+                    # Update and save                     
+                    #==========================================================
+                    
+                    # update epochs and append costs                     
+                    self.EPOCHS_RUN += 1
+                    self.Costs_epochLevel_train.append(cost_tot)
+                    if USE_VALID:
+                        self.Costs_epochLevel_valid.append(cost_tot_valid)  
+                    
+                    # periodically save model
+                    if (self.BATCHES_RUN % MODEL_SAVE_STEP) == 0:
+                    
+                        # save weights                        
+                        pUtils.Log_and_print("Saving model weights...")
+                        save_path = saver.save(sess, self.WEIGHTPATH + "model.ckpt")
+                        pUtils.Log_and_print("\nModel saved in file: %s" % save_path)
+                    
+                        # save attributes
+                        self.save()
+                     
 
-#                    _, cost = sess.run([g.optimizer, g.cost], feed_dict = feed_dict)
-#                    cost_valid = g.cost.eval(feed_dict = feed_dict_valid)
-#    
-#                    # Normalize cost for sample size
-#                    cost = cost / N
-#                    cost_valid = cost_valid / N_valid
-#                    
-#                    print("epoch {}, cost_train = {}, cost_valid = {}"\
-#                            .format(epochs, cost, cost_valid))
 #                            
 #                    # update costs
 #                    costs.append([epochs, cost])
@@ -411,7 +470,8 @@ class SurvivalNCA(object):
 #                    
 #                    epochs += 1
 #                    
-#            except KeyboardInterrupt:
+            except KeyboardInterrupt:
+                pass
 #                
 #                print("\nFinished training model.")
 #                print("Obtaining final results.")

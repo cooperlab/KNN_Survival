@@ -108,15 +108,16 @@ class comput_graph(object):
             # feature scales/weights
             w = tf.get_variable("weights", shape=[self.dim_input], 
                             initializer= tf.contrib.layers.xavier_initializer())
-            self.B = tf.get_variable("biases", shape=[self.dim_input], 
-                            initializer= tf.contrib.layers.xavier_initializer())
+            #self.B = tf.get_variable("biases", shape=[self.dim_input], 
+            #                initializer= tf.contrib.layers.xavier_initializer())
             
             # diagonalize and matmul
             self.W = tf.diag(w)
             #self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_input], 
             #                initializer= tf.contrib.layers.xavier_initializer())
                         
-            self.X_transformed = tf.add(tf.matmul(self.X_input, self.W), self.B) 
+            #self.X_transformed = tf.add(tf.matmul(self.X_input, self.W), self.B) 
+            self.X_transformed = tf.matmul(self.X_input, self.W)
     
     #%%========================================================================
     # Get Pij 
@@ -302,17 +303,17 @@ if __name__ == '__main__':
     
     # Load data
 
-    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
 
-    #dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-    dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+    dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+    #dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
     #dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
     
     Data = loadmat(dpath)
     
-    #Features = np.float32(Data['Integ_X'])
-    Features = np.float32(Data['Gene_X'])
+    Features = np.float32(Data['Integ_X'])
+    #Features = np.float32(Data['Gene_X'])
     
     N, D = Features.shape
     
@@ -321,8 +322,8 @@ if __name__ == '__main__':
     
     Survival = np.int32(Data['Survival']).reshape([N,])
     Censored = np.int32(Data['Censored']).reshape([N,])
-    #fnames = Data['Integ_Symbs']
-    fnames = Data['Gene_Symbs']
+    fnames = Data['Integ_Symbs']
+    #fnames = Data['Gene_Symbs']
     
     RESULTPATH = projectPath + "Results/tmp/"
     MONITOR_STEP = 10
@@ -485,9 +486,15 @@ if __name__ == '__main__':
             print("\nFinished training model.")
             print("Obtaining final results.")
             
-            W, B, X_transformed = sess.run([g.W, g.B, g.X_transformed], 
-                                           feed_dict = feed_dict_valid)
-                                           
+            #W, B, X_transformed = sess.run([g.W, g.B, g.X_transformed], 
+            #                               feed_dict = feed_dict_valid)
+            
+            W, X_transformed = sess.run([g.W, g.X_transformed], 
+                                         feed_dict = feed_dict_valid)
+            
+            # save learned weights
+            np.save(RESULTPATH + description + 'weights.npy', W)
+                   
             #X_transformed = g.X_transformed.eval(feed_dict = feed_dict)
             #W = np.ones(2)
                 
@@ -547,5 +554,5 @@ if __name__ == '__main__':
             np.savetxt(f,fnames_ranked,fmt='%s', delimiter='\t')
 
 
-    rankFeats(np.diag(W), rank_type = "weights")
-    rankFeats(W, rank_type = "stdev")
+#    rankFeats(np.diag(W), rank_type = "weights")
+#    rankFeats(W, rank_type = "stdev")

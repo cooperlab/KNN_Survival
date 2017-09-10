@@ -120,8 +120,6 @@ class SurvivalNCA(object):
                                 format = '%(levelname)s:%(message)s')
                                 
             
-
-
     #%%===========================================================================
     # Miscellaneous methods
     #==============================================================================
@@ -222,7 +220,7 @@ class SurvivalNCA(object):
     # build computational graph
     #==============================================================================
     
-    def build_computational_graph(self, COMPUT_GRAPH_PARAMS={}):
+    def _build_computational_graph(self, COMPUT_GRAPH_PARAMS={}):
         
         """ 
         Build the computational graph for this model
@@ -240,14 +238,17 @@ class SurvivalNCA(object):
                     keys_Needed = self.userspecified_graphParams)
                     
         # instantiate computational graph
-        self.graph = cgraph.comput_graph(**self.COMPUT_GRAPH_PARAMS)
+        graph = cgraph.comput_graph(**self.COMPUT_GRAPH_PARAMS)
+        
+        return graph
     
     
     #%%============================================================================
     #  Run session   
     #==============================================================================
         
-    def run(self, features, survival, censored,
+    def train(self, 
+            features, survival, censored,
             features_valid = None, 
             survival_valid = None, 
             censored_valid = None,
@@ -256,17 +257,20 @@ class SurvivalNCA(object):
             MONITOR_STEP = 10):
                 
         """
-        Run tf session using given data to learn model
+        train a survivalNCA model
         features - (N,D) np array
         survival and censored - (N,) np array
         """
-
-        # Initial preprocessing
+        
+        pUtils.Log_and_print("Training survival NCA model.")
+        
+        
+        # Initial preprocessing and sanity checks
         #====================================================================== 
         
         pUtils.Log_and_print("Initial preprocessing.")
         
-        assert len(features_valid.shape) == 2
+        assert len(features.shape) == 2
         assert len(survival.shape) == 1
         assert len(censored.shape) == 1
         
@@ -277,7 +281,7 @@ class SurvivalNCA(object):
             assert (censored_valid is not None)
         
         #
-        # Z-scoring survival (for numerical stability)
+        # Z-scoring survival (for numerical stability with optimizer)
         #
         
         # Combine training and validation (for comparability)
@@ -301,44 +305,129 @@ class SurvivalNCA(object):
             features_valid, survival_valid, observed_valid, at_risk_valid = \
                 sUtils.calc_at_risk(features_valid, survival_valid, 1-censored_valid)       
 
-        # Define computational graph if non-existent
+        # Define computational graph
         #======================================================================        
         
-        if not hasattr(self, 'graph'):
-            COMPUT_GRAPH_PARAMS['dim_input'] = features.shape[1]
-            self.build_computational_graph(COMPUT_GRAPH_PARAMS)
-        else:
-            assert self.graph.dim_input == features.shape[1]
+        COMPUT_GRAPH_PARAMS['dim_input'] = features.shape[1]
+        graph = self._build_computational_graph(COMPUT_GRAPH_PARAMS)
+        
         
         # Begin session
         #======================================================================  
 
-#        pUtils.Log_and_print("Running TF session.")
-#
-#        with tf.Session() as sess:
-#            
-#            sess
-#
-#            #
-#            # Shuffle so that training batches differ every epoch
-#            #
-#            idxs = np.arange(features.shape[0]);
-#            np.random.shuffle(idxs)
-#            features = features[idxs, :]
-#            survival = survival[idxs]
-#            censored  = censored[idxs]
+        pUtils.Log_and_print("Running TF session.")
+
+        with tf.Session() as sess:
+            
+            
+            # Initial ground work
+            #==================================================================
+            
+            # op to save/restore all the variables
+            saver = tf.train.Saver()
+            
+            if "checkpoint" in os.listdir(self.WEIGHTPATH):
+                # load existing weights 
+                pUtils.Log_and_print("Restoring saved model ...")                
+                saver.restore(sess, self.WEIGHTPATH + "model.ckpt")
+                pUtils.Log_and_print("Model restored.")                
+                
+            else:                
+                # start a new model
+                sess.run(tf.global_variables_initializer())
+                
+            # for tensorboard visualization
+            train_writer = tf.summary.FileWriter(self.RESULTPATH + 'model/tensorboard', 
+                                                 sess.graph)
+    
+            
+            try: 
+                while True:
+                    
+                    # Shuffle so that training batches differ every epoch
+                    #==========================================================
+                    
+                    idxs = np.arange(features.shape[0]);
+                    np.random.shuffle(idxs)
+                    features = features[idxs, :]
+                    survival = survival[idxs]
+                    censored  = censored[idxs]
+            
+                    # Divide into balanced batches
+                    #==========================================================
+                    
+                    # Getting at-risk groups (trainign set)
+                    features, survival, observed, at_risk = \
+                      sUtils.calc_at_risk(features, survival, 1-censored)
+                      
+                    # Get balanced batches
+                    self.batchIdxs = dm.get_balanced_batches(observed, BATCH_SIZE = BATCH_SIZE)
+                    if USE_VALID:
+                        self.batchIdxs_valid = \
+                            dm.get_balanced_batches(observed_valid, BATCH_SIZE = BATCH_SIZE)  
+                            
+                    # Graph inputs
+                    #==========================================================
+                            
+                    feed_dict = {graph.X_input: features,
+                                 graph.T: survival,
+                                 graph.O: observed,
+                                 graph.At_Risk: at_risk,
+                                 }        
+                    if USE_VALID:       
+                        feed_dict_valid = {graph.X_input: features_valid,
+                                           graph.T: survival_valid,
+                                           graph.O: observed_valid,
+                                           graph.At_Risk: at_risk_valid,
+                                           }
+    
+
+
+#                    _, cost = sess.run([g.optimizer, g.cost], feed_dict = feed_dict)
+#                    cost_valid = g.cost.eval(feed_dict = feed_dict_valid)
 #    
-#            #
-#            # Divide into balanced batches
-#            #
-#            
-#            # Getting at-risk groups (trainign set)
-#            features, survival, observed, at_risk = \
-#              sUtils.calc_at_risk(features, survival, 1-censored)
-#              
-#            # Get balanced batches
-#            self.batchIdxs = dm.get_balanced_batches(observed, BATCH_SIZE = BATCH_SIZE)
-#            self.batchIdxs_valid = dm.get_balanced_batches(observed_valid, BATCH_SIZE = BATCH_SIZE)  
+#                    # Normalize cost for sample size
+#                    cost = cost / N
+#                    cost_valid = cost_valid / N_valid
+#                    
+#                    print("epoch {}, cost_train = {}, cost_valid = {}"\
+#                            .format(epochs, cost, cost_valid))
+#                            
+#                    # update costs
+#                    costs.append([epochs, cost])
+#                    costs_valid.append([epochs, cost_valid])
+#                    
+#                    # monitor
+#                    if (epochs % MONITOR_STEP == 0) and (epochs > 0):
+#                        
+#                        cs = np.array(costs)
+#                        cs_valid = np.array(costs_valid)
+#                        
+#                        _plotMonitor(arr= cs, arr2= cs_valid[:,1],
+#                                     title= "cost vs. epoch", 
+#                                     xlab= "epoch", ylab= "cost", 
+#                                     savename= RESULTPATH + 
+#                                     description + "cost.png")
+#                    
+#                    epochs += 1
+#                    
+#            except KeyboardInterrupt:
+#                
+#                print("\nFinished training model.")
+#                print("Obtaining final results.")
+#                
+#                #W, B, X_transformed = sess.run([g.W, g.B, g.X_transformed], 
+#                #                               feed_dict = feed_dict_valid)
+#                
+#                W, X_transformed = sess.run([g.W, g.X_transformed], 
+#                                             feed_dict = feed_dict_valid)
+#                
+#                # save learned weights
+#                np.save(RESULTPATH + description + 'weights.npy', W)
+
+                        
+
+
     
 #    #%%============================================================================
 #    # Visualization methods

@@ -486,7 +486,6 @@ class SurvivalNCA(object):
 
                         
 
-
     #%%============================================================================
     # Rank features
     #==============================================================================
@@ -543,10 +542,6 @@ class SurvivalNCA(object):
                     rank_type + "_ranked.txt"
         with open(savename,'wb') as f:
             np.savetxt(f,fnames_ranked,fmt='%s', delimiter='\t')
-
-
-#    rankFeats(np.diag(W), rank_type = "weights")
-#    rankFeats(W, rank_type = "stdev")
 
     
     #%%============================================================================

@@ -101,8 +101,8 @@ class SurvivalNCA(object):
             # new model inital attributes
             self.Costs_epochLevel_train = []
             self.Costs_epochLevel_valid = []
-            self.Costs_batchLevel_train = []
-            self.Costs_batchLevel_valid = []
+            #self.Costs_batchLevel_train = []
+            #self.Costs_batchLevel_valid = []
             self.BATCHES_RUN = 0
             self.EPOCHS_RUN = 0
             
@@ -156,8 +156,8 @@ class SurvivalNCA(object):
         self.description = attribs['description']
         self.Costs_epochLevel_train = attribs['Costs_epochLevel_train']
         self.Costs_epochLevel_valid = attribs['Costs_epochLevel_valid']
-        self.Costs_batchLevel_train = attribs['Costs_batchLevel_train']
-        self.Costs_batchLevel_valid = attribs['Costs_batchLevel_valid']
+        #self.Costs_batchLevel_train = attribs['Costs_batchLevel_train']
+        #self.Costs_batchLevel_valid = attribs['Costs_batchLevel_valid']
         self.BATCHES_RUN = attribs['BATCHES_RUN']
         self.EPOCHS_RUN = attribs['EPOCHS_RUN']
         self.COMPUT_GRAPH_PARAMS = attribs['COMPUT_GRAPH_PARAMS']
@@ -175,8 +175,8 @@ class SurvivalNCA(object):
             'description' : self.description,
             'Costs_epochLevel_train': self.Costs_epochLevel_train,
             'Costs_epochLevel_valid': self.Costs_epochLevel_valid,
-            'Costs_batchLevel_train': self.Costs_batchLevel_train,
-            'Costs_batchLevel_valid': self.Costs_batchLevel_valid,
+            #'Costs_batchLevel_train': self.Costs_batchLevel_train,
+            #'Costs_batchLevel_valid': self.Costs_batchLevel_valid,
             'BATCHES_RUN': self.BATCHES_RUN,
             'EPOCHS_RUN': self.EPOCHS_RUN,
             'COMPUT_GRAPH_PARAMS': self.COMPUT_GRAPH_PARAMS,
@@ -194,8 +194,8 @@ class SurvivalNCA(object):
         
         self.EPOCHS_RUN = 0
         self.BATCHES_RUN = 0    
-        self.Costs_batchLevel_train = []            
-        self.Costs_batchLevel_valid = []
+        #self.Costs_batchLevel_train = []            
+        #self.Costs_batchLevel_valid = []
         self.Costs_epochLevel_train = []
         self.Costs_epochLevel_valid = []
         self.save()
@@ -322,7 +322,7 @@ class SurvivalNCA(object):
             # op to save/restore all the variables
             saver = tf.train.Saver()
             
-            if (self.description + "model.ckpt") in os.listdir(self.WEIGHTPATH):
+            if "checkpoint" in os.listdir(self.WEIGHTPATH):
                 # load existing weights 
                 pUtils.Log_and_print("Restoring saved model ...")                
                 saver.restore(sess, self.WEIGHTPATH + self.description + ".ckpt")
@@ -393,7 +393,7 @@ class SurvivalNCA(object):
                         cost = cost / len(batch)
                         
                         # record/append cost
-                        self.Costs_batchLevel_train.append(cost)                  
+                        #self.Costs_batchLevel_train.append(cost)                  
                         cost_tot += cost                        
                         
                         pUtils.Log_and_print("Training: Batch {} of {}, cost = {}".\
@@ -425,7 +425,7 @@ class SurvivalNCA(object):
                             cost = cost / len(batch)
                             
                             # record/append cost
-                            self.Costs_batchLevel_valid.append(cost)
+                            #self.Costs_batchLevel_valid.append(cost)
                             cost_tot_valid += cost
                             
                             pUtils.Log_and_print("Validation: Batch {} of {}, cost = {}".\
@@ -468,7 +468,7 @@ class SurvivalNCA(object):
                         self._plotMonitor(arr= cs, arr2= cs_valid,
                                      title= "cost vs. epoch", 
                                      xlab= "epoch", ylab= "cost", 
-                                     savename= self.RESULTPATH + 
+                                     savename= self.RESULTPATH + "plots/" +
                                       self.description + "cost.png")
                     
                     

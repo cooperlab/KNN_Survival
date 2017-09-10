@@ -61,9 +61,9 @@ fnames = fnames[keep]
 #%%============================================================================
 # Train
 #==============================================================================
-ncamodel = nca.SurvivalNCA(RESULTPATH, description = description)#, \
-#                           LOADPATH = RESULTPATH + 'model/' + description + \
-#                           'ModelAttributes.pkl')
+ncamodel = nca.SurvivalNCA(RESULTPATH, description = description, \
+                           LOADPATH = RESULTPATH + 'model/' + description + \
+                           'ModelAttributes.pkl')
 ncamodel.train(features = Features,
              survival = Survival,
              censored = Censored,

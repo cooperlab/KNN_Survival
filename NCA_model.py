@@ -343,7 +343,7 @@ class SurvivalNCA(object):
                     
                     pUtils.Log_and_print("\n=================================== " + \
                                         "Training epoch {}".format(self.EPOCHS_RUN) + \
-                                        " ===================================")
+                                        " ===================================\n")
                                         
                     cost_tot = 0
                     cost_tot_valid = 0
@@ -428,7 +428,7 @@ class SurvivalNCA(object):
                             cost_tot_valid += cost
                             
                             pUtils.Log_and_print("Validation: Batch {} of {}, cost = {}".\
-                                 format(batchidx, len(batchIdxs)-1, cost[0]))
+                                 format(batchidx, len(batchIdxs_valid)-1, cost[0]))
 
                     # Update and save                     
                     #==========================================================
@@ -443,9 +443,9 @@ class SurvivalNCA(object):
                     if (self.BATCHES_RUN % MODEL_SAVE_STEP) == 0:
                     
                         # save weights                        
-                        pUtils.Log_and_print("Saving model weights...")
+                        pUtils.Log_and_print("\nSaving model weights...")
                         save_path = saver.save(sess, self.WEIGHTPATH + "model.ckpt")
-                        pUtils.Log_and_print("\nModel saved in file: %s" % save_path)
+                        pUtils.Log_and_print("Model saved in file: %s" % save_path)
                     
                         # save attributes
                         self.save()

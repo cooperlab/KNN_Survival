@@ -255,7 +255,7 @@ class SurvivalNCA(object):
             COMPUT_GRAPH_PARAMS={},
             BATCH_SIZE = 20,
             PLOT_STEP = 10,
-            MODEL_SAVE_STEP = 2):
+            MODEL_SAVE_STEP = 10):
                 
         """
         train a survivalNCA model
@@ -500,13 +500,15 @@ class SurvivalNCA(object):
     
         fidx = np.arange(self.D).reshape(self.D, 1)        
         
-        W = np.load(self.RESULTPATH + 'model/' + self.description + 'featWeights.npy')        
+        w = np.load(self.RESULTPATH + 'model/' + self.description + 'featWeights.npy')        
         
         if rank_type == 'weights':
             # rank by feature weight
-            ranking_metric = W.reshape(self.D, 1)
+            ranking_metric = w[:, None]
         elif rank_type == 'stdev':
             # rank by variance after transform
+            W = np.zeros([self.D, self.D])
+            np.fill_diagonal(W, w)
             X = np.dot(X, W)
             ranking_metric = np.std(X, 0).reshape(self.D, 1)
         

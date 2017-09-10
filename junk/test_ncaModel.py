@@ -55,21 +55,32 @@ Features = Features[:, keep]
 fnames = fnames[keep]
 
 # Get split indices
-#splitIdxs = dm.get_balanced_SplitIdxs(Censored)
-
+splitIdxs = dm.get_balanced_SplitIdxs(Censored)
+idxs = splitIdxs['idx_optim_train'] + splitIdxs['idx_optim_valid']
+Features = Features[idxs, :]
+Survival = Survival[idxs]
+Censored = Censored[idxs]
 
 #%%============================================================================
 # Train
 #==============================================================================
-ncamodel = nca.SurvivalNCA(RESULTPATH, description = description, \
-                           LOADPATH = RESULTPATH + 'model/' + description + \
-                           'ModelAttributes.pkl')
+ncamodel = nca.SurvivalNCA(RESULTPATH, description = description)#, \
+#                           LOADPATH = RESULTPATH + 'model/' + description + \
+#                           'ModelAttributes.pkl')
+                           
+graphParams = {'ALPHA': 0.5,
+               'LAMBDA': 0, 
+               'OPTIM': 'GD',
+               'LEARN_RATE': 0.01}
+                           
 ncamodel.train(features = Features,
              survival = Survival,
              censored = Censored,
-             BATCH_SIZE = 50)
+             COMPUT_GRAPH_PARAMS = graphParams,
+             BATCH_SIZE = 100)
              
 ncamodel.rankFeats(Features, fnames, rank_type = "weights")
+ncamodel.rankFeats(Features, fnames, rank_type = "stdev")
 
 
 #W = np.load(ncamodel.RESULTPATH + 'model/' + ncamodel.description + 'featWeights.npy')  

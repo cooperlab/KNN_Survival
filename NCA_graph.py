@@ -106,13 +106,13 @@ class comput_graph(object):
         with tf.variable_scope("linear_transform"):
             
             # feature scales/weights
-            w = tf.get_variable("weights", shape=[self.dim_input], 
+            self.w = tf.get_variable("weights", shape=[self.dim_input], 
                             initializer= tf.contrib.layers.xavier_initializer())
             #self.B = tf.get_variable("biases", shape=[self.dim_input], 
             #                initializer= tf.contrib.layers.xavier_initializer())
             
             # diagonalize and matmul
-            self.W = tf.diag(w)
+            self.W = tf.diag(self.w)
             #self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_input], 
             #                initializer= tf.contrib.layers.xavier_initializer())
                         

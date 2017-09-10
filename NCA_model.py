@@ -25,7 +25,7 @@ import numpy as np
 import tensorflow as tf
 #from scipy.io import loadmat, savemat
 #from matplotlib import cm
-#import matplotlib.pylab as plt
+import matplotlib.pylab as plt
 
 import logging
 import datetime
@@ -136,8 +136,8 @@ class SurvivalNCA(object):
 
         attribs = self.getModelInfo()
                 
-        with open(self.RESULTPATH + self.description + 
-                  'model/ModelAttributes.pkl','wb') as f:
+        with open(self.RESULTPATH + 'model/' + self.description + \
+                  'ModelAttributes.pkl','wb') as f:
             _pickle.dump(attribs, f)
     
     #==========================================================================
@@ -275,6 +275,7 @@ class SurvivalNCA(object):
         assert len(survival.shape) == 1
         assert len(censored.shape) == 1
         
+        USE_VALID = False
         if features_valid is not None:
             USE_VALID = True
             assert (features_valid.shape[1] == features.shape[1])
@@ -321,10 +322,10 @@ class SurvivalNCA(object):
             # op to save/restore all the variables
             saver = tf.train.Saver()
             
-            if "checkpoint" in os.listdir(self.WEIGHTPATH):
+            if (self.description + "model.ckpt") in os.listdir(self.WEIGHTPATH):
                 # load existing weights 
                 pUtils.Log_and_print("Restoring saved model ...")                
-                saver.restore(sess, self.WEIGHTPATH + "model.ckpt")
+                saver.restore(sess, self.WEIGHTPATH + self.description + ".ckpt")
                 pUtils.Log_and_print("Model restored.")                
                 
             else:                
@@ -444,162 +445,132 @@ class SurvivalNCA(object):
                     
                         # save weights                        
                         pUtils.Log_and_print("\nSaving model weights...")
-                        save_path = saver.save(sess, self.WEIGHTPATH + "model.ckpt")
+                        save_path = saver.save(sess, \
+                                        self.WEIGHTPATH + self.description + ".ckpt")
                         pUtils.Log_and_print("Model saved in file: %s" % save_path)
                     
                         # save attributes
                         self.save()
                      
-
-#                            
-#                    # update costs
-#                    costs.append([epochs, cost])
-#                    costs_valid.append([epochs, cost_valid])
-#                    
-#                    # monitor
-#                    if (epochs % MONITOR_STEP == 0) and (epochs > 0):
-#                        
-#                        cs = np.array(costs)
-#                        cs_valid = np.array(costs_valid)
-#                        
-#                        _plotMonitor(arr= cs, arr2= cs_valid[:,1],
-#                                     title= "cost vs. epoch", 
-#                                     xlab= "epoch", ylab= "cost", 
-#                                     savename= RESULTPATH + 
-#                                     description + "cost.png")
-#                    
-#                    epochs += 1
-#                    
+                    
+                    # monitor
+                    if (self.EPOCHS_RUN % PLOT_STEP == 0) and \
+                        (self.EPOCHS_RUN > 0):
+                        
+                        cs = np.array(self.Costs_epochLevel_train)
+                        epoch_no = np.arange(len(cs))
+                        cs = np.concatenate((epoch_no[:, None], cs), axis=1)
+                        
+                        cs_valid = None
+                        if USE_VALID:
+                            cs_valid = np.array(self.Costs_epochLevel_valid)
+                        
+                        self._plotMonitor(arr= cs, arr2= cs_valid,
+                                     title= "cost vs. epoch", 
+                                     xlab= "epoch", ylab= "cost", 
+                                     savename= self.RESULTPATH + 
+                                      self.description + "cost.png")
+                    
+                    
             except KeyboardInterrupt:
-                pass
-#                
-#                print("\nFinished training model.")
-#                print("Obtaining final results.")
-#                
-#                #W, B, X_transformed = sess.run([g.W, g.B, g.X_transformed], 
-#                #                               feed_dict = feed_dict_valid)
-#                
-#                W, X_transformed = sess.run([g.W, g.X_transformed], 
-#                                             feed_dict = feed_dict_valid)
-#                
-#                # save learned weights
-#                np.save(RESULTPATH + description + 'weights.npy', W)
+                
+                pUtils.Log_and_print("\nFinished training model.")
+                pUtils.Log_and_print("Obtaining final results.")
+                
+                
+                w = sess.run(graph.w, feed_dict = feed_dict)
+                
+                # save learned weights
+                np.save(self.RESULTPATH + 'model/' + self.description + \
+                        'featWeights.npy', w)
 
                         
 
 
-    
-#    #%%============================================================================
-#    # Visualization methods
-#    #==============================================================================
-#    
-#    
-#    def _plotMonitor(arr, title, xlab, ylab, savename, arr2 = None):
-#                            
-#        """ plots cost/other metric to monitor progress """
-#        
-#        pUtils.Log_and_print("Plotting " + title)
-#        
-#        fig, ax = plt.subplots() 
-#        ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
-#        if arr2 is not None:
-#            ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
-#        plt.title(title, fontsize =16, fontweight ='bold')
-#        plt.xlabel(xlab)
-#        plt.ylabel(ylab) 
-#        plt.tight_layout()
-#        plt.savefig(savename)
-#        plt.close() 
-#        
-#        #==========================================================================
-#    
-#    def plot_stdChange(self):
-#        
-#        """ plot stdev change"""
-#        
-#        pUtils.Log_and_print("Plotting feature stdev after transformation")
-#        
-#        fidx = np.arange(len(self.A)).reshape(self.D, 1)
-#        
-#        fig, ax = plt.subplots()
-#        
-#        ax.plot(fidx, self.fvars[:,1], 'b', linewidth=1.5, aa=False)
-#        ax.plot(fidx, self.fvars_init[:,1], 'k--', linewidth=1.5, aa=False)
-#        
-#        plt.ylim(ymax = 1.5)
-#        
-#        plt.title("feature stdev after transformation", fontsize =16, fontweight ='bold')
-#        plt.xlabel("feature index")
-#        plt.ylabel("feature stdev - \nbefore (k--) and after (b-) transformation")
-#        plt.savefig(self.RESULTPATH + self.description + "fvars.svg")
-#        plt.close()
-#        
-#        #==========================================================================
-#
-#    def plot_scatterFeats(self, data, Survival, Censored, 
-#                      fidx1 = 0, fidx2 = 1):
-#    
-#        """ 
-#        scatter patients by two features and code their survival.
-#        Note: for best visual results, at least one of the features should 
-#        be continuous.
-#        """
-#        
-#        pUtils.Log_and_print("Plotting Features (transformed) vs survival (color)")
-#        
-#        Ax = np.dot(data, self.A)
-#        
-#        fig, ax = plt.subplots()
-#        
-#        keep = (Censored == 0).reshape(data.shape[0])
-#        X1 = Ax[keep, int(self.fvars[fidx1,0])]
-#        X2 = Ax[keep, int(self.fvars[fidx2,0])]
-#        Ys = Survival[keep,:]
-#        
-#        colors = cm.seismic(np.linspace(0, 1, len(Ys)))
-#        
-#        ax.scatter(X1, X2, color=colors)
-#        plt.title("Features (transformed) vs survival (color)", 
-#                  fontsize =16, fontweight ='bold')
-#        plt.xlabel(str(self.ranks[fidx1]), fontsize=5)
-#        plt.ylabel(self.ranks[fidx2], fontsize=5)
-#        plt.savefig(self.RESULTPATH + self.description + "scatterFeats.svg")
-#        plt.close()
-    
-    
-#%% ###########################################################################
-#%%
-#%% ###########################################################################
-#%%
-#%% ###########################################################################
+    #%%============================================================================
+    # Rank features
+    #==============================================================================
 
-#
-#if __name__ == '__main__':
-#
-#    #============================================================================
-#    # Load and preprocess data
-#    #==============================================================================
-#    
-#    # Load data
-#    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-#    dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
-#    #dpath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
-#    
-#    Data = loadmat(dpath)
-#    
-#    #data = np.float32(Data['Integ_X'])
-#    data = np.float32(Data['Gene_X'])
-#    
-#    if np.min(Data['Survival']) < 0:
-#        Data['Survival'] = Data['Survival'] - np.min(Data['Survival']) + 1
-#    
-#    Survival = np.int32(Data['Survival'])
-#    Censored = np.int32(Data['Censored'])
-#    #fnames = Data['Integ_Symbs']
-#    fnames = Data['Gene_Symbs']
-#    
-#    # remove zero-variance features
-#    fvars = np.std(data, 0)
-#    keep = fvars > 0
-#    data = data[:, keep]
-#    fnames = fnames[keep] 
+        
+    def rankFeats(self, X, fnames, rank_type = "weights"):
+        
+        """ ranks features by feature weights or variance after transform"""
+        
+        print("Ranking features by " + rank_type)
+    
+        fidx = np.arange(self.D).reshape(self.D, 1)        
+        
+        W = np.load(self.RESULTPATH + 'model/' + self.description + 'featWeights.npy')        
+        
+        if rank_type == 'weights':
+            # rank by feature weight
+            ranking_metric = W.reshape(self.D, 1)
+        elif rank_type == 'stdev':
+            # rank by variance after transform
+            X = np.dot(X, W)
+            ranking_metric = np.std(X, 0).reshape(self.D, 1)
+        
+        ranking_metric = np.concatenate((fidx, ranking_metric), 1)      
+    
+        # Plot feature weights/variance
+        if self.D <= 500:
+            n_plot = ranking_metric.shape[0]
+        else:
+            n_plot = 500
+        self._plotMonitor(ranking_metric[0:n_plot,:], 
+                          "feature " + rank_type, 
+                          "feature_index", rank_type, 
+                          self.RESULTPATH + "plots/" + self.description + 
+                          "feat_" + rank_type+"_.png")
+        
+        # rank features
+        
+        if rank_type == "weights":
+            # sort by absolute weight but keep sign
+            ranking = ranking_metric[np.abs(ranking_metric[:,1]).argsort()][::-1]
+        elif rank_type == 'stdev':    
+            ranking = ranking_metric[ranking_metric[:,1].argsort()][::-1]
+        
+        fnames_ranked = fnames[np.int32(ranking[:,0])].reshape(self.D, 1)
+        fw = ranking[:,1].reshape(self.D, 1) 
+        fnames_ranked = np.concatenate((fnames_ranked, fw), 1)
+        
+        # save results
+        
+        savename = self.RESULTPATH + "ranks/" + self.description +\
+                    rank_type + "_ranked.txt"
+        with open(savename,'wb') as f:
+            np.savetxt(f,fnames_ranked,fmt='%s', delimiter='\t')
+
+
+#    rankFeats(np.diag(W), rank_type = "weights")
+#    rankFeats(W, rank_type = "stdev")
+
+    
+    #%%============================================================================
+    # Visualization methods
+    #==============================================================================
+    
+    def _plotMonitor(self, arr, title, xlab, ylab, savename, arr2 = None):
+                            
+        """ plots cost/other metric to monitor progress """
+        
+        print("Plotting " + title)
+        
+        fig, ax = plt.subplots() 
+        ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+        if arr2 is not None:
+            ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
+        plt.title(title, fontsize =16, fontweight ='bold')
+        plt.xlabel(xlab)
+        plt.ylabel(ylab) 
+        plt.tight_layout()
+        plt.savefig(savename)
+        plt.close()
+        
+    #==========================================================================    
+        
+#%% ###########################################################################
+#%% ###########################################################################
+#%% ###########################################################################
+#%% ###########################################################################

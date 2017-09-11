@@ -38,12 +38,12 @@ def getAliveStatus(Survival, Censored, t_min = 0, t_max = 0, scale = 1):
     #idx = 0
     for idx in range(len(Survival)):
     
-        if Censored[idx,0] == 0:
+        if Censored[idx] == 0:
             # known death time
-            aliveStatus[idx,Survival[idx,0]+1:] = 0 
+            aliveStatus[idx,Survival[idx]+1:] = 0 
         else:
             # lost to follow-up
-            aliveStatus[idx,Survival[idx,0]+1:] = -1
+            aliveStatus[idx,Survival[idx]+1:] = -1
             
     return np.int32(aliveStatus)
 
@@ -53,7 +53,7 @@ def getAliveStatus(Survival, Censored, t_min = 0, t_max = 0, scale = 1):
 #  optimization/SurvivalAnalysis.py
 #==============================================================================
 
-def c_index(risk, T, C):
+def c_index(prediction, T, C, prediction_type = 'risk'):
     
     """
     Calculate concordance index to evaluate model prediction.
@@ -64,22 +64,47 @@ def c_index(risk, T, C):
     
     Parameters
     ----------
-    risk: numpy.ndarray
-       m sized array of predicted risk (do not confuse with predicted survival time)
+    prediction: numpy.ndarray
+       m sized array of predicted risk/survival time
     T: numpy.ndarray
        m sized vector of time of death or last follow up
     C: numpy.ndarray
        m sized vector of censored status (do not confuse with observed status)
+    prediction_type: either 'risk' or 'survival_time'
     Returns
     -------
     A value between 0 and 1 indicating concordance index. 
     """
+    
+    if prediction_type == 'risk':
+        risk = prediction
+        prediction = None
+        
+    elif prediction_type == 'survival_time':
+        # normalize
+        prediction = prediction / np.max(prediction)
+        # convert to risk
+        risk = 1 - prediction
+        prediction  = None
+    else:
+        raise ValueError("prediction_type is either 'risk' or 'survival_time'.")
+    
+    # initialize    
     n_orderable = 0.0
     score = 0.0
+    
     for i in range(len(T)):
         for j in range(i+1,len(T)):
+
+
+            # Case 1: both cases are observed
+            # =================================================================
+
             if(C[i] == 0 and C[j] == 0):
+
+                # i and j are always orderable
                 n_orderable = n_orderable + 1
+                
                 if(T[i] > T[j]):
                     if(risk[j] > risk[i]):
                         score = score + 1
@@ -89,20 +114,35 @@ def c_index(risk, T, C):
                 else:
                     if(risk[i] == risk[j]):
                         score = score + 1
+
+            # Case 2: i is censored while j is observed
+            # =================================================================
+
             elif(C[i] == 1 and C[j] == 0):
-                if(T[i] >= T[j]):
+
+                if(T[i] >= T[j]):      
+                    
+                    # i and j only orderable if i lived longer
                     n_orderable = n_orderable + 1
+                    
                     if(T[i] > T[j]):
                         if(risk[j] > risk[i]):
                             score = score + 1
+
+            # Case 3: i is observed while j is censored
+            # =================================================================
+
             elif(C[j] == 1 and C[i] == 0):
+
                 if(T[j] >= T[i]):
+                    
+                    # i and j only orderable if i lived longer
                     n_orderable = n_orderable + 1
+
                     if(T[j] > T[i]):
                         if(risk[i] > risk[j]):
                             score = score + 1
     
-    #print score to screen
     return score / n_orderable
 
 #==============================================================================

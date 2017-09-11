@@ -111,9 +111,10 @@ class SurvivalKNN(object):
     # Actual prediction model
     #==============================================================================        
         
-    def predict(self, X_test, 
-                X_train, 
-                Survival_train, Censored_train, K):
+    def predict(self, X_test, X_train, 
+                Survival_train, Censored_train, 
+                Survival_test = None, Censored_test = None, 
+                K = 15):
         
         """
         Predict testing set using 'prototype' (i.e. training) set using KNN
@@ -129,5 +130,65 @@ class SurvivalKNN(object):
         Censored_train - training sample censorship status; (N,) np array
         K           - number of nearest-neighbours to use, int
         """
+
+        # Convert outcomes to "alive status" at each time point
+        #======================================================================
         
+        pUtils.Log_and_print("Getting survival status.")
         
+        alive_train = sUtils.getAliveStatus(Survival_train, Censored_train)
+        Survival_train = None
+        Censored_train = None
+
+        # Find nearest neighbors
+        #======================================================================
+
+        pUtils.Log_and_print("Finding the {} nearest neighbors.".format(K))
+        
+        # Expand dims of AX to [n_samples_test, n_samples_train, n_features], 
+        # where each "channel" in the third dimension is the difference between
+        # one testing sample and all training samples along one feature
+        dist = X_train[None, :, :] - X_test[:, None, :]
+        
+        # Now get the euclidian distance between
+        # every patient and all others -> [n_samples, n_samples]
+        #normAX = tf.norm(normAX, axis=0)
+        dist = np.sqrt(np.sum(dist ** 2, axis=2))
+        
+        # Get indices of K nearest neighbors
+        neighbor_idxs = np.argsort(dist, axis=1)[:, 0:K]
+        
+        # Get survival prediction for each patient
+        #======================================================================
+        
+        pUtils.Log_and_print("Making predictions.")
+        
+        T_test = np.zeros([X_test.shape[0]])
+        
+        for idx in range(T_test.shape[0]):
+            
+            status = alive_train[neighbor_idxs[idx, :], :]
+            totalKnown = np.sum(status >= 0, axis = 0)
+            status[status < 0] = 0
+            
+            # remove timepoints where there are no known statuses
+            status = status[:, totalKnown != 0]
+            totalKnown = totalKnown[totalKnown != 0]
+            
+            # get "average" predicted survival time
+            status = np.sum(status, axis = 0) / totalKnown
+            
+            # now get overall time prediction            
+            T_test[idx] = np.sum(status)
+            #T_test[idx] = np.mean(status)
+            #T_test[idx] = 1 - np.mean(status)
+        
+        # Get c-index
+        #======================================================================
+        CI = 0
+        if Survival_test is not None:
+            assert (Censored_test is not None)
+            CI = sUtils.c_index(T_test, Survival_test, Censored_test, 
+                                prediction_type='survival_time')
+            
+        return T_test, CI

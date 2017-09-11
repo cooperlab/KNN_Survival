@@ -12,7 +12,7 @@ from scipy.io import loadmat
 import numpy as np
 
 import DataManagement as dm
-import NCA_model as nca
+import KNNSurvival as knn
 
 #%%========================================================================
 # Prepare inputs
@@ -57,9 +57,29 @@ fnames = fnames[keep]
 # Get split indices
 splitIdxs = dm.get_balanced_SplitIdxs(Censored)
 
+# Get training and testing sets
+fold = 10
+idxs_train = splitIdxs['fold_cv_train'][fold]
+idxs_test = splitIdxs['fold_cv_test'][fold]
 
+X_test = Features[idxs_test, :]
+X_train = Features[idxs_train, :]
+Survival_train = Survival[idxs_train]
+Censored_train = Censored[idxs_train]
+Survival_test = Survival[idxs_test]
+Censored_test = Censored[idxs_test]
 
 #%%============================================================================
 # Train
 #==============================================================================
 
+# Instantiate a KNN survival model
+knnmodel = knn.SurvivalKNN(RESULTPATH, description = description)
+
+#%%
+# Predict testing set
+T_test, Ci = knnmodel.predict(X_test, X_train, 
+                              Survival_train, Censored_train, 
+                              Survival_test = Survival_test, 
+                              Censored_test = Censored_test, 
+                              K = 80)

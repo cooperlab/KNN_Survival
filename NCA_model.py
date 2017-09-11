@@ -373,10 +373,10 @@ class SurvivalNCA(object):
                     for batchidx, batch in enumerate(batchIdxs):
                         
                         # Getting at-risk groups
-                        x_batch, t_batch, o_batch, at_risk_batch = \
-                            sUtils.calc_at_risk(features[batch, :], 
-                                                survival[batch], 
-                                                1-censored[batch])
+                        t_batch, o_batch, at_risk_batch, x_batch = \
+                            sUtils.calc_at_risk(survival[batch], 
+                                                1-censored[batch],
+                                                features[batch, :])
                         
                         # run optimizer and fetch cost
                         
@@ -406,10 +406,10 @@ class SurvivalNCA(object):
                         for batchidx, batch in enumerate(batchIdxs_valid):
                             
                             # Getting at-risk groups
-                            x_batch, t_batch, o_batch, at_risk_batch = \
-                                sUtils.calc_at_risk(features[batch, :], 
-                                                    survival[batch], 
-                                                    1-censored[batch])
+                            t_batch, o_batch, at_risk_batch, x_batch = \
+                                sUtils.calc_at_risk(survival[batch], 
+                                                    1-censored[batch],
+                                                    features[batch, :])
                             
                             # fetch cost
                             

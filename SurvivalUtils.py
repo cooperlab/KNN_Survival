@@ -147,7 +147,7 @@ def c_index(prediction, T, C, prediction_type = 'risk'):
 
 #==============================================================================
 
-def calc_at_risk(X, T, O):
+def calc_at_risk(T, O, X = None):
     
     """
     Calculate the at risk group of all patients.
@@ -159,22 +159,22 @@ def calc_at_risk(X, T, O):
     
     Parameters
     ----------
-    X: numpy.ndarray
-       m*n matrix of input data
     T: numpy.ndarray
        m sized vector of time of death
     O: numpy.ndarray
        m sized vector of observed status (1 - censoring status)
+    X: (optional) numpy.ndarray
+       m*n matrix of input data
     Returns
     -------
-    X: numpy.ndarray
-       m*n matrix of input data sorted w.r.t time of death
     T: numpy.ndarray
        m sized sorted vector of time of death
     O: numpy.ndarray
        m sized vector of observed status sorted w.r.t time of death
     at_risk: numpy.ndarray
        m sized vector of starting index of risk groups
+    X: numpy.ndarray
+       m*n matrix of input data sorted w.r.t time of death
     """
     tmp = list(T)
     T = np.asarray(tmp).astype('float64')
@@ -183,9 +183,11 @@ def calc_at_risk(X, T, O):
     at_risk = np.asarray([list(sorted_T).index(x) for x in sorted_T]).astype('int32')
     T = np.asarray(sorted_T)
     O = O[order]
-    X = X[order]
+    
+    if X is not None:
+        X = X[order, :]
 
-    return X, T, O, at_risk
+    return T, O, at_risk, X
 
 
 #%%############################################################################

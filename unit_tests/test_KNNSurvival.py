@@ -76,10 +76,56 @@ Censored_test = Censored[idxs_test]
 # Instantiate a KNN survival model
 knnmodel = knn.SurvivalKNN(RESULTPATH, description = description)
 
+K = 30
+idx = 0
+
 #%%
-# Predict testing set
-T_test, Ci = knnmodel.predict(X_test, X_train, 
-                              Survival_train, Censored_train, 
-                              Survival_test = Survival_test, 
-                              Censored_test = Censored_test, 
-                              K = 80)
+## Predict testing set
+#T_test, Ci = knnmodel.predict(X_test, X_train, 
+#                              Survival_train, Censored_train, 
+#                              Survival_test = Survival_test, 
+#                              Censored_test = Censored_test, 
+#                              K = 80)
+
+
+#%%
+
+import matplotlib.pylab as plt
+
+def _plotMonitor(arr, title, xlab, ylab, savename, arr2 = None):
+                        
+    """ plots cost/other metric to monitor progress """
+    
+    print("Plotting " + title)
+    
+    fig, ax = plt.subplots() 
+    ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+    if arr2 is not None:
+        ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
+    plt.title(title, fontsize =16, fontweight ='bold')
+    plt.xlabel(xlab)
+    plt.ylabel(ylab) 
+    plt.tight_layout()
+    plt.savefig(savename)
+    plt.close()
+    
+#%%
+#
+#b = np.concatenate((np.arange(len(status))[:, None], status[:, None]), axis = 1)
+#
+## get cumproduct
+#a = np.cumprod(status)
+#
+#_plotMonitor(b, '', '', '', '/home/mohamed/Desktop/a.svg', arr2=a)
+#
+#a2 = a[0:550]
+#a2 = np.concatenate((np.arange(len(a2))[:, None], a2[:, None]), axis = 1)
+#_plotMonitor(a2, '', '', '', '/home/mohamed/Desktop/a2.svg')
+    
+    
+#%%
+    
+    
+import SurvivalUtils as sUtils
+
+X, T, O, at_risk = sUtils.calc_at_risk(X_train, Survival_train, 1-Censored_train)

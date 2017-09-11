@@ -77,7 +77,7 @@ Censored_test = Censored[idxs_test]
 knnmodel = knn.SurvivalKNN(RESULTPATH, description = description)
 
 K = 30
-idx = 0
+idx = 10
 
 #%%
 ## Predict testing set
@@ -99,9 +99,11 @@ def _plotMonitor(arr, title, xlab, ylab, savename, arr2 = None):
     print("Plotting " + title)
     
     fig, ax = plt.subplots() 
-    ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+    #ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+    ax.step(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
     if arr2 is not None:
-        ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
+        #ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
+        ax.step(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
     plt.title(title, fontsize =16, fontweight ='bold')
     plt.xlabel(xlab)
     plt.ylabel(ylab) 
@@ -128,4 +130,56 @@ def _plotMonitor(arr, title, xlab, ylab, savename, arr2 = None):
     
 import SurvivalUtils as sUtils
 
-X, T, O, at_risk = sUtils.calc_at_risk(X_train, Survival_train, 1-Censored_train)
+# Expand dims of AX to [n_samples_test, n_samples_train, n_features], 
+# where each "channel" in the third dimension is the difference between
+# one testing sample and all training samples along one feature
+dist = X_train[None, :, :] - X_test[:, None, :]
+
+# Now get the euclidian distance between
+# every patient and all others -> [n_samples, n_samples]
+#normAX = tf.norm(normAX, axis=0)
+dist = np.sqrt(np.sum(dist ** 2, axis=2))
+
+# Get indices of K nearest neighbors
+neighbor_idxs = np.argsort(dist, axis=1)[:, 0:K]
+
+#%%
+#
+# K-M method
+#
+
+idx = 10
+T = Survival_train[neighbor_idxs[idx, :]]
+O = 1 - Censored_train[neighbor_idxs[idx, :]]
+T, O, at_risk, _ = sUtils.calc_at_risk(T, O)
+
+N_at_risk = K - at_risk
+
+P = np.cumprod((N_at_risk - O) / N_at_risk)
+
+# plot
+a = np.concatenate((T[:, None], P[:, None]), axis = 1)
+_plotMonitor(a, 'Traditional KM', '', '', '/home/mohamed/Desktop/KM.svg')
+
+#%%
+#
+# Modified KM method
+#
+
+alive_train = sUtils.getAliveStatus(Survival_train, Censored_train)
+
+status = alive_train[neighbor_idxs[idx, :], :]
+totalKnown = np.sum(status >= 0, axis = 0)
+status[status < 0] = 0
+
+# remove timepoints where there are no known statuses
+status = status[:, totalKnown != 0]
+totalKnown = totalKnown[totalKnown != 0]
+
+# get "average" predicted survival time
+status = np.sum(status, axis = 0) / totalKnown
+
+# plot
+b = np.concatenate((np.arange(len(status))[:, None], status[:, None]), axis = 1)
+b = b[0:int(np.max(T)), :]
+_plotMonitor(b, 'Modified KM', '', '', '/home/mohamed/Desktop/KM_Modified.svg')

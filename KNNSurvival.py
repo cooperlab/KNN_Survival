@@ -30,7 +30,7 @@ import numpy as np
 
 import ProjectUtils as pUtils
 import SurvivalUtils as sUtils
-#import DataManagement as dm
+import DataManagement as dm
 
 #raise(Exception)
 
@@ -100,7 +100,7 @@ class SurvivalKNN(object):
 
     #%%===========================================================================
     # Actual prediction model
-    #==============================================================================  
+    #==============================================================================
 
     def get_neighbor_idxs(self, X_test, X_train):
         
@@ -133,6 +133,7 @@ class SurvivalKNN(object):
         return neighbor_idxs
         
         
+    #==========================================================================    
         
     def predict(self, neighbor_idxs,
                 Survival_train, Censored_train, 
@@ -173,7 +174,6 @@ class SurvivalKNN(object):
                    
         
         # Get c-index
-        #======================================================================
         CI = 0
         if Survival_test is not None:
             assert (Censored_test is not None)
@@ -181,3 +181,77 @@ class SurvivalKNN(object):
                                 prediction_type='survival_time')
             
         return T_test, CI
+
+
+
+    #%%===========================================================================
+    # model tuning
+    #============================================================================== 
+
+    def cv_tune(self, X, Survival, Censored,
+                kcv = 5, shuffles = 5, \
+                Ks = list(np.arange(10, 160, 10))):
+
+        """
+        Given an optimization set, get optimal K using
+        cross-validation with shuffling.
+        X - features (n,d)
+        Survival - survival (n,)
+        Censored - censorship (n,)
+        kcv - no of folds for cross validation
+        shuffles - no of shuffles for cross validation
+        Ks - list of K values to try out
+        """
+
+        # Get split indices over optimization set
+        splitIdxs = dm.get_balanced_SplitIdxs(Censored, OPTIM_RATIO=0, \
+                                              K=kcv, SHUFFLES=shuffles)
+
+        # Initialize
+        n_folds = len(splitIdxs['fold_cv_train'])
+        CIs = np.zeros([n_folds, len(Ks)])
+        
+        for fold in range(n_folds):
+        
+            print("\nFold {} of {}".format(fold, n_folds-1))
+            print("----------------------------------------\n")
+            
+            # Isolate patients belonging to fold
+        
+            idxs_train = splitIdxs['fold_cv_train'][fold]
+            idxs_test = splitIdxs['fold_cv_test'][fold]
+            
+            X_test = X[idxs_test, :]
+            X_train = X[idxs_train, :]
+            Survival_train = Survival[idxs_train]
+            Censored_train = Censored[idxs_train]
+            Survival_test = Survival[idxs_test]
+            Censored_test = Censored[idxs_test]
+        
+            # Get neighbor indices    
+            neighbor_idxs = self.get_neighbor_idxs(X_test, X_train)
+        
+            
+            print("K \t Ci")
+        
+            for kidx, K in enumerate(Ks):
+            
+                # Predict testing set
+                _, Ci = self.predict(neighbor_idxs,
+                                         Survival_train, Censored_train, 
+                                         Survival_test = Survival_test, 
+                                         Censored_test = Censored_test, 
+                                         K = K)
+            
+                CIs[fold, kidx] = Ci
+            
+                print("{} \t {}".format(K, round(Ci, 3)))
+                             
+        
+        # Get optimal K
+        CIs_mean = np.mean(CIs, axis=0)
+        CI_optim = np.max(CIs_mean)
+        K_optim = Ks[np.argmax(CIs_mean)]
+        print("Optimal: K = {}, Ci = {}".format(K_optim, round(CI_optim, 3)))
+
+        return CIs, K_optim

@@ -255,3 +255,5 @@ class SurvivalKNN(object):
         print("Optimal: K = {}, Ci = {}".format(K_optim, round(CI_optim, 3)))
 
         return CIs, K_optim
+
+#

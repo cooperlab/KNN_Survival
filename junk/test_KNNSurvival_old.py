@@ -56,12 +56,7 @@ Features = Features[:, keep]
 fnames = fnames[keep]
 
 # Get split indices
-splitIdxs = dm.get_balanced_SplitIdxs(Censored, OPTIM_RATIO = 0.5,\
-                                      OPTIM_TRAIN_RATIO = 0.8,\
-                                      K = 3,\
-                                      SHUFFLES = 10)
-
-#raise Exception("On purpose.")
+splitIdxs = dm.get_balanced_SplitIdxs(Censored)
 
 #%%============================================================================
 # Train
@@ -72,39 +67,68 @@ knnmodel = knn.SurvivalKNN(RESULTPATH, description = description)
 
 #%%
 
-# Range of K's over which to test
+n_folds = len(splitIdxs['fold_cv_train'])
 Ks = list(np.arange(10, 160, 10))
 
 # Initialize
-CIs = np.zeros([len(Ks),])
+CIs_cum = np.zeros([n_folds, len(Ks)])
+CIs_noncum = np.zeros([n_folds, len(Ks)])
 
-# Isolate patients belonging to optimization set
-X_test = Features[splitIdxs['idx_optim_valid'], :]
-X_train = Features[splitIdxs['idx_optim_train'], :]
-Survival_train = Survival[splitIdxs['idx_optim_train']]
-Censored_train = Censored[splitIdxs['idx_optim_train']]
-Survival_test = Survival[splitIdxs['idx_optim_valid']]
-Censored_test = Censored[splitIdxs['idx_optim_valid']]
+for fold in range(n_folds):
 
-# Get neighbor indices    
-neighbor_idxs = knnmodel.get_neighbor_idxs(X_test, X_train)
-
-
-print("K \t Ci")
-
-for kidx, K in enumerate(Ks):
+    print("\nFold {} of {}".format(fold, n_folds-1))
+    print("----------------------------------------\n")
     
-    # Predict testing set
-    _, Ci = knnmodel.predict(neighbor_idxs,
-                             Survival_train, Censored_train, 
-                             Survival_test = Survival_test, 
-                             Censored_test = Censored_test, 
-                             K = K)
+    # Isolate patients belonging to fold
+
+    idxs_train = splitIdxs['fold_cv_train'][fold]
+    idxs_test = splitIdxs['fold_cv_test'][fold]
     
-    CIs[kidx] = Ci
+    X_test = Features[idxs_test, :]
+    X_train = Features[idxs_train, :]
+    Survival_train = Survival[idxs_train]
+    Censored_train = Censored[idxs_train]
+    Survival_test = Survival[idxs_test]
+    Censored_test = Censored[idxs_test]
+
+    # Get neighbor indices    
+    neighbor_idxs = knnmodel.get_neighbor_idxs(X_test, X_train)
     
-    print("{} \t {}".format(K, round(Ci, 3)))
+    
+    print("K \t Ci_cum \t Ci_noncum \t diff")
+    
+    for kidx, K in enumerate(Ks):
+        
+        # Predict testing set
+        _, Ci_cum = knnmodel.predict(neighbor_idxs,
+                                      Survival_train, Censored_train, 
+                                      Survival_test = Survival_test, 
+                                      Censored_test = Censored_test, 
+                                      K = K,
+                                      Method = 'cumulative')
+        
+        # Predict testing set - non-cumulative
+        _, Ci_noncum = knnmodel.predict(neighbor_idxs, 
+                                      Survival_train, Censored_train, 
+                                      Survival_test = Survival_test, 
+                                      Censored_test = Censored_test, 
+                                      K = K,
+                                      Method = 'non-cumulative')
+                                      
+                                      
+        # save and print
+        CIs_cum[fold, kidx] = Ci_cum
+        CIs_noncum[fold, kidx] = Ci_noncum
+        
+        
+        print("{} \t {} \t {} \t {}".\
+              format(K, round(Ci_cum, 3), round(Ci_noncum, 3), 
+                     round(Ci_cum - Ci_noncum, 3)))
                      
+
+
+CIs_diff = CIs_cum - CIs_noncum
+
 
 #%%
 
@@ -128,8 +152,23 @@ for kidx, K in enumerate(Ks):
 #    plt.tight_layout()
 #    plt.savefig(savename)
 #    plt.close()
-
+    
 #%%
+#
+#b = np.concatenate((np.arange(len(status))[:, None], status[:, None]), axis = 1)
+#
+## get cumproduct
+#a = np.cumprod(status)
+#
+#_plotMonitor(b, '', '', '', '/home/mohamed/Desktop/a.svg', arr2=a)
+#
+#a2 = a[0:550]
+#a2 = np.concatenate((np.arange(len(a2))[:, None], a2[:, None]), axis = 1)
+#_plotMonitor(a2, '', '', '', '/home/mohamed/Desktop/a2.svg')
+    
+    
+#%%
+    
     
 #import SurvivalUtils as sUtils
 #
@@ -164,3 +203,25 @@ for kidx, K in enumerate(Ks):
 #a = np.concatenate((T[:, None], P[:, None]), axis = 1)
 #_plotMonitor(a, 'Traditional KM', '', '', '/home/mohamed/Desktop/KM.svg')
 #
+##%%
+##
+## Modified KM method
+##
+#
+#alive_train = sUtils.getAliveStatus(Survival_train, Censored_train)
+#
+#status = alive_train[neighbor_idxs[idx, :], :]
+#totalKnown = np.sum(status >= 0, axis = 0)
+#status[status < 0] = 0
+#
+## remove timepoints where there are no known statuses
+#status = status[:, totalKnown != 0]
+#totalKnown = totalKnown[totalKnown != 0]
+#
+## get "average" predicted survival time
+#status = np.sum(status, axis = 0) / totalKnown
+#
+## plot
+#b = np.concatenate((np.arange(len(status))[:, None], status[:, None]), axis = 1)
+#b = b[0:int(np.max(T)), :]
+#_plotMonitor(b, 'Modified KM', '', '', '/home/mohamed/Desktop/KM_Modified.svg')

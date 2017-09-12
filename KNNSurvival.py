@@ -147,7 +147,6 @@ class SurvivalKNN(object):
         Survival_train - training sample time-to-event; (N,) np array
         Censored_train - training sample censorship status; (N,) np array
         K           - number of nearest-neighbours to use, int
-        Method      - cumulative vs non-cumulative probability
         """
         
         # Keep only desired K
@@ -185,7 +184,7 @@ class SurvivalKNN(object):
 
 
     #%%===========================================================================
-    # model tuning
+    # model tuning and accuracy
     #============================================================================== 
 
     def cv_tune(self, X, Survival, Censored,
@@ -256,4 +255,56 @@ class SurvivalKNN(object):
 
         return CIs, K_optim
 
-#
+
+    #==========================================================================   
+
+
+    def cv_accuracy(self, X, Survival, Censored, \
+                    splitIdxs, K = 30):
+
+        """
+        Given an optimal K, find model accuracy using KCV.
+        
+        X - features (n,d)
+        Survival - survival (n,)
+        Censored - censorship (n,)
+        splitIdxs - dict; indices of patients belonging to each fold
+        K - no. of nearest neighbors to use
+        """
+
+        # Initialize
+        n_folds = len(splitIdxs['fold_cv_train'])
+        CIs = np.zeros([n_folds,])
+
+        print("fold \t Ci")
+        
+        for fold in range(n_folds):
+        
+            # Isolate patients belonging to fold
+        
+            idxs_train = splitIdxs['fold_cv_train'][fold]
+            idxs_test = splitIdxs['fold_cv_test'][fold]
+            
+            X_test = X[idxs_test, :]
+            X_train = X[idxs_train, :]
+            Survival_train = Survival[idxs_train]
+            Censored_train = Censored[idxs_train]
+            Survival_test = Survival[idxs_test]
+            Censored_test = Censored[idxs_test]
+        
+            # Get neighbor indices    
+            neighbor_idxs = self.get_neighbor_idxs(X_test, X_train)
+        
+            # Predict testing set
+            _, Ci = self.predict(neighbor_idxs,
+                                 Survival_train, Censored_train, 
+                                 Survival_test = Survival_test, 
+                                 Censored_test = Censored_test, 
+                                 K = K)
+            
+            CIs[fold] = Ci
+               
+            print("{} \t {}".format(fold, round(Ci, 3)))
+
+
+        return CIs

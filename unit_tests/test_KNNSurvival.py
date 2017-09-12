@@ -26,14 +26,14 @@ print("Loading and preprocessing data.")
 #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
 projectPath = "/home/mtageld/Desktop/KNN_Survival/"
 
-#dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+#dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
 #dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
 
 Data = loadmat(dpath)
 
-#Features = np.float32(Data['Integ_X'])
-Features = np.float32(Data['Gene_X'])
+Features = np.float32(Data['Integ_X'])
+#Features = np.float32(Data['Gene_X'])
 
 N, D = Features.shape
 
@@ -42,8 +42,8 @@ if np.min(Data['Survival']) < 0:
 
 Survival = np.int32(Data['Survival']).reshape([N,])
 Censored = np.int32(Data['Censored']).reshape([N,])
-#fnames = Data['Integ_Symbs']
-fnames = Data['Gene_Symbs']
+fnames = Data['Integ_Symbs']
+#fnames = Data['Gene_Symbs']
 
 RESULTPATH = projectPath + "Results/tmp/"
 MONITOR_STEP = 10
@@ -72,12 +72,17 @@ optimIdxs = splitIdxs['idx_optim_train'] + splitIdxs['idx_optim_valid']
 # Instantiate a KNN survival model
 knnmodel = knn.SurvivalKNN(RESULTPATH, description = description)
 
-# Get optimal K using optimization set
-CIs, K_optim = knnmodel.cv_tune(Features[optimIdxs, :], \
-                                Survival[optimIdxs], \
-                                Censored[optimIdxs], \
-                                kcv = 5, \
-                                shuffles = 5, \
-                                Ks = list(np.arange(10, 160, 10)))
+## Get optimal K using optimization set
+#CIs, K_optim = knnmodel.cv_tune(Features[optimIdxs, :], \
+#                                Survival[optimIdxs], \
+#                                Censored[optimIdxs], \
+#                                kcv = 5, \
+#                                shuffles = 5, \
+#                                Ks = list(np.arange(10, 160, 10)))
+
+
+# Get model accuracy
+CIs = knnmodel.cv_accuracy(Features, Survival, Censored, \
+                           splitIdxs, K = 80)
 
 

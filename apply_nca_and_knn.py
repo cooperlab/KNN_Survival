@@ -73,6 +73,11 @@ splitIdxs = dm.get_balanced_SplitIdxs(Censored, OPTIM_RATIO = 0.5,\
                                       K = 3,\
                                       SHUFFLES = 10)
 
+# Save split indices for replicability
+with open(projectPath + 'Results/' + self.description + \
+                  'splitIdxs.pkl','wb') as f:
+    _pickle.dump(splitIdxs, f)
+
 # Isolate optimization set 
 optimIdxs = splitIdxs['idx_optim_train'] + splitIdxs['idx_optim_valid']
 
@@ -117,6 +122,8 @@ np.fill_diagonal(W, w)
 # transform
 Features_transformed = np.dot(Features, W)
 
+Ks = list(np.arange(10, 160, 10))
+
 def get_accuracy(X):
 
     """Get model accuracy using KNN"""
@@ -130,27 +137,31 @@ def get_accuracy(X):
     
     
     # tune K using cross validation
-    _, K_optim = knnmodel.cv_tune(X[optimIdxs, :], \
+    print("\nTuning K using KCV")
+    CIs_K, K_optim = knnmodel.cv_tune(X[optimIdxs, :], \
                                   Survival[optimIdxs], \
                                   Censored[optimIdxs], \
                                   kcv = 5, \
                                   shuffles = 5, \
-                                  Ks = list(np.arange(10, 160, 10)))
+                                  Ks = Ks)
     
     #%%============================================================================
     # Get model accuacy
     #==============================================================================
     
+    print("\nGetting final accuracy.")
     CIs = knnmodel.cv_accuracy(X, Survival, Censored, \
                                splitIdxs, K = K_optim)
 
-    return CIs
+    return CIs_K, K_optim, CIs
 
 # get accuracy on non-nca-transformed set
-CIs_X = get_accuracy(Features)
+print("\nGetting accuracy on original X")
+CIs_K_X, K_optim_X, CIs_X = get_accuracy(Features)
 
 # get accuracy on nca-transformed set
-CIs_XA = get_accuracy(Features_transformed)
+print("\nGetting accuracy on XA")
+CIs_K_XA, K_optim_XA, CIs_XA = get_accuracy(Features_transformed)
 
 print("\nAccuracy on original X")
 print("------------------------")
@@ -164,3 +175,19 @@ print("------------------------")
 print("25th percentile = {}".format(np.percentile(CIs_XA, 25)))
 print("50th percentile = {}".format(np.percentile(CIs_XA, 50)))
 print("75th percentile = {}".format(np.percentile(CIs_XA, 75)))
+
+
+# Save results
+Results = {'Ks': Ks,
+           'CIs_K_X': CIs_K_X,
+           'K_optim_X': K_optim_X,
+           'CIs_X': CIs_X,
+           'CIs_K_XA': CIs_K_XA,
+           'K_optim_XA': K_optim_XA,
+           'CIs_XA': CIs_XA,
+           }
+
+
+with open(projectPath + 'Results/' + self.description + \
+                  'Results.pkl','wb') as f:
+    _pickle.dump(Results, f)

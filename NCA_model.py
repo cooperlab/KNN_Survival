@@ -255,7 +255,8 @@ class SurvivalNCA(object):
             COMPUT_GRAPH_PARAMS={},
             BATCH_SIZE = 20,
             PLOT_STEP = 10,
-            MODEL_SAVE_STEP = 10):
+            MODEL_SAVE_STEP = 10,
+            MAX_ITIR = 100):
                 
         """
         train a survivalNCA model
@@ -340,12 +341,14 @@ class SurvivalNCA(object):
             #==================================================================
             
             try: 
-                while True:
+                itir = 0
+                while itir < MAX_ITIR:
                     
                     pUtils.Log_and_print("\n=================================== " + \
                                         "Training epoch {}".format(self.EPOCHS_RUN) + \
                                         " ===================================\n")
-                                        
+                    
+                    itir += 1
                     cost_tot = 0
                     cost_tot_valid = 0
                     

@@ -6,7 +6,8 @@ Created on Sat Sep  9 16:54:33 2017
 """
 
 import sys
-sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
 from scipy.io import loadmat
 import numpy as np
@@ -22,8 +23,8 @@ print("Loading and preprocessing data.")
 
 # Load data
 
-projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-#projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+#projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+projectPath = "/home/mtageld/Desktop/KNN_Survival/"
 
 dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
 #dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
@@ -77,7 +78,8 @@ ncamodel.train(features = Features,
              survival = Survival,
              censored = Censored,
              COMPUT_GRAPH_PARAMS = graphParams,
-             BATCH_SIZE = 100)
+             BATCH_SIZE = 100,
+             MAX_ITIR = 10)
              
 ncamodel.rankFeats(Features, fnames, rank_type = "weights")
 ncamodel.rankFeats(Features, fnames, rank_type = "stdev")

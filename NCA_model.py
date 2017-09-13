@@ -336,6 +336,45 @@ class SurvivalNCA(object):
             # for tensorboard visualization
             train_writer = tf.summary.FileWriter(self.RESULTPATH + 'model/tensorboard', 
                                                  sess.graph)
+
+            # Define some methods
+            #==================================================================
+
+
+            # periodically save model
+            def _saveTFmodel():
+
+                """Saves model weights using tensorflow saver"""
+            
+                # save weights                        
+                pUtils.Log_and_print("\nSaving TF model weights...")
+                save_path = saver.save(sess, \
+                                self.WEIGHTPATH + self.description + ".ckpt")
+                pUtils.Log_and_print("Model saved in file: %s" % save_path)
+            
+                # save attributes
+                self.save()
+             
+            
+            # monitor
+            def _monitorProgress():
+
+                """Monitor cost"""
+                
+                cs = np.array(self.Costs_epochLevel_train)
+                epoch_no = np.arange(len(cs))
+                cs = np.concatenate((epoch_no[:, None], cs), axis=1)
+                
+                cs_valid = None
+                if USE_VALID:
+                    cs_valid = np.array(self.Costs_epochLevel_valid)
+                
+                self._plotMonitor(arr= cs, arr2= cs_valid,
+                             title= "cost vs. epoch", 
+                             xlab= "epoch", ylab= "cost", 
+                             savename= self.RESULTPATH + "plots/" +
+                              self.description + "cost.png")
+
     
             # Begin epochs
             #==================================================================
@@ -442,53 +481,33 @@ class SurvivalNCA(object):
                     self.Costs_epochLevel_train.append(cost_tot)
                     if USE_VALID:
                         self.Costs_epochLevel_valid.append(cost_tot_valid)  
-                    
+                   
+
                     # periodically save model
                     if (self.BATCHES_RUN % MODEL_SAVE_STEP) == 0:
+                        _saveTFmodel() 
                     
-                        # save weights                        
-                        pUtils.Log_and_print("\nSaving model weights...")
-                        save_path = saver.save(sess, \
-                                        self.WEIGHTPATH + self.description + ".ckpt")
-                        pUtils.Log_and_print("Model saved in file: %s" % save_path)
-                    
-                        # save attributes
-                        self.save()
-                     
-                    
-                    # monitor
+                    # periodically monitor progress
                     if (self.EPOCHS_RUN % PLOT_STEP == 0) and \
                         (self.EPOCHS_RUN > 0):
-                        
-                        cs = np.array(self.Costs_epochLevel_train)
-                        epoch_no = np.arange(len(cs))
-                        cs = np.concatenate((epoch_no[:, None], cs), axis=1)
-                        
-                        cs_valid = None
-                        if USE_VALID:
-                            cs_valid = np.array(self.Costs_epochLevel_valid)
-                        
-                        self._plotMonitor(arr= cs, arr2= cs_valid,
-                                     title= "cost vs. epoch", 
-                                     xlab= "epoch", ylab= "cost", 
-                                     savename= self.RESULTPATH + "plots/" +
-                                      self.description + "cost.png")
-                    
+                        _monitorProgress() 
                     
             except KeyboardInterrupt:
+                pass
                 
-                pUtils.Log_and_print("\nFinished training model.")
-                pUtils.Log_and_print("Obtaining final results.")
-                
-                
-                w = sess.run(graph.w, feed_dict = feed_dict)
-                
-                # save learned weights
-                np.save(self.RESULTPATH + 'model/' + self.description + \
-                        'featWeights.npy', w)
+            # save final model and plot costs
+            _saveTFmodel()
+            _monitorProgress()
+
+            pUtils.Log_and_print("\nFinished training model.")
+            pUtils.Log_and_print("Obtaining final results.")
+            
+            # save learned weights
+            w = sess.run(graph.w, feed_dict = feed_dict)
+            np.save(self.RESULTPATH + 'model/' + self.description + \
+                    'featWeights.npy', w)
 
                         
-
     #%%============================================================================
     # Rank features
     #==============================================================================

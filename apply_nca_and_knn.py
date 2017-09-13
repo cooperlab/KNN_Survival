@@ -10,6 +10,7 @@ import sys
 #sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
 sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
+import _pickle
 from scipy.io import loadmat
 import numpy as np
 
@@ -54,8 +55,9 @@ Features = Features[:, keep]
 fnames = fnames[keep]
 
 # params
-RESULTPATH_NCA = projectPath + "Results/tmp/nca/"
-RESULTPATH_KNN = projectPath + "Results/tmp/knn/"
+RESULTPATH = projectPath + "Results/tmp/"
+RESULTPATH_NCA = RESULTPATH + "nca/"
+RESULTPATH_KNN = RESULTPATH + "knn/"
 description = "GBMLGG_Integ_"
 LOADPATH = None
 #LOADPATH = RESULTPATH_NCA + 'model/' + description + 'ModelAttributes.pkl'
@@ -63,6 +65,7 @@ LOADPATH = None
 # create subdirs
 os.system('mkdir ' + RESULTPATH_NCA)
 os.system('mkdir ' + RESULTPATH_KNN)
+
 
 #%%========================================================================
 # Get split indices
@@ -74,7 +77,7 @@ splitIdxs = dm.get_balanced_SplitIdxs(Censored, OPTIM_RATIO = 0.5,\
                                       SHUFFLES = 10)
 
 # Save split indices for replicability
-with open(projectPath + 'Results/' + self.description + \
+with open(RESULTPATH + description + \
                   'splitIdxs.pkl','wb') as f:
     _pickle.dump(splitIdxs, f)
 
@@ -124,11 +127,14 @@ Features_transformed = np.dot(Features, W)
 
 Ks = list(np.arange(10, 160, 10))
 
+#%%============================================================================
+# Get model accuracy
+#==============================================================================
+
 def get_accuracy(X):
 
     """Get model accuracy using KNN"""
 
-    #%%============================================================================
     # Tune KNN model on optimization set
     #==============================================================================
     
@@ -145,7 +151,6 @@ def get_accuracy(X):
                                   shuffles = 5, \
                                   Ks = Ks)
     
-    #%%============================================================================
     # Get model accuacy
     #==============================================================================
     
@@ -188,6 +193,7 @@ Results = {'Ks': Ks,
            }
 
 
-with open(projectPath + 'Results/' + self.description + \
+print("\nSaving final results.")
+with open(RESULTPATH + description + \
                   'Results.pkl','wb') as f:
     _pickle.dump(Results, f)

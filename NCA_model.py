@@ -484,7 +484,7 @@ class SurvivalNCA(object):
                    
 
                     # periodically save model
-                    if (self.BATCHES_RUN % MODEL_SAVE_STEP) == 0:
+                    if (self.EPOCHS_RUN % MODEL_SAVE_STEP) == 0:
                         _saveTFmodel() 
                     
                     # periodically monitor progress

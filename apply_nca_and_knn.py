@@ -5,6 +5,7 @@ Created on Sat Sep  9 16:54:33 2017
 @author: mohamed
 """
 
+import os
 import sys
 #sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
 sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
@@ -53,11 +54,15 @@ Features = Features[:, keep]
 fnames = fnames[keep]
 
 # params
-RESULTPATH = projectPath + "Results/tmp/"
-MONITOR_STEP = 10
+RESULTPATH_NCA = projectPath + "Results/tmp/nca/"
+RESULTPATH_KNN = projectPath + "Results/tmp/knn/"
 description = "GBMLGG_Integ_"
 LOADPATH = None
-#LOADPATH = RESULTPATH + 'model/' + description + 'ModelAttributes.pkl'
+#LOADPATH = RESULTPATH_NCA + 'model/' + description + 'ModelAttributes.pkl'
+
+# create subdirs
+os.system('mkdir ' + RESULTPATH_NCA)
+os.system('mkdir ' + RESULTPATH_KNN)
 
 #%%========================================================================
 # Get split indices
@@ -76,8 +81,8 @@ optimIdxs = splitIdxs['idx_optim_train'] + splitIdxs['idx_optim_valid']
 # Learn NCA matrix on optimization set
 #==============================================================================
 
-# Instantiate
-ncamodel = nca.SurvivalNCA(RESULTPATH, description = description, \
+# instantiate
+ncamodel = nca.SurvivalNCA(RESULTPATH_NCA, description = description, \
                            LOADPATH = LOADPATH)
 
 # train
@@ -91,6 +96,8 @@ ncamodel.train(features = Features[optimIdxs, :],
                censored = Censored[optimIdxs],
                COMPUT_GRAPH_PARAMS = graphParams,
                BATCH_SIZE = 200,
+               PLOT_STEP = 100,
+               MODEL_SAVE_STEP = 100,
                MAX_ITIR = 100)
 
 # get feature ranks
@@ -103,9 +110,57 @@ ncamodel.rankFeats(Features, fnames, rank_type = "stdev")
 #==============================================================================
 
 # get learned weights
-w = np.load(RESULTPATH + 'model/' + description + 'featWeights.npy')  
-W = np.zeros([w, w])
+w = np.load(RESULTPATH_NCA + 'model/' + description + 'featWeights.npy')  
+W = np.zeros([len(w), len(w)])
 np.fill_diagonal(W, w)
 
 # transform
-Features = np.dot(Features, W)
+Features_transformed = np.dot(Features, W)
+
+def get_accuracy(X):
+
+    """Get model accuracy using KNN"""
+
+    #%%============================================================================
+    # Tune KNN model on optimization set
+    #==============================================================================
+    
+    # instantiate
+    knnmodel = knn.SurvivalKNN(RESULTPATH_KNN, description = description)
+    
+    
+    # tune K using cross validation
+    _, K_optim = knnmodel.cv_tune(X[optimIdxs, :], \
+                                  Survival[optimIdxs], \
+                                  Censored[optimIdxs], \
+                                  kcv = 5, \
+                                  shuffles = 5, \
+                                  Ks = list(np.arange(10, 160, 10)))
+    
+    #%%============================================================================
+    # Get model accuacy
+    #==============================================================================
+    
+    CIs = knnmodel.cv_accuracy(X, Survival, Censored, \
+                               splitIdxs, K = K_optim)
+
+    return CIs
+
+# get accuracy on non-nca-transformed set
+CIs_X = get_accuracy(Features)
+
+# get accuracy on nca-transformed set
+CIs_XA = get_accuracy(Features_transformed)
+
+print("\nAccuracy on original X")
+print("------------------------")
+print("25th percentile = {}".format(np.percentile(CIs_X, 25)))
+print("50th percentile = {}".format(np.percentile(CIs_X, 50)))
+print("75th percentile = {}".format(np.percentile(CIs_X, 75)))
+
+
+print("\nAccuracy on XA")
+print("------------------------")
+print("25th percentile = {}".format(np.percentile(CIs_XA, 25)))
+print("50th percentile = {}".format(np.percentile(CIs_XA, 50)))
+print("75th percentile = {}".format(np.percentile(CIs_XA, 75)))

@@ -102,14 +102,14 @@ graphParams = {'ALPHA': 0.5,
                'LEARN_RATE': 0.01}
 
 nca_train_params = {'BATCH_SIZE': 200, \
-                    'PLOT_STEP': 100, \
-                    'MODEL_SAVE_STEP': 100, \
+                    'PLOT_STEP': 200, \
+                    'MODEL_SAVE_STEP': 200, \
                     'MAX_ITIR': 100,
                    }
 
 
 k_tune_params = {'kcv': 5,
-                 'shuffles': 1,
+                 'shuffles': 2,
                  'Ks': list(np.arange(10, 160, 10)),
                 }
 
@@ -220,10 +220,8 @@ print("75th percentile = {}".format(np.percentile(CIs_XA, 75)))
 Results = {'graphParams': graphParams,
            'nca_train_params': nca_train_params,
            'k_tune_params': k_tune_params,
-           'CIs_K_X': CIs_K_X,
            'K_optim_X': K_optim_X,
            'CIs_X': CIs_X,
-           'CIs_K_XA': CIs_K_XA,
            'K_optim_XA': K_optim_XA,
            'CIs_XA': CIs_XA,
            }

@@ -92,7 +92,10 @@ with open(RESULTPATH + description + \
 # Go through outer folds, optimize and get accuracy
 #==============================================================================
 
+#
 # define params
+#
+
 graphParams = {'ALPHA': 0.5,
                'LAMBDA': 0, 
                'OPTIM': 'GD',
@@ -105,19 +108,36 @@ nca_train_params = {'COMPUT_GRAPH_PARAMS': graphParams, \
                     'MAX_ITIR': 100,
                    }
 
-Ks = list(np.arange(10, 160, 10))
 
+k_tune_params = {'kcv': 5,
+                 'shuffles': 1,
+                 'Ks': list(np.arange(10, 160, 10)),
+                }
+
+#
+# initialize
+#
+
+CIs_X = np.zeros([K * SHUFFLES, K_OPTIM])
+K_optim_X = np.zeros([K_OPTIM])
+
+CIs_XA = np.zeros([K * SHUFFLES, K_OPTIM])
+K_optim_XA = np.zeros([K_OPTIM])
+
+#
+# itirate through folds
+#
 
 for outer_fold in range(K_OPTIM):
 
     print("\nOuter fold {} of {}\n".format(outer_fold, K_OPTIM-1))
 
     # Isolate optimization set 
-    optimIdxs = splitIdxs['idx_optim_train'][outer_fold]
+    optimIdxs = splitIdxs['idx_optim'][outer_fold]
 
 
     # Learn NCA matrix on optimization set
-    #==============================================================================
+    #========================================
     
     print("\nLearning NCA on optimization set\n")
     
@@ -139,7 +159,7 @@ for outer_fold in range(K_OPTIM):
 
     
     # Transform features according to learned nca model
-    #==============================================================================
+    #===================================================
     
     print("\nTransforming feats according to learned NCA model.")
     
@@ -150,48 +170,35 @@ for outer_fold in range(K_OPTIM):
     
     # transform
     Features_transformed = np.dot(Features, W)
+   
 
-
-# Get model accuracy
-#==============================================================================
-
-def get_accuracy(X, optimIdxs):
-
-    """Get model accuracy using KNN"""
-
-    #
-    # Tune KNN model on optimization set
-    #
-
-    # instantiate
-    knnmodel = knn.SurvivalKNN(RESULTPATH_KNN, description = description)
+    # Get model accuracy
+    #=====================
+    
+    # Instantiate a KNN survival model.
+    knnmodel = knn.SurvivalKNN(RESULTPATH, description = description)
     
     
-    # tune K using cross validation
-    print("\nTuning K using KCV")
-    CIs_K, K_optim = knnmodel.cv_tune(X[optimIdxs, :], \
-                                  Survival[optimIdxs], \
-                                  Censored[optimIdxs], \
-                                  kcv = 5, \
-                                  shuffles = 5, \
-                                  Ks = Ks)
-    #
-    # Get model accuacy
-    #
+    # get accuracy on non-nca-transformed set
+    print("\nGetting accuracy on original X")
+    
+    ci, k_optim = knnmodel.cv_accuracy(Features, Survival, Censored, \
+                                       splitIdxs, outer_fold = outer_fold,\
+                                       tune_params = k_tune_params)
+    CIs_X[:, outer_fold] = ci
+    K_optim_X[outer_fold] = k_optim
+    
+    
+    
+    # get accuracy on nca-transformed set
+    print("\nGetting accuracy on XA")
+    
+    ci, k_optim = knnmodel.cv_accuracy(Features_transformed, Survival, Censored, \
+                                       splitIdxs, outer_fold = outer_fold,\
+                                       tune_params = k_tune_params)
+    CIs_XA[:, outer_fold] = ci
+    K_optim_XA[outer_fold] = k_optim
 
-    print("\nGetting final accuracy.")
-    CIs = knnmodel.cv_accuracy(X, Survival, Censored, \
-                               splitIdxs, K = K_optim)
-
-    return CIs_K, K_optim, CIs
-
-# get accuracy on non-nca-transformed set
-print("\nGetting accuracy on original X")
-CIs_K_X, K_optim_X, CIs_X = get_accuracy(Features)
-
-# get accuracy on nca-transformed set
-print("\nGetting accuracy on XA")
-CIs_K_XA, K_optim_XA, CIs_XA = get_accuracy(Features_transformed)
 
 print("\nAccuracy on original X")
 print("------------------------")

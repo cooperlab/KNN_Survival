@@ -72,72 +72,97 @@ os.system('mkdir ' + RESULTPATH_KNN)
 #==========================================================================
 
 # Get split indices - entire cohort
-splitIdxs = dm.get_balanced_SplitIdxs(Censored, OPTIM_RATIO = 0.5,\
-                                      K = 3,\
-                                      SHUFFLES = 10)
+
+K_OPTIM = 2
+K = 3
+SHUFFLES = 10
+splitIdxs = dm.get_balanced_SplitIdxs(Censored, \
+                                      K = K,\
+                                      SHUFFLES = SHUFFLES,\
+                                      USE_OPTIM = True,\
+                                      K_OPTIM = K_OPTIM)
 
 # Save split indices for replicability
 with open(RESULTPATH + description + \
                   'splitIdxs.pkl','wb') as f:
     _pickle.dump(splitIdxs, f)
 
-# Isolate optimization set 
-optimIdxs = splitIdxs['idx_optim_train'] + splitIdxs['idx_optim_valid']
-
 
 #%%============================================================================
-# Learn NCA matrix on optimization set
+# Go through outer folds, optimize and get accuracy
 #==============================================================================
 
-# instantiate
-ncamodel = nca.SurvivalNCA(RESULTPATH_NCA, description = description, \
-                           LOADPATH = LOADPATH)
-
-# train
+# define params
 graphParams = {'ALPHA': 0.5,
                'LAMBDA': 0, 
                'OPTIM': 'GD',
                'LEARN_RATE': 0.01}
-                           
-ncamodel.train(features = Features[optimIdxs, :],
-               survival = Survival[optimIdxs],
-               censored = Censored[optimIdxs],
-               COMPUT_GRAPH_PARAMS = graphParams,
-               BATCH_SIZE = 200,
-               PLOT_STEP = 100,
-               MODEL_SAVE_STEP = 100,
-               MAX_ITIR = 100)
 
-# get feature ranks
-ncamodel.rankFeats(Features, fnames, rank_type = "weights")
-ncamodel.rankFeats(Features, fnames, rank_type = "stdev")
-
-
-#%%============================================================================
-# Transform features according to learned nca model
-#==============================================================================
-
-# get learned weights
-w = np.load(RESULTPATH_NCA + 'model/' + description + 'featWeights.npy')  
-W = np.zeros([len(w), len(w)])
-np.fill_diagonal(W, w)
-
-# transform
-Features_transformed = np.dot(Features, W)
+nca_train_params = {'COMPUT_GRAPH_PARAMS': graphParams, \
+                    'BATCH_SIZE': 200, \
+                    'PLOT_STEP': 100, \
+                    'MODEL_SAVE_STEP': 100, \
+                    'MAX_ITIR': 100,
+                   }
 
 Ks = list(np.arange(10, 160, 10))
 
-#%%============================================================================
+
+for outer_fold in range(K_OPTIM):
+
+    print("\nOuter fold {} of {}\n".format(outer_fold, K_OPTIM-1))
+
+    # Isolate optimization set 
+    optimIdxs = splitIdxs['idx_optim_train'][outer_fold]
+
+
+    # Learn NCA matrix on optimization set
+    #==============================================================================
+    
+    print("\nLearning NCA on optimization set\n")
+    
+    # instantiate
+    description_fold = description + "_outerfold{}".format(outer_fold)
+
+    ncamodel = nca.SurvivalNCA(RESULTPATH_NCA, \
+                               description = description_fold, \
+                               LOADPATH = LOADPATH)
+                               
+    ncamodel.train(features = Features[optimIdxs, :],
+                   survival = Survival[optimIdxs],
+                   censored = Censored[optimIdxs],
+                   **nca_train_params)
+    
+    # get feature ranks
+    ncamodel.rankFeats(Features, fnames, rank_type = "weights")
+    ncamodel.rankFeats(Features, fnames, rank_type = "stdev")
+
+    
+    # Transform features according to learned nca model
+    #==============================================================================
+    
+    print("\nTransforming feats according to learned NCA model.")
+    
+    # get learned weights
+    w = np.load(RESULTPATH_NCA + 'model/' + description_fold + 'featWeights.npy')  
+    W = np.zeros([len(w), len(w)])
+    np.fill_diagonal(W, w)
+    
+    # transform
+    Features_transformed = np.dot(Features, W)
+
+
 # Get model accuracy
 #==============================================================================
 
-def get_accuracy(X):
+def get_accuracy(X, optimIdxs):
 
     """Get model accuracy using KNN"""
 
+    #
     # Tune KNN model on optimization set
-    #==============================================================================
-    
+    #
+
     # instantiate
     knnmodel = knn.SurvivalKNN(RESULTPATH_KNN, description = description)
     
@@ -150,10 +175,10 @@ def get_accuracy(X):
                                   kcv = 5, \
                                   shuffles = 5, \
                                   Ks = Ks)
-    
+    #
     # Get model accuacy
-    #==============================================================================
-    
+    #
+
     print("\nGetting final accuracy.")
     CIs = knnmodel.cv_accuracy(X, Survival, Censored, \
                                splitIdxs, K = K_optim)

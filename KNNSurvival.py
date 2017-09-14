@@ -188,11 +188,11 @@ class SurvivalKNN(object):
     #============================================================================== 
 
     def cv_tune(self, X, Survival, Censored,
-                kcv = 5, shuffles = 5, \
+                kcv = 5, shuffles = 1, \
                 Ks = list(np.arange(10, 160, 10))):
 
         """
-        Given an optimization set, get optimal K using
+        Given an **optimization set**, get optimal K using
         cross-validation with shuffling.
         X - features (n,d)
         Survival - survival (n,)
@@ -213,8 +213,7 @@ class SurvivalKNN(object):
         
         for fold in range(n_folds):
         
-            print("\nFold {} of {}".format(fold, n_folds-1))
-            print("----------------------------------------\n")
+            print("\n\tFold {} of {}".format(fold, n_folds-1))
             
             # Isolate patients belonging to fold
         
@@ -232,7 +231,7 @@ class SurvivalKNN(object):
             neighbor_idxs = self.get_neighbor_idxs(X_test, X_train)
         
             
-            print("K \t Ci")
+            print("\tK \t Ci")
         
             for kidx, K in enumerate(Ks):
             
@@ -245,14 +244,14 @@ class SurvivalKNN(object):
             
                 CIs[fold, kidx] = Ci
             
-                print("{} \t {}".format(K, round(Ci, 3)))
+                print("\t{} \t {}".format(K, round(Ci, 3)))
                              
         
         # Get optimal K
         CIs_mean = np.mean(CIs, axis=0)
         CI_optim = np.max(CIs_mean)
         K_optim = Ks[np.argmax(CIs_mean)]
-        print("Optimal: K = {}, Ci = {}".format(K_optim, round(CI_optim, 3)))
+        print("\nOptimal: K = {}, Ci = {}\n".format(K_optim, round(CI_optim, 3)))
 
         return CIs, K_optim
 
@@ -261,30 +260,42 @@ class SurvivalKNN(object):
 
 
     def cv_accuracy(self, X, Survival, Censored, \
-                    splitIdxs, K = 30):
+                    splitIdxs, outer_fold, \
+                    tune_params):
 
         """
-        Given an optimal K, find model accuracy using KCV.
+        Find model accuracy using KCV (after ptimizing K)
         
         X - features (n,d)
         Survival - survival (n,)
         Censored - censorship (n,)
         splitIdxs - dict; indices of patients belonging to each fold
-        K - no. of nearest neighbors to use
+        outer_fold - fold index for optimization and non-optim. sets
+        tune_params - dict; parameters to pass to cv_tune method
         """
 
         # Initialize
-        n_folds = len(splitIdxs['fold_cv_train'])
-        CIs = np.zeros([n_folds,])
+        n_folds = len(splitIdxs['fold_cv_train'][0])
+        CIs = np.zeros([n_folds])
 
-        print("fold \t Ci")
+        print("\nOptimizing K for this outer fold.")
+
+        # find optimal K on validation set
+        optimIdxs = splitIdxs['idx_optim'][outer_fold]
+
+        _, K_optim = self.cv_tune(X[optimIdxs, :], \
+                                  Survival[optimIdxs], \
+                                  Censored[optimIdxs], \
+                                  **tune_params)
         
+        print("outer_fold \t fold \t Ci")
+
         for fold in range(n_folds):
         
             # Isolate patients belonging to fold
         
-            idxs_train = splitIdxs['fold_cv_train'][fold]
-            idxs_test = splitIdxs['fold_cv_test'][fold]
+            idxs_train = splitIdxs['fold_cv_train'][outer_fold][fold]
+            idxs_test = splitIdxs['fold_cv_test'][outer_fold][fold]
             
             X_test = X[idxs_test, :]
             X_train = X[idxs_train, :]
@@ -301,11 +312,11 @@ class SurvivalKNN(object):
                                  Survival_train, Censored_train, 
                                  Survival_test = Survival_test, 
                                  Censored_test = Censored_test, 
-                                 K = K)
+                                 K = K_optim)
             
             CIs[fold] = Ci
                
-            print("{} \t {}".format(fold, round(Ci, 3)))
+            print("{} \t {} \t {}".format(outer_fold, fold, round(Ci, 3)))
 
 
-        return CIs
+        return CIs, K_optim

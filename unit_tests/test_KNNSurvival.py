@@ -56,11 +56,14 @@ Features = Features[:, keep]
 fnames = fnames[keep]
 
 # Get split indices - entire cohort
+K_OPTIM = 2
+K = 3
+SHUFFLES = 10
 splitIdxs = dm.get_balanced_SplitIdxs(Censored, \
-                                      K = 3,\
-                                      SHUFFLES = 10,\
+                                      K = K,\
+                                      SHUFFLES = SHUFFLES,\
                                       USE_OPTIM = True,\
-                                      K_OPTIM = 2)
+                                      K_OPTIM = K_OPTIM)
 
 
 #raise Exception("On purpose.")
@@ -72,22 +75,30 @@ splitIdxs = dm.get_balanced_SplitIdxs(Censored, \
 # Instantiate a KNN survival model.
 knnmodel = knn.SurvivalKNN(RESULTPATH, description = description)
 
-fold = 0
 
-# Get optimization set
-optimIdxs = splitIdxs['idx_optim'][fold]
+# Get optimal K and accuracies
 
-# Get optimal K using optimization set
-CIs_K, K_optim = knnmodel.cv_tune(Features[optimIdxs, :], \
-                                  Survival[optimIdxs], \
-                                  Censored[optimIdxs], \
-                                  kcv = 5, \
-                                  shuffles = 5, \
-                                  Ks = list(np.arange(10, 160, 10)))
+CIs = np.zeros([K * SHUFFLES, K_OPTIM])
+K_optim = np.zeros([K_OPTIM])
 
+for outer_fold in range(K_OPTIM):
 
-# Get model accuracy
-#CIs = knnmodel.cv_accuracy(Features, Survival, Censored, \
-#                           splitIdxs, K = 80)
+    print("\nOuter fold {} of {}".format(outer_fold, K_OPTIM-1))
+    
+    # Get model accuracy (includes param tuning)
+    tune_params = {'kcv': 5,
+                   'shuffles': 1,
+                   'Ks': list(np.arange(10, 160, 10)),
+                   }
+    ci, k_optim = knnmodel.cv_accuracy(Features, Survival, Censored, \
+                                       splitIdxs, outer_fold = outer_fold,\
+                                       tune_params = tune_params)
+    
+    CIs[:, outer_fold] = ci
+    K_optim[outer_fold] = k_optim
 
+print("\nOptimal Ks: {}".format(K_optim))
+print("25th percentile = {}".format(np.percentile(CIs, 25)))
+print("50th percentile = {}".format(np.percentile(CIs, 50)))
+print("75th percentile = {}".format(np.percentile(CIs, 75)))
 

@@ -101,8 +101,7 @@ graphParams = {'ALPHA': 0.5,
                'OPTIM': 'GD',
                'LEARN_RATE': 0.01}
 
-nca_train_params = {'COMPUT_GRAPH_PARAMS': graphParams, \
-                    'BATCH_SIZE': 200, \
+nca_train_params = {'BATCH_SIZE': 200, \
                     'PLOT_STEP': 100, \
                     'MODEL_SAVE_STEP': 100, \
                     'MAX_ITIR': 100,
@@ -142,15 +141,18 @@ for outer_fold in range(K_OPTIM):
     print("\nLearning NCA on optimization set\n")
     
     # instantiate
-    description_fold = description + "_outerfold{}".format(outer_fold)
 
-    ncamodel = nca.SurvivalNCA(RESULTPATH_NCA, \
-                               description = description_fold, \
+    RESULTPATH_NCA_FOLD = RESULTPATH_NCA + "fold_{}/".format(outer_fold)
+    os.system("mkdir " + RESULTPATH_NCA_FOLD)
+
+    ncamodel = nca.SurvivalNCA(RESULTPATH_NCA_FOLD, \
+                               description = description, \
                                LOADPATH = LOADPATH)
                                
-    ncamodel.train(features = Features[optimIdxs, :],
-                   survival = Survival[optimIdxs],
-                   censored = Censored[optimIdxs],
+    ncamodel.train(features = Features[optimIdxs, :],\
+                   survival = Survival[optimIdxs],\
+                   censored = Censored[optimIdxs],\
+                   COMPUT_GRAPH_PARAMS = graphParams,\
                    **nca_train_params)
     
     # get feature ranks
@@ -164,7 +166,7 @@ for outer_fold in range(K_OPTIM):
     print("\nTransforming feats according to learned NCA model.")
     
     # get learned weights
-    w = np.load(RESULTPATH_NCA + 'model/' + description_fold + 'featWeights.npy')  
+    w = np.load(RESULTPATH_NCA_FOLD + 'model/' + description + 'featWeights.npy')  
     W = np.zeros([len(w), len(w)])
     np.fill_diagonal(W, w)
     
@@ -176,7 +178,7 @@ for outer_fold in range(K_OPTIM):
     #=====================
     
     # Instantiate a KNN survival model.
-    knnmodel = knn.SurvivalKNN(RESULTPATH, description = description)
+    knnmodel = knn.SurvivalKNN(RESULTPATH_KNN, description = description)
     
     
     # get accuracy on non-nca-transformed set
@@ -215,7 +217,9 @@ print("75th percentile = {}".format(np.percentile(CIs_XA, 75)))
 
 
 # Save results
-Results = {'Ks': Ks,
+Results = {'graphParams': graphParams,
+           'nca_train_params': nca_train_params,
+           'k_tune_params': k_tune_params,
            'CIs_K_X': CIs_K_X,
            'K_optim_X': K_optim_X,
            'CIs_X': CIs_X,

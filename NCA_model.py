@@ -63,7 +63,8 @@ class SurvivalNCA(object):
     
     # default graph params
     default_graphParams = {'ALPHA': 0.1,
-                           'LAMBDA': 1.0, 
+                           'LAMBDA': 1.0,
+                           'KAPPA': 1.0,
                            'OPTIM': 'Adam',
                            'LEARN_RATE': 0.01}
     userspecified_graphParams = ['dim_input',]
@@ -437,7 +438,7 @@ class SurvivalNCA(object):
                         cost_tot += cost                        
                         
                         pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
-                             format(batchidx, len(batchIdxs)-1, cost[0]))
+                             format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
                      
 
                     # Run over validation set
@@ -469,7 +470,7 @@ class SurvivalNCA(object):
                             cost_tot_valid += cost
                             
                             pUtils.Log_and_print("\t\tValidation: Batch {} of {}, cost = {}".\
-                                 format(batchidx, len(batchIdxs_valid)-1, cost[0]))
+                                 format(batchidx, len(batchIdxs_valid)-1, round(cost[0], 3)))
 
                     # Update and save                     
                     #==========================================================

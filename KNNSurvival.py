@@ -248,9 +248,9 @@ class SurvivalKNN(object):
                              
         
         # Get optimal K
-        CIs_mean = np.mean(CIs, axis=0)
-        CI_optim = np.max(CIs_mean)
-        K_optim = Ks[np.argmax(CIs_mean)]
+        CIs_median = np.median(CIs, axis=0)
+        CI_optim = np.max(CIs_median)
+        K_optim = Ks[np.argmax(CIs_median)]
         print("\nOptimal: K = {}, Ci = {}\n".format(K_optim, round(CI_optim, 3)))
 
         return CIs, K_optim

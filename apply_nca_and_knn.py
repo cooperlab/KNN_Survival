@@ -73,9 +73,9 @@ os.system('mkdir ' + RESULTPATH_KNN)
 
 # Get split indices - entire cohort
 
-K_OPTIM = 2
+K_OPTIM = 3
 K = 3
-SHUFFLES = 10
+SHUFFLES = 7
 splitIdxs = dm.get_balanced_SplitIdxs(Censored, \
                                       K = K,\
                                       SHUFFLES = SHUFFLES,\
@@ -94,11 +94,10 @@ with open(RESULTPATH + description + \
 
 #
 # define params
-#
-
 graphParams = {'ALPHA': 0.5,
-               'LAMBDA': 0, 
-               'OPTIM': 'GD',
+               'LAMBDA': 0,
+               'KAPPA': 1.0,
+               'OPTIM': 'Adam',
                'LEARN_RATE': 0.01}
 
 nca_train_params = {'BATCH_SIZE': 200, \
@@ -109,7 +108,7 @@ nca_train_params = {'BATCH_SIZE': 200, \
 
 
 k_tune_params = {'kcv': 5,
-                 'shuffles': 2,
+                 'shuffles': 4,
                  'Ks': list(np.arange(10, 160, 10)),
                 }
 

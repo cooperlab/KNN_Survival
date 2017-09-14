@@ -73,7 +73,7 @@ os.system('mkdir ' + RESULTPATH_KNN)
 
 # Get split indices - entire cohort
 
-K_OPTIM = 3
+K_OPTIM = 2
 K = 3
 SHUFFLES = 7
 splitIdxs = dm.get_balanced_SplitIdxs(Censored, \

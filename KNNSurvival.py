@@ -35,7 +35,7 @@ import DataManagement as dm
 #raise(Exception)
 
 #%%============================================================================
-# NCAmodel class (trainable model)
+# KNN model class (trainable model)
 #==============================================================================
 
 class SurvivalKNN(object):
@@ -203,11 +203,12 @@ class SurvivalKNN(object):
         """
 
         # Get split indices over optimization set
-        splitIdxs = dm.get_balanced_SplitIdxs(Censored, OPTIM_RATIO=0, \
-                                              K=kcv, SHUFFLES=shuffles)
+        splitIdxs = dm.get_balanced_SplitIdxs(Censored, \
+                                              K=kcv, SHUFFLES=shuffles,\
+                                              USE_OPTIM = False)
 
         # Initialize
-        n_folds = len(splitIdxs['fold_cv_train'])
+        n_folds = len(splitIdxs['fold_cv_train'][0])
         CIs = np.zeros([n_folds, len(Ks)])
         
         for fold in range(n_folds):
@@ -217,8 +218,8 @@ class SurvivalKNN(object):
             
             # Isolate patients belonging to fold
         
-            idxs_train = splitIdxs['fold_cv_train'][fold]
-            idxs_test = splitIdxs['fold_cv_test'][fold]
+            idxs_train = splitIdxs['fold_cv_train'][0][fold]
+            idxs_test = splitIdxs['fold_cv_test'][0][fold]
             
             X_test = X[idxs_test, :]
             X_train = X[idxs_train, :]

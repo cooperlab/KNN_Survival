@@ -56,12 +56,12 @@ Features = Features[:, keep]
 fnames = fnames[keep]
 
 # Get split indices - entire cohort
-splitIdxs = dm.get_balanced_SplitIdxs(Censored, OPTIM_RATIO = 0.5,\
+splitIdxs = dm.get_balanced_SplitIdxs(Censored, \
                                       K = 3,\
-                                      SHUFFLES = 10)
+                                      SHUFFLES = 10,\
+                                      USE_OPTIM = True,\
+                                      K_OPTIM = 2)
 
-# Get optimization set
-optimIdxs = splitIdxs['idx_optim_train'] + splitIdxs['idx_optim_valid']
 
 #raise Exception("On purpose.")
 
@@ -69,20 +69,25 @@ optimIdxs = splitIdxs['idx_optim_train'] + splitIdxs['idx_optim_valid']
 # Tune
 #==============================================================================
 
-# Instantiate a KNN survival model
+# Instantiate a KNN survival model.
 knnmodel = knn.SurvivalKNN(RESULTPATH, description = description)
 
-## Get optimal K using optimization set
-#CIs, K_optim = knnmodel.cv_tune(Features[optimIdxs, :], \
-#                                Survival[optimIdxs], \
-#                                Censored[optimIdxs], \
-#                                kcv = 5, \
-#                                shuffles = 5, \
-#                                Ks = list(np.arange(10, 160, 10)))
+fold = 0
+
+# Get optimization set
+optimIdxs = splitIdxs['idx_optim'][fold]
+
+# Get optimal K using optimization set
+CIs_K, K_optim = knnmodel.cv_tune(Features[optimIdxs, :], \
+                                  Survival[optimIdxs], \
+                                  Censored[optimIdxs], \
+                                  kcv = 5, \
+                                  shuffles = 5, \
+                                  Ks = list(np.arange(10, 160, 10)))
 
 
 # Get model accuracy
-CIs = knnmodel.cv_accuracy(Features, Survival, Censored, \
-                           splitIdxs, K = 80)
+#CIs = knnmodel.cv_accuracy(Features, Survival, Censored, \
+#                           splitIdxs, K = 80)
 
 

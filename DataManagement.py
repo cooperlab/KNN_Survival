@@ -15,84 +15,120 @@ import numpy as np
 #==============================================================================
 
 def getSplitIdxs(N, OFFSET = 0, 
-                 OPTIM_RATIO=0.2, OPTIM_TRAIN_RATIO=0.5,
-                 K=5, SHUFFLES=5):
+                 K = 3, SHUFFLES = 10,
+                 USE_OPTIM = True, K_OPTIM = 2):
     '''
-    Args: input matrix, ratio allocated to optimization, K (no of folds)
-    Out: indices of different sets
-    '''
+    Get split indices for a given set
 
+    Args:
+    -----
+    N - no of samples
+    OFFSET - index offset
+    K - K-fold cross validation for training/testing
+    SHUFFLES - no of shuffles
+    USE_OPTIM - whether or not to use an optimization set
+    K_OPTIM - K-fold for division into optimization and other
+
+    Returns:
+    --------
+    Idxs - indices for various sets
+    '''
+    
     Idxs = {}
     
     idx_all = np.arange(N) + OFFSET
     np.random.shuffle(idx_all)
     
-    if OPTIM_RATIO > 0:
+    def get_cv_idxs(idxs, kcv, n_shuffles):
+    
+        """Get K-fold cross validation indices"""
+    
         #
-        # indices of hyperpar optimization set
+        # indices of cross validation for each fold
         #
-        N_optim = int(OPTIM_RATIO * N)
-        N_optim_train = int(OPTIM_TRAIN_RATIO * N_optim)
+    
+        N_cv = len(idxs)
+                       
+        fold_bounds = np.arange(0, N_cv, int(N_cv / kcv))
+        fold_bounds = list(fold_bounds[0:kcv])
+        fold_bounds.append(N_cv-1)
         
-        idx_optim_train = list(idx_all[0:N_optim_train])
-        idx_optim_valid = list(idx_all[N_optim_train:N_optim])
-        Idxs['idx_optim_train'] = idx_optim_train
-        Idxs['idx_optim_valid'] = idx_optim_valid
+        fold_bounds = np.int64(fold_bounds)
         
-        # Remove optimization indices from full list
-        idx_all = idx_all[N_optim:]
-    
-    #
-    # indices of cross validation for each fold
-    #
-    N_cv = N - int(OPTIM_RATIO * N)
-                   
-    fold_bounds = np.arange(0, N_cv, int(N_cv / K))
-    fold_bounds = list(fold_bounds[0:K])
-    fold_bounds.append(N_cv-1)
-    
-    fold_bounds = np.int64(fold_bounds)
-    
-    fold_cv_test = list(np.zeros(K * SHUFFLES))
-    fold_cv_train = list(np.zeros(K * SHUFFLES))
-    
-    
-    # Doing all the shufling first since for some reason
-    # np shuffle does not work insider the next loop!
-    idx_shuffles = list(np.zeros(SHUFFLES))
-    for shuff in range(SHUFFLES):
-        np.random.shuffle(idx_all)
-        idx_shuffles[shuff] = idx_all.copy()
-
-    #    
-    # K-fold cross-validation with shuffles
-    #
-    for S in range(SHUFFLES):
+        fold_cv_test = list(np.zeros(kcv * n_shuffles))
+        fold_cv_train = list(np.zeros(kcv * n_shuffles))
         
-        ThisIdxList = idx_shuffles[S]
         
-        # Cycle through folds and get indices
-        for k in(range(K)):
-            fold_cv_test[S * K + k] = list(ThisIdxList[fold_bounds[k] : fold_bounds[k+1]])
-            fold_cv_train[S * K + k] = [j for j in ThisIdxList \
-                         if j not in fold_cv_test[S * K + k]]
-            # Append optimization (OTHER train + validation) set to training set
-            if OPTIM_RATIO > 0:
-                fold_cv_train[S * K + k] += idx_optim_train + idx_optim_valid
-
+        # Doing all the shufling first since for some reason
+        # np shuffle does not work insider the next loop!
+        idx_shuffles = list(np.zeros(n_shuffles))
+        for shuff in range(n_shuffles):
+            np.random.shuffle(idxs)
+            idx_shuffles[shuff] = idxs.copy()
+    
+        #    
+        # K-fold cross-validation with shuffles
+        #
+        for S in range(n_shuffles):
+            
+            ThisIdxList = idx_shuffles[S]
+            
+            # Cycle through folds and get indices
+            for k in(range(kcv)):
+                fold_cv_test[S * kcv + k] = \
+                    list(ThisIdxList[fold_bounds[k] : fold_bounds[k+1]])
+                fold_cv_train[S * kcv + k] = \
+                    [j for j in ThisIdxList if j not in fold_cv_test[S * kcv + k]]
+    
+        return fold_cv_train, fold_cv_test
+    
+    
+    # Get assignment into optimization and other
+    if USE_OPTIM:
+        other_idxs, optimization_idxs = \
+            get_cv_idxs(idx_all, K_OPTIM, n_shuffles=1)
+        n_folds = len(other_idxs)
+    else:
+        n_folds = 1
+    
+    # itirate through various folds and get KCV indices
+    fold_cv_train = []
+    fold_cv_test = []
+        
+    for fold_no in range(n_folds):    
+        
+        if USE_OPTIM:        
+            
+            train, test = \
+                get_cv_idxs(other_idxs[fold_no], K, n_shuffles=SHUFFLES)
+            
+            # append optimization indices to training set
+            for f in range(len(train)):
+                train[f] += optimization_idxs[fold_no]
+        else:
+            train, test = \
+                get_cv_idxs(idx_all, K, n_shuffles=SHUFFLES)   
+    
+        # hold final indices
+        fold_cv_train.append(train)
+        fold_cv_test.append(test)
+    
+    # wrap up and save results
+    if USE_OPTIM:
+        Idxs['idx_optim'] = optimization_idxs
     Idxs['fold_cv_train'] = fold_cv_train
     Idxs['fold_cv_test'] = fold_cv_test
-            
-    return Idxs
-
+    
+    return(Idxs)
 
 #%%============================================================================
 # Balanced splitting
 #==============================================================================
 
 def get_balanced_SplitIdxs(categories,
-                           OPTIM_RATIO=0.2, OPTIM_TRAIN_RATIO=0.5,
-                           K=5, SHUFFLES=5):
+                           K=3, SHUFFLES=10,
+                           USE_OPTIM = True,
+                           K_OPTIM = 2):
                                
     """
     Gets split indices with a balanced representation of the various 
@@ -119,9 +155,8 @@ def get_balanced_SplitIdxs(categories,
         # Get optimization set and K-fold CV indices
         SplitIdxs_thiscateg = \
             getSplitIdxs(N_categ, OFFSET = offset, 
-                         OPTIM_RATIO=OPTIM_RATIO,
-                         OPTIM_TRAIN_RATIO=OPTIM_TRAIN_RATIO,
-                         K=K, SHUFFLES=SHUFFLES)
+                         K = K, SHUFFLES = SHUFFLES,
+                         USE_OPTIM = USE_OPTIM, K_OPTIM = K_OPTIM)
                                          
         return SplitIdxs_thiscateg
         
@@ -138,13 +173,15 @@ def get_balanced_SplitIdxs(categories,
         SplitIdxs_thiscateg = _get_category_SplitIdx(categories, category_identifier)
         
         # merge with existing lists of indices
-        if OPTIM_RATIO > 0:
-            SplitIdxs['idx_optim_train'] += SplitIdxs_thiscateg['idx_optim_train']
-            SplitIdxs['idx_optim_valid'] += SplitIdxs_thiscateg['idx_optim_valid']
-        for k in range(K * SHUFFLES):
-            SplitIdxs['fold_cv_train'][k] += SplitIdxs_thiscateg['fold_cv_train'][k]
-            SplitIdxs['fold_cv_test'][k] += SplitIdxs_thiscateg['fold_cv_test'][k]
-    
+        n_folds = len(SplitIdxs_thiscateg['fold_cv_train'])
+        for fold in range(n_folds):
+            if USE_OPTIM > 0:
+                SplitIdxs['idx_optim'][fold] += SplitIdxs_thiscateg['idx_optim'][fold]
+
+            for k in range(K * SHUFFLES):
+                SplitIdxs['fold_cv_train'][fold][k] += SplitIdxs_thiscateg['fold_cv_train'][fold][k]
+                SplitIdxs['fold_cv_test'][fold][k] += SplitIdxs_thiscateg['fold_cv_test'][fold][k]
+        
     return SplitIdxs
 
  
@@ -160,8 +197,8 @@ def get_balanced_batches(categories, BATCH_SIZE):
     representations of each category/property.
     """
     K = int(categories.shape[0] / BATCH_SIZE)
-    batchIdxs = get_balanced_SplitIdxs(categories, OPTIM_RATIO=0, K=K, SHUFFLES=1)
-    batchIdxs = batchIdxs['fold_cv_test'][0:K]
+    batchIdxs = get_balanced_SplitIdxs(categories, USE_OPTIM=False, K=K, SHUFFLES=1)
+    batchIdxs = batchIdxs['fold_cv_test'][0][0:K]
     
     return batchIdxs
     
@@ -178,21 +215,28 @@ def get_balanced_batches(categories, BATCH_SIZE):
 if __name__ == '__main__':
     
     # Load data
-    n = 500
+    N = 500
+    OFFSET = 0
+    K = 3
+    SHUFFLES = 10
+    USE_OPTIM = False
+    K_OPTIM = 2
+    BATCH_SIZE = 50
 
     # method inputs
-    censored = np.random.binomial(1, 0.2, n)
-    OPTIM_RATIO=0.2
-    OPTIM_TRAIN_RATIO=0.7
-    K=5
-    SHUFFLES=5
-    BATCH_SIZE = 11
+    censored = np.random.binomial(1, 0.2, N)
     
-    # get balanced split indices
-    splitIdxs = get_balanced_SplitIdxs(\
-                           censored,
-                           OPTIM_RATIO=0.2, OPTIM_TRAIN_RATIO=0.5,
-                           K=5, SHUFFLES=5)
-                           
+    # get split indices
+    #Idxs = getSplitIdxs(N, OFFSET = OFFSET, 
+    #                    K = K, SHUFFLES = SHUFFLES,
+    #                    USE_OPTIM = USE_OPTIM, 
+    #                    K_OPTIM = K_OPTIM)
+
+    # get balances idxs
+    Idxs = get_balanced_SplitIdxs(censored, 
+                                  K = K, SHUFFLES = SHUFFLES,
+                                  USE_OPTIM = USE_OPTIM, K_OPTIM = K_OPTIM)
+
     # get balanced batches
-    batchIdxs = get_balanced_batches(censored, BATCH_SIZE = BATCH_SIZE)
+    censored_thisFold = censored[Idxs['fold_cv_train'][0][0]]
+    batchIdxs = get_balanced_batches(censored_thisFold, BATCH_SIZE)

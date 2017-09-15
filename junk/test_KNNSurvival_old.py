@@ -13,7 +13,7 @@ from scipy.io import loadmat
 import numpy as np
 
 import DataManagement as dm
-import KNNSurvival as knn
+import KNNSurvival_old as knn
 
 #%%========================================================================
 # Prepare inputs
@@ -27,13 +27,15 @@ print("Loading and preprocessing data.")
 projectPath = "/home/mtageld/Desktop/KNN_Survival/"
 
 #dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
-dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
-#dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
+#dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
+dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
+
+description = "BRCA_Integ_"
 
 Data = loadmat(dpath)
 
-#Features = np.float32(Data['Integ_X'])
-Features = np.float32(Data['Gene_X'])
+Features = np.float32(Data['Integ_X'])
+#Features = np.float32(Data['Gene_X'])
 
 N, D = Features.shape
 
@@ -42,12 +44,11 @@ if np.min(Data['Survival']) < 0:
 
 Survival = np.int32(Data['Survival']).reshape([N,])
 Censored = np.int32(Data['Censored']).reshape([N,])
-#fnames = Data['Integ_Symbs']
-fnames = Data['Gene_Symbs']
+fnames = Data['Integ_Symbs']
+#fnames = Data['Gene_Symbs']
 
 RESULTPATH = projectPath + "Results/tmp/"
 MONITOR_STEP = 10
-description = "GBMLGG_Gene_"
 
 # remove zero-variance features
 fvars = np.std(Features, 0)
@@ -67,7 +68,9 @@ knnmodel = knn.SurvivalKNN(RESULTPATH, description = description)
 
 #%%
 
-n_folds = len(splitIdxs['fold_cv_train'])
+outer_fold = 0
+
+n_folds = len(splitIdxs['fold_cv_train'][outer_fold])
 Ks = list(np.arange(10, 160, 10))
 
 # Initialize
@@ -81,8 +84,8 @@ for fold in range(n_folds):
     
     # Isolate patients belonging to fold
 
-    idxs_train = splitIdxs['fold_cv_train'][fold]
-    idxs_test = splitIdxs['fold_cv_test'][fold]
+    idxs_train = splitIdxs['fold_cv_train'][outer_fold][fold]
+    idxs_test = splitIdxs['fold_cv_test'][outer_fold][fold]
     
     X_test = Features[idxs_test, :]
     X_train = Features[idxs_train, :]

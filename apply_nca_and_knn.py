@@ -26,17 +26,24 @@ print("Loading and preprocessing data.")
 
 # Load data
 
+
 #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
 projectPath = "/home/mtageld/Desktop/KNN_Survival/"
 
-dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
+#dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
 #dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
-#dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
+dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
+#dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Gene.mat"
+
+#description = "GBMLGG_Integ_"
+#description = "GBMLGG_Gene_"
+description = "BRCA_Integ_"
+#description = "BRCA_Gene_"
 
 Data = loadmat(dpath)
 
-Features = np.float32(Data['Integ_X'])
-#Features = np.float32(Data['Gene_X'])
+#Features = np.float32(Data['Integ_X'])
+Features = np.float32(Data['Gene_X'])
 
 N, D = Features.shape
 
@@ -45,8 +52,8 @@ if np.min(Data['Survival']) < 0:
 
 Survival = np.int32(Data['Survival']).reshape([N,])
 Censored = np.int32(Data['Censored']).reshape([N,])
-fnames = Data['Integ_Symbs']
-#fnames = Data['Gene_Symbs']
+#fnames = Data['Integ_Symbs']
+fnames = Data['Gene_Symbs']
 
 # remove zero-variance features
 fvars = np.std(Features, 0)
@@ -58,7 +65,6 @@ fnames = fnames[keep]
 RESULTPATH = projectPath + "Results/tmp/"
 RESULTPATH_NCA = RESULTPATH + "nca/"
 RESULTPATH_KNN = RESULTPATH + "knn/"
-description = "GBMLGG_Integ_"
 LOADPATH = None
 #LOADPATH = RESULTPATH_NCA + 'model/' + description + 'ModelAttributes.pkl'
 
@@ -97,10 +103,10 @@ with open(RESULTPATH + description + \
 graphParams = {'ALPHA': 0.5,
                'LAMBDA': 0,
                'KAPPA': 1.0,
-               'OPTIM': 'Adam',
+               'OPTIM': 'GD',
                'LEARN_RATE': 0.01}
 
-nca_train_params = {'BATCH_SIZE': 200, \
+nca_train_params = {'BATCH_SIZE': 50, \
                     'PLOT_STEP': 200, \
                     'MODEL_SAVE_STEP': 200, \
                     'MAX_ITIR': 100,

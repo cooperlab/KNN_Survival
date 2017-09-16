@@ -102,7 +102,7 @@ class SurvivalKNN(object):
     # Actual prediction model
     #==============================================================================
 
-    def get_neighbor_idxs(self, X_test, X_train):
+    def get_neighbor_idxs(self, X_test, X_train, norm = 1):
         
         """ 
         Get indices of nearest neighbors.
@@ -122,10 +122,14 @@ class SurvivalKNN(object):
         # one testing sample and all training samples along one feature
         dist = X_train[None, :, :] - X_test[:, None, :]
         
-        # Now get the euclidian distance between
+        # Now get the manhattan or euclidian distance between
         # every patient and all others -> [n_samples, n_samples]
-        #normAX = tf.norm(normAX, axis=0)
-        dist = np.sqrt(np.sum(dist ** 2, axis=2))
+        if norm == 1:
+            dist = np.sum(np.abs(dist), axis=2)
+        elif norm == 2:
+            dist = np.sqrt(np.sum(dist ** 2, axis=2))
+        else:
+            raise ValueError("Only l1 and l2 norms implemented.")
         
         # Get indices of K nearest neighbors
         neighbor_idxs = np.argsort(dist, axis=1)
@@ -138,7 +142,7 @@ class SurvivalKNN(object):
     def predict(self, neighbor_idxs,
                 Survival_train, Censored_train, 
                 Survival_test = None, Censored_test = None, 
-                K = 15, Method = "non-cumulative"):
+                K = 15, Method = "cumulative"):
         
         """
         Predict testing set using 'prototype' (i.e. training) set using KNN
@@ -235,7 +239,8 @@ class SurvivalKNN(object):
 
     def cv_tune(self, X, Survival, Censored,
                 kcv = 5, shuffles = 1, \
-                Ks = list(np.arange(10, 160, 10))):
+                Ks = list(np.arange(10, 160, 10)),\
+                norm = 1, Method = "cumulative"):
 
         """
         Given an **optimization set**, get optimal K using
@@ -274,7 +279,7 @@ class SurvivalKNN(object):
             Censored_test = Censored[idxs_test]
         
             # Get neighbor indices    
-            neighbor_idxs = self.get_neighbor_idxs(X_test, X_train)
+            neighbor_idxs = self.get_neighbor_idxs(X_test, X_train, norm = norm)
         
             
             print("\tK \t Ci")
@@ -286,7 +291,7 @@ class SurvivalKNN(object):
                                          Survival_train, Censored_train, 
                                          Survival_test = Survival_test, 
                                          Censored_test = Censored_test, 
-                                         K = K)
+                                         K = K, Method = Method)
             
                 CIs[fold, kidx] = Ci
             
@@ -307,7 +312,8 @@ class SurvivalKNN(object):
 
     def cv_accuracy(self, X, Survival, Censored, \
                     splitIdxs, outer_fold, \
-                    tune_params):
+                    tune_params, \
+                    norm = 1, Method = 'cumulative'):
 
         """
         Find model accuracy using KCV (after ptimizing K)
@@ -351,14 +357,14 @@ class SurvivalKNN(object):
             Censored_test = Censored[idxs_test]
         
             # Get neighbor indices    
-            neighbor_idxs = self.get_neighbor_idxs(X_test, X_train)
+            neighbor_idxs = self.get_neighbor_idxs(X_test, X_train, norm = norm)
         
             # Predict testing set
             _, Ci = self.predict(neighbor_idxs,
                                  Survival_train, Censored_train, 
                                  Survival_test = Survival_test, 
                                  Censored_test = Censored_test, 
-                                 K = K_optim)
+                                 K = K_optim, Method = Method)
             
             CIs[fold] = Ci
                

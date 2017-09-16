@@ -42,8 +42,8 @@ description = "BRCA_Integ_"
 
 Data = loadmat(dpath)
 
-#Features = np.float32(Data['Integ_X'])
-Features = np.float32(Data['Gene_X'])
+Features = np.float32(Data['Integ_X'])
+#Features = np.float32(Data['Gene_X'])
 
 N, D = Features.shape
 
@@ -52,8 +52,8 @@ if np.min(Data['Survival']) < 0:
 
 Survival = np.int32(Data['Survival']).reshape([N,])
 Censored = np.int32(Data['Censored']).reshape([N,])
-#fnames = Data['Integ_Symbs']
-fnames = Data['Gene_Symbs']
+fnames = Data['Integ_Symbs']
+#fnames = Data['Gene_Symbs']
 
 # remove zero-variance features
 fvars = np.std(Features, 0)

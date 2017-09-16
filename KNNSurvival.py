@@ -138,7 +138,7 @@ class SurvivalKNN(object):
     def predict(self, neighbor_idxs,
                 Survival_train, Censored_train, 
                 Survival_test = None, Censored_test = None, 
-                K = 15):
+                K = 15, Method = "cumulative"):
         
         """
         Predict testing set using 'prototype' (i.e. training) set using KNN
@@ -156,20 +156,47 @@ class SurvivalKNN(object):
         N_test = neighbor_idxs.shape[0]
         T_test = np.zeros([N_test])
 
-        for idx in range(N_test):
+
+        if Method == 'non-cumulative':
             
-            # Get at-risk groups for each time point for nearest neighbors
-            T = Survival_train[neighbor_idxs[idx, :]]
-            O = 1 - Censored_train[neighbor_idxs[idx, :]]
-            T, O, at_risk, _ = sUtils.calc_at_risk(T, O)
+            # Convert outcomes to "alive status" at each time point 
+            alive_train = sUtils.getAliveStatus(Survival_train, Censored_train)
+    
+            # Get survival prediction for each patient            
+            for idx in range(N_test):
+                
+                status = alive_train[neighbor_idxs[idx, :], :]
+                totalKnown = np.sum(status >= 0, axis = 0)
+                status[status < 0] = 0
+                
+                # remove timepoints where there are no known statuses
+                status = status[:, totalKnown != 0]
+                totalKnown = totalKnown[totalKnown != 0]
+                
+                # get "average" predicted survival time
+                status = np.sum(status, axis = 0) / totalKnown
+                
+                # now get overall time prediction            
+                T_test[idx] = np.sum(status)
+                
+        elif Method == 'cumulative':   
             
-            N_at_risk = K - at_risk
-            
-            # Calcuate cumulative probability of survival
-            P = np.cumprod((N_at_risk - O) / N_at_risk)
-            
-            # now get overall time prediction
-            T_test[idx] = np.sum(P)
+            for idx in range(N_test):
+                
+                # Get at-risk groups for each time point for nearest neighbors
+                T = Survival_train[neighbor_idxs[idx, :]]
+                O = 1 - Censored_train[neighbor_idxs[idx, :]]
+                T, O, at_risk, _ = sUtils.calc_at_risk(T, O)
+                
+                N_at_risk = K - at_risk
+                
+                # Calcuate cumulative probability of survival
+                P = np.cumprod((N_at_risk - O) / N_at_risk)
+                
+                # now get overall time prediction
+                T_test[idx] = np.sum(P)
+        else:
+            raise ValueError("Method is either 'cumulative' or 'non-cumulative'.")
                    
         
         # Get c-index

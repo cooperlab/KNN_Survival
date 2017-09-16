@@ -32,13 +32,15 @@ projectPath = "/home/mtageld/Desktop/KNN_Survival/"
 
 #dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Integ.mat"
 #dpath = projectPath + "Data/SingleCancerDatasets/GBMLGG/Brain_Gene.mat"
-dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
+#dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Integ.mat"
 #dpath = projectPath + "Data/SingleCancerDatasets/BRCA/BRCA_Gene.mat"
+dpath = projectPath + "Data/SingleCancerDatasets/KIPAN/KIPAN_Integ.mat"
 
 #description = "GBMLGG_Integ_"
 #description = "GBMLGG_Gene_"
-description = "BRCA_Integ_"
+#description = "BRCA_Integ_"
 #description = "BRCA_Gene_"
+description = "KIPAN_Integ_"
 
 Data = loadmat(dpath)
 
@@ -106,15 +108,15 @@ graphParams = {'ALPHA': 0.5,
                'OPTIM': 'GD',
                'LEARN_RATE': 0.01}
 
-nca_train_params = {'BATCH_SIZE': 50, \
+nca_train_params = {'BATCH_SIZE': 200, \
                     'PLOT_STEP': 200, \
                     'MODEL_SAVE_STEP': 200, \
                     'MAX_ITIR': 100,
                    }
 
 
-k_tune_params = {'kcv': 5,
-                 'shuffles': 4,
+k_tune_params = {'kcv': 4,
+                 'shuffles': 5,
                  'Ks': list(np.arange(10, 160, 10)),
                 }
 

@@ -138,7 +138,7 @@ class SurvivalKNN(object):
     def predict(self, neighbor_idxs,
                 Survival_train, Censored_train, 
                 Survival_test = None, Censored_test = None, 
-                K = 15, Method = "cumulative"):
+                K = 15, Method = "non-cumulative"):
         
         """
         Predict testing set using 'prototype' (i.e. training) set using KNN
@@ -183,18 +183,37 @@ class SurvivalKNN(object):
             
             for idx in range(N_test):
                 
-                # Get at-risk groups for each time point for nearest neighbors
+                # Get time and censorship
                 T = Survival_train[neighbor_idxs[idx, :]]
-                O = 1 - Censored_train[neighbor_idxs[idx, :]]
-                T, O, at_risk, _ = sUtils.calc_at_risk(T, O)
+                C = Censored_train[neighbor_idxs[idx, :]]
+                                
+                # find unique times
+                t = np.unique(T[C == 0])
                 
-                N_at_risk = K - at_risk
+                # initialize count vectors
+                f = np.zeros(t.shape)
+                d = np.zeros(t.shape)
+                n = np.zeros(t.shape)
                 
-                # Calcuate cumulative probability of survival
-                P = np.cumprod((N_at_risk - O) / N_at_risk)
+                # generate counts
+                for i in range(len(t)):
+                    n[i] = np.sum(T >= t[i])
+                    d[i] = np.sum(T[C == 0] == t[i])
+                
+                # calculate probabilities
+                f = (n - d) / n
+                f = np.cumprod(f)
+                
+                # append beginning and end points
+                t_start = np.array([0])
+                f_start = np.array([1])
+                t_end = np.array([T.max()])
+                
+                t = np.concatenate((t_start, t, t_end), axis=0)
+                f = np.concatenate((f_start, f), axis=0)
                 
                 # now get overall time prediction
-                T_test[idx] = np.sum(P)
+                T_test[idx] = np.sum(np.diff(t) * f)
         else:
             raise ValueError("Method is either 'cumulative' or 'non-cumulative'.")
                    

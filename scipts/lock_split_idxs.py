@@ -1,0 +1,100 @@
+
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Sep 16 2017
+
+@author: mohamed
+"""
+
+import os
+import sys
+#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
+
+from scipy.io import loadmat, savemat
+import numpy as np
+
+import DataManagement as dm
+
+
+def Preprocess_and_split(projectPath, site, dtype, \
+                         K_OPTIM = 2, K = 3, SHUFFLES = 7):
+
+    """
+    Preprocesses data and splits into optimization and 
+    CV folds with shuffles
+    """
+    
+    # Prepare inputs
+    #====================================================
+    
+    dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ site +"_"+ dtype+".mat"
+    description = site + "_"+ dtype+"_"
+    
+    # Load data
+    Data = loadmat(dpath)
+    
+    # process features - remove zero-variance
+    if dtype == "Integ":
+        Data['Integ_X'] = np.float32(Data['Integ_X'])
+        fvars = np.std(Data['Integ_X'], 0)
+        keep = fvars > 0
+        Data['Integ_X'] = Data['Integ_X'][:, keep]
+    else:
+        Data['Gene_X'] = np.float32(Data['Gene_X'])
+        fvars = np.std(Data['Gene_X'], 0)
+        keep = fvars > 0
+        Data['Gene_X'] = Data['Gene_X'][:, keep]
+    
+    # process outcomes
+    if np.min(Data['Survival']) < 0:
+        Data['Survival'] = Data['Survival'] - np.min(Data['Survival']) + 1
+    N = Data['Survival'].shape[0]
+    Data['Survival'] = np.int32(Data['Survival']).reshape([N,])
+    Data['Censored'] = np.int32(Data['Censored']).reshape([N,])
+    
+    # Get split indices
+    #====================================================
+    
+    splitIdxs = dm.get_balanced_SplitIdxs(\
+                    Data['Censored'], \
+                    K = K,\
+                    SHUFFLES = SHUFFLES,\
+                    USE_OPTIM = True,\
+                    K_OPTIM = K_OPTIM)
+    
+    Data['idx_optim'] = splitIdxs['idx_optim']
+    Data['fold_cv_train'] = splitIdxs['fold_cv_train']
+    Data['fold_cv_test'] = splitIdxs['fold_cv_test']
+    
+    # Save
+    #====================================================
+    
+    savename = dpath.split('.mat')[0] + "_Preprocessed.mat"
+    savemat(savename, Data)
+
+
+# Peprocess all datasets
+#====================================================
+
+if __name__ == '__main__':
+
+    
+    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    
+    sites = ["GBMLGG", "BRCA", "KIPAN", "LUSC"]
+    dtypes = ["Integ", "Gene"]
+    
+    K_OPTIM = 2
+    K = 3
+    SHUFFLES = 7
+
+    for site in sites:
+        for dtype in dtypes:
+
+            print("site: {}, dtype: {}".format(site, dtype))
+
+            Preprocess_and_split(projectPath, site, dtype, \
+                                 K_OPTIM = K_OPTIM, \
+                                 K = K, SHUFFLES = SHUFFLES)

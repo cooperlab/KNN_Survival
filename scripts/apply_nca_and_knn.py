@@ -183,11 +183,11 @@ if __name__ == '__main__':
     
     # dataset and description
     sites = ["GBMLGG", "BRCA", "KIPAN", "LUSC"]
-    dtypes = ["Integ", "Gene"]
+    dtypes = ["Integ",] #, "Gene"]
     
     # KNN params
-    norm = 1
-    Method = 'non-cumulative'
+    norm = 2
+    Method = 'cumulative'
     
     k_tune_params = {'kcv': 4,
                      'shuffles': 5,

@@ -45,12 +45,10 @@ def get_cv_accuracy(dpath, site, dtype, description,\
     N = Features.shape[0]
     Survival = Data['Survival'].reshape([N,])
     Censored = Data['Censored'].reshape([N,])
-    
-    splitIdxs = {'idx_optim': Data['idx_optim'],
-                 'fold_cv_train': Data['fold_cv_train'],
-                 'fold_cv_test': Data['fold_cv_test'],
-                 }
-    
+
+    with open(dpath.split('.mat')[0] + '_splitIdxs.pkl','rb') as f:
+        splitIdxs = _pickle.load(f)
+
     #
     # result structure
     #

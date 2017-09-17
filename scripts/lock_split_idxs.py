@@ -11,6 +11,7 @@ import sys
 #sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
 sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
+import _pickle
 from scipy.io import loadmat, savemat
 import numpy as np
 
@@ -62,16 +63,17 @@ def Preprocess_and_split(projectPath, site, dtype, \
                     SHUFFLES = SHUFFLES,\
                     USE_OPTIM = True,\
                     K_OPTIM = K_OPTIM)
-    
-    Data['idx_optim'] = splitIdxs['idx_optim']
-    Data['fold_cv_train'] = splitIdxs['fold_cv_train']
-    Data['fold_cv_test'] = splitIdxs['fold_cv_test']
-    
+
     # Save
     #====================================================
     
-    savename = dpath.split('.mat')[0] + "_Preprocessed.mat"
-    savemat(savename, Data)
+    savename_data = dpath.split('.mat')[0] + "_Preprocessed.mat"
+    savename_split = dpath.split('.mat')[0] + "_Preprocessed_splitIdxs.pkl"
+   
+    savemat(savename_data, Data)
+
+    with open(savename_split,'wb') as f:
+        _pickle.dump(splitIdxs, f)
 
 
 # Peprocess all datasets

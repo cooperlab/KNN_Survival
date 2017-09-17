@@ -142,7 +142,7 @@ class SurvivalKNN(object):
     def predict(self, neighbor_idxs,
                 Survival_train, Censored_train, 
                 Survival_test = None, Censored_test = None, 
-                K = 15, Method = "cumulative"):
+                K = 15, Method = "cumulative_hazard"):
         
         """
         Predict testing set using 'prototype' (i.e. training) set using KNN
@@ -183,7 +183,7 @@ class SurvivalKNN(object):
                 # now get overall time prediction            
                 T_test[idx] = np.sum(status)
                 
-        elif Method == 'cumulative':   
+        elif Method in ['cumulative_time', 'cumulative_hazard']:   
             
             for idx in range(N_test):
                 
@@ -201,33 +201,70 @@ class SurvivalKNN(object):
                 
                 # generate counts
                 for i in range(len(t)):
-                    n[i] = np.sum(T >= t[i])
-                    d[i] = np.sum(T[C == 0] == t[i])
+                    n[i] = np.sum(T >= t[i]) # <- no at risk
+                    d[i] = np.sum(T[C == 0] == t[i]) # <- no of events
                 
-                # calculate probabilities
-                f = (n - d) / n
-                f = np.cumprod(f)
+                if Method == "cumulative_time":
+
+                    #
+                    # Use K-M estimator    
+                    #
+
+                    # calculate probabilities
+                    f = (n - d) / n
+                    f = np.cumprod(f)
+                    
+                    # append beginning and end points
+                    t_start = np.array([0])
+                    f_start = np.array([1])
+                    t_end = np.array([T.max()])
+                    
+                    # Get estimate of K-M survivor function
+                    t = np.concatenate((t_start, t, t_end), axis=0)
+                    f = np.concatenate((f_start, f), axis=0)
+
+                    # Get mean survival time
+                    T_test[idx] = np.sum(np.diff(t) * f)
                 
-                # append beginning and end points
-                t_start = np.array([0])
-                f_start = np.array([1])
-                t_end = np.array([T.max()])
-                
-                t = np.concatenate((t_start, t, t_end), axis=0)
-                f = np.concatenate((f_start, f), axis=0)
-                
-                # now get overall time prediction
-                T_test[idx] = np.sum(np.diff(t) * f)
+                if Method == 'cumulative_hazard':
+
+                    #
+                    # Use Nelson-Aalen estimator
+                    # See: www.med.mcgill.ca/epidemiology/hanley/material/ ...
+                    #      NelsonAalenEstimator.pdf
+                    #
+
+                    # calculate hazard rates
+                    f = d / n
+                    f = np.cumsum(f)
+                    
+                    # append beginning and end points
+                    t_start = np.array([0])
+                    f_start = np.array([0])
+                    t_end = np.array([T.max()])
+                    
+                    # Get estimate of cum hazard function
+                    t = np.concatenate((t_start, t, t_end), axis=0)
+                    f = np.concatenate((f_start, f), axis=0)
+
+                    # Get integral under cum hazard curve
+                    T_test[idx] = np.sum(np.diff(t) * f)
+
         else:
-            raise ValueError("Method is either 'cumulative' or 'non-cumulative'.")
+            raise ValueError("Method not implemented.")
                    
         
         # Get c-index
         CI = 0
+        if Method == "cumulative_hazard":
+            prediction_type = "risk"
+        else:
+            prediction_type = "survival_time"
+
         if Survival_test is not None:
             assert (Censored_test is not None)
             CI = sUtils.c_index(T_test, Survival_test, Censored_test, 
-                                prediction_type='survival_time')
+                                prediction_type= prediction_type)
             
         return T_test, CI
 
@@ -240,7 +277,7 @@ class SurvivalKNN(object):
     def cv_tune(self, X, Survival, Censored,
                 kcv = 5, shuffles = 1, \
                 Ks = list(np.arange(10, 160, 10)),\
-                norm = 1, Method = "cumulative"):
+                norm = 1, Method = "cumulative_hazard"):
 
         """
         Given an **optimization set**, get optimal K using
@@ -313,7 +350,7 @@ class SurvivalKNN(object):
     def cv_accuracy(self, X, Survival, Censored, \
                     splitIdxs, outer_fold, \
                     tune_params, \
-                    norm = 1, Method = 'cumulative'):
+                    norm = 1, Method = 'cumulative_hazard'):
 
         """
         Find model accuracy using KCV (after ptimizing K)

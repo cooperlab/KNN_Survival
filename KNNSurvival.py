@@ -99,10 +99,10 @@ class SurvivalKNN(object):
         
 
     #%%===========================================================================
-    # Actual prediction model
+    # Supporting methods
     #==============================================================================
 
-    def get_neighbor_idxs(self, X_test, X_train, norm = 1):
+    def _get_neighbor_idxs(self, X_test, X_train, norm = 1):
         
         """ 
         Get indices of nearest neighbors.
@@ -135,10 +135,118 @@ class SurvivalKNN(object):
         neighbor_idxs = np.argsort(dist, axis=1)
         
         return neighbor_idxs
+             
+    #==========================================================================    
+
+    def _get_events(self, T, C):
+
+        """
+        Get unique times, num-at-risk ad num-of-events.
+
+        Args:
+        -----
+        T - time-to-event
+        C - Censorship indicator
+
+        Returns:
+        --------
+        t - unique times
+        n - no. at risk
+        d - no of observed events
+        """
+
+        # find unique times
+        t = np.unique(T[C == 0])
         
+        # initialize count vectors
+        f = np.zeros(t.shape)
+        d = np.zeros(t.shape)
+        n = np.zeros(t.shape)
+        
+        # generate counts
+        for i in range(len(t)):
+            n[i] = np.sum(T >= t[i]) # <- no at risk
+            d[i] = np.sum(T[C == 0] == t[i]) # <- no of events
+
+        return t, n, d
+
+    #==========================================================================    
+
+    def _km_estimator(self, T, C):
+        
+        """
+        Get kaplan-meier survivor function. 
+        
+        Args:
+        -----
+        T - time-to-event (or last-follow-up)
+        C - censoring indicator
+        
+        Returns:
+        --------
+        t, f - time and survival probability
+        """
+        
+        # get event counts for unique times
+        t, n, d = self._get_events(T, C)
+        
+        # calculate probabilities
+        f = (n - d) / n
+        f = np.cumprod(f)
+        
+        # append beginning and end points
+        t_start = np.array([0])
+        f_start = np.array([1])
+        t_end = np.array([T.max()])
+        f_end = np.array([f[-1]])
+        
+        # Get estimate of K-M survivor function
+        t = np.concatenate((t_start, t, t_end), axis=0)
+        f = np.concatenate((f_start, f, f_end), axis=0)
+
+        return t, f
         
     #==========================================================================    
+
+    def _na_estimator(self, T, C):
         
+        """
+        Get Nelson-Aalen estimator of risk
+        See: www.med.mcgill.ca/epidemiology/hanley/material/ ...
+             NelsonAalenEstimator.pdf
+        Args:
+        -----
+        T - time-to-event (or last-follow-up)
+        C - censoring indicator
+        
+        Returns:
+        --------
+        t, f - time and cumulative risk
+        """
+        
+        # get event counts for unique times
+        t, n, d = self._get_events(T, C)
+
+        # calculate hazard rates
+        f = d / n
+        f = np.cumsum(f)
+        
+        # append beginning and end points
+        t_start = np.array([0])
+        f_start = np.array([0])
+        t_end = np.array([T.max()])
+        f_end = np.array([f[-1]])
+        
+        # Get estimate of cum hazard function
+        t = np.concatenate((t_start, t, t_end), axis=0)
+        f = np.concatenate((f_start, f, f_end), axis=0)
+
+        return t, f
+        
+    #%%===========================================================================
+    # Actual prediction model
+    #==============================================================================
+
     def predict(self, neighbor_idxs,
                 Survival_train, Censored_train, 
                 Survival_test = None, Censored_test = None, 
@@ -183,74 +291,26 @@ class SurvivalKNN(object):
                 # now get overall time prediction            
                 T_test[idx] = np.sum(status)
                 
-        elif Method in ['cumulative_time', 'cumulative_hazard']:   
-            
+        elif Method == 'cumulative_time':
+
             for idx in range(N_test):
                 
-                # Get time and censorship
-                T = Survival_train[neighbor_idxs[idx, :]]
-                C = Censored_train[neighbor_idxs[idx, :]]
-                                
-                # find unique times
-                t = np.unique(T[C == 0])
-                
-                # initialize count vectors
-                f = np.zeros(t.shape)
-                d = np.zeros(t.shape)
-                n = np.zeros(t.shape)
-                
-                # generate counts
-                for i in range(len(t)):
-                    n[i] = np.sum(T >= t[i]) # <- no at risk
-                    d[i] = np.sum(T[C == 0] == t[i]) # <- no of events
-                
-                if Method == "cumulative_time":
+                # Get km estimator
+                t, f = self._km_estimator(T, C)
 
-                    #
-                    # Use K-M estimator    
-                    #
+                # Get mean survival time
+                T_test[idx] = np.sum(np.diff(t) * f[0:-1])
 
-                    # calculate probabilities
-                    f = (n - d) / n
-                    f = np.cumprod(f)
-                    
-                    # append beginning and end points
-                    t_start = np.array([0])
-                    f_start = np.array([1])
-                    t_end = np.array([T.max()])
-                    
-                    # Get estimate of K-M survivor function
-                    t = np.concatenate((t_start, t, t_end), axis=0)
-                    f = np.concatenate((f_start, f), axis=0)
+        elif Method == 'cumulative_hazard':
 
-                    # Get mean survival time
-                    T_test[idx] = np.sum(np.diff(t) * f)
-                
-                if Method == 'cumulative_hazard':
+            for idx in range(N_test):
 
-                    #
-                    # Use Nelson-Aalen estimator
-                    # See: www.med.mcgill.ca/epidemiology/hanley/material/ ...
-                    #      NelsonAalenEstimator.pdf
-                    #
+                # Get NA estimator
+                t, f = self._na_estimator(T, C)
 
-                    # calculate hazard rates
-                    f = d / n
-                    f = np.cumsum(f)
-                    
-                    # append beginning and end points
-                    t_start = np.array([0])
-                    f_start = np.array([0])
-                    t_end = np.array([T.max()])
-                    
-                    # Get estimate of cum hazard function
-                    t = np.concatenate((t_start, t, t_end), axis=0)
-                    f = np.concatenate((f_start, f), axis=0)
-
-                    # Get integral under cum hazard curve
-                    T_test[idx] = np.sum(np.diff(t) * f)
-                    #T_test[idx] = f[-1]
-
+                # Get integral under cum. hazard curve
+                T_test[idx] = np.sum(np.diff(t) * f[0:-1])
+        
         else:
             raise ValueError("Method not implemented.")
                    
@@ -317,7 +377,7 @@ class SurvivalKNN(object):
             Censored_test = Censored[idxs_test]
         
             # Get neighbor indices    
-            neighbor_idxs = self.get_neighbor_idxs(X_test, X_train, norm = norm)
+            neighbor_idxs = self._get_neighbor_idxs(X_test, X_train, norm = norm)
         
             
             print("\tK \t Ci")
@@ -395,7 +455,7 @@ class SurvivalKNN(object):
             Censored_test = Censored[idxs_test]
         
             # Get neighbor indices    
-            neighbor_idxs = self.get_neighbor_idxs(X_test, X_train, norm = norm)
+            neighbor_idxs = self._get_neighbor_idxs(X_test, X_train, norm = norm)
         
             # Predict testing set
             _, Ci = self.predict(neighbor_idxs,

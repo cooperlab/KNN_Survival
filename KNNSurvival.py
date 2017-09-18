@@ -159,7 +159,6 @@ class SurvivalKNN(object):
         t = np.unique(T[C == 0])
         
         # initialize count vectors
-        f = np.zeros(t.shape)
         d = np.zeros(t.shape)
         n = np.zeros(t.shape)
         
@@ -189,7 +188,7 @@ class SurvivalKNN(object):
         
         # get event counts for unique times
         t, n, d = self._get_events(T, C)
-        
+       
         # calculate probabilities
         f = (n - d) / n
         f = np.cumprod(f)
@@ -198,6 +197,7 @@ class SurvivalKNN(object):
         t_start = np.array([0])
         f_start = np.array([1])
         t_end = np.array([T.max()])
+
         f_end = np.array([f[-1]])
         
         # Get estimate of K-M survivor function
@@ -268,7 +268,6 @@ class SurvivalKNN(object):
         N_test = neighbor_idxs.shape[0]
         T_test = np.zeros([N_test])
 
-
         if Method == 'non-cumulative':
             
             # Convert outcomes to "alive status" at each time point 
@@ -291,25 +290,36 @@ class SurvivalKNN(object):
                 # now get overall time prediction            
                 T_test[idx] = np.sum(status)
                 
-        elif Method == 'cumulative_time':
+        elif Method in ['cumulative_time', 'cumulative_hazard']:
 
-            for idx in range(N_test):
-                
-                # Get km estimator
-                t, f = self._km_estimator(T, C)
+                # itirate through patients
 
-                # Get mean survival time
-                T_test[idx] = np.sum(np.diff(t) * f[0:-1])
-
-        elif Method == 'cumulative_hazard':
-
-            for idx in range(N_test):
-
-                # Get NA estimator
-                t, f = self._na_estimator(T, C)
-
-                # Get integral under cum. hazard curve
-                T_test[idx] = np.sum(np.diff(t) * f[0:-1])
+                for idx in range(N_test):
+                    
+                    # Get time and censorship
+                    T = Survival_train[neighbor_idxs[idx, :]]
+                    C = Censored_train[neighbor_idxs[idx, :]]
+    
+                    if C.min() == 1:
+                        raise ValueError("All neighbors are censored. Use larger K.")
+                        
+                    if Method == "cumulative_time":
+                    
+                        # Get km estimator
+                        t, f = self._km_estimator(T, C)
+                    
+                        # Get mean survival time
+                        T_test[idx] = np.sum(np.diff(t) * f[0:-1])
+                    
+                    elif Method == 'cumulative_hazard':
+                    
+                        # Get NA estimator
+                        T = Survival_train[neighbor_idxs[idx, :]]
+                        C = Censored_train[neighbor_idxs[idx, :]]
+                        t, f = self._na_estimator(T, C)
+                    
+                        # Get integral under cum. hazard curve
+                        T_test[idx] = np.sum(np.diff(t) * f[0:-1])
         
         else:
             raise ValueError("Method not implemented.")

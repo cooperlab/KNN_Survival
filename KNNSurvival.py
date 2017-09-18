@@ -249,6 +249,7 @@ class SurvivalKNN(object):
 
                     # Get integral under cum hazard curve
                     T_test[idx] = np.sum(np.diff(t) * f)
+                    #T_test[idx] = f[-1]
 
         else:
             raise ValueError("Method not implemented.")

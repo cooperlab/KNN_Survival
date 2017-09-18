@@ -39,8 +39,10 @@ def get_cv_accuracy(dpath, site, dtype, description,\
     
     if dtype == 'Integ':
         Features = Data['Integ_X']
+        fnames = Data['Integ_Symbs']
     else:
         Features = Data['Gene_X']
+        fnames = Data['Gene_Symbs']
     
     N = Features.shape[0]
     Survival = Data['Survival'].reshape([N,])
@@ -182,8 +184,8 @@ if __name__ == '__main__':
     RESULTPATH = projectPath + "Results/tmp/"
     
     # dataset and description
-    sites = ["GBMLGG", "BRCA", "KIPAN", "LUSC"]
-    dtypes = ["Integ", "Gene"]
+    sites = ["GBMLGG", "BRCA", "KIPAN",]# "LUSC"]
+    dtypes = ["Integ",] # "Gene"]
     
     # KNN params
     norm = 2
@@ -202,7 +204,7 @@ if __name__ == '__main__':
     
     
     # NCA params
-    USE_NCA = False
+    USE_NCA = True
     graphParams = {'ALPHA': 0.5,
                    'LAMBDA': 0,
                    'KAPPA': 1.0,

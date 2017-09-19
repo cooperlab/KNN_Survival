@@ -189,11 +189,11 @@ if __name__ == '__main__':
     
     # KNN params
     norm = 2
-    Method = 'non-cumulative' #'cumulative_time'
+    Method = 'cumulative_time'
     
     k_tune_params = {'kcv': 4,
                      'shuffles': 5,
-                     'Ks': list(np.arange(50, 160, 10)),
+                     'Ks': list(np.arange(10, 160, 10)),
                      'norm': norm,
                      'Method': Method,
                     }
@@ -204,7 +204,7 @@ if __name__ == '__main__':
     
     
     # NCA params
-    USE_NCA = False
+    USE_NCA = True
     graphParams = {'ALPHA': 0.5,
                    'LAMBDA': 0,
                    'KAPPA': 1.0,

@@ -301,7 +301,12 @@ class SurvivalKNN(object):
                     C = Censored_train[neighbor_idxs[idx, :]]
     
                     if C.min() == 1:
-                        raise ValueError("All neighbors are censored. Use larger K.")
+                        # All cases are censored
+                        if Method == "cumulative_time":
+                            T_test[idx] = T.max()
+                        elif Method == "cumulative_hazard":
+                            T_test[idx] = 0
+                        continue
                         
                     if Method == "cumulative_time":
                     

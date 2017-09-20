@@ -17,13 +17,18 @@ import numpy as np
 import NCA_model as nca
 import KNNSurvival as knn
 
-def get_cv_accuracy(dpath, site, dtype, description,\
-                    RESULTPATH, \
-                    k_tune_params = {}, knn_params = {}, \
-                    USE_NCA = False, \
-                    graphParams = {}, nca_train_params = {}):
+def get_cv_accuracy(dpath, site, dtype, description,
+                    RESULTPATH, 
+                    k_tune_params={}, 
+                    USE_ENSEMBLES={},
+                    ensemble_params={},
+                    n_feats=25,
+                    USE_NCA = False, 
+                    graphParams={}, 
+                    nca_train_params={},
+                    knn_params={}):
     """
-    Get KNN cross validation accuracy with or without NCA
+    Get KNN cross validation accuracy with or without ensembles and NCA
     """
     
     # Load data
@@ -37,12 +42,8 @@ def get_cv_accuracy(dpath, site, dtype, description,\
     
     Data = loadmat(dpath)
     
-    if dtype == 'Integ':
-        Features = Data['Integ_X']
-        fnames = Data['Integ_Symbs']
-    else:
-        Features = Data['Gene_X']
-        fnames = Data['Gene_Symbs']
+    Features = Data[dtype + '_X']
+    fnames = Data[dtype + '_Symbs']
     
     N = Features.shape[0]
     Survival = Data['Survival'].reshape([N,])
@@ -65,6 +66,9 @@ def get_cv_accuracy(dpath, site, dtype, description,\
     # Go through outer folds, optimize and get accuracy
     #==============================================================================
     
+    # Instantiate a KNN survival model.
+    knnmodel = knn.SurvivalKNN(RESULTPATH_KNN, description = description)
+
     #
     # initialize
     #
@@ -82,9 +86,32 @@ def get_cv_accuracy(dpath, site, dtype, description,\
     for outer_fold in range(n_outer_folds):
     
         print("\nOuter fold {} of {}\n".format(outer_fold, n_outer_folds-1))
+
+        # isolate features
+        # Note, this is done since they will
+        # be modified locally in each outer loop
+        X = Features.copy()
     
         # Isolate optimization set 
         optimIdxs = splitIdxs['idx_optim'][outer_fold]
+
+        if USE_ENSEMBLES:
+
+           # Get top features 
+           #========================================
+
+           print("\nDoing ensemble feature selection.")
+
+           # perform the f.s.
+           _, feats_sorted, _ = \
+                knnmodel.ensemble_feat_rank(\
+                    X=X[optimIdxs, :],
+                    T=Survival[optimIdxs],
+                    C=Censored[optimIdxs],
+                    **ensemble_params)
+           
+           # keep only top features 
+           X = X[:, feats_sorted[0: n_feats]]
     
         if USE_NCA:
     
@@ -102,15 +129,15 @@ def get_cv_accuracy(dpath, site, dtype, description,\
                                       description = description, \
                                       LOADPATH = LOADPATH)
                                       
-           ncamodel.train(features = Features[optimIdxs, :],\
+           ncamodel.train(features = X[optimIdxs, :],\
                           survival = Survival[optimIdxs],\
                           censored = Censored[optimIdxs],\
                           COMPUT_GRAPH_PARAMS = graphParams,\
                           **nca_train_params)
            
            # get feature ranks
-           ncamodel.rankFeats(Features, fnames, rank_type = "weights")
-           ncamodel.rankFeats(Features, fnames, rank_type = "stdev")
+           ncamodel.rankFeats(X, fnames, rank_type = "weights")
+           ncamodel.rankFeats(X, fnames, rank_type = "stdev")
     
            
            # Transform features according to learned nca model
@@ -124,25 +151,20 @@ def get_cv_accuracy(dpath, site, dtype, description,\
            np.fill_diagonal(W, w)
            
            # transform
-           Features = np.dot(Features, W)
+           X = np.dot(X, W)
        
-    
         # Get model accuracy
         #=====================
-        
-        # Instantiate a KNN survival model.
-        knnmodel = knn.SurvivalKNN(RESULTPATH_KNN, description = description)
-        
         
         # get accuracy
         print("\nGetting accuracy.")
         
-        ci, k_optim = knnmodel.cv_accuracy(Features, Survival, Censored, \
+        ci, k_optim = knnmodel.cv_accuracy(X, Survival, Censored, \
                                            splitIdxs, outer_fold = outer_fold,\
                                            tune_params = k_tune_params)
         CIs[:, outer_fold] = ci
         K_optim[outer_fold] = k_optim
-        
+
         
         
     print("\nAccuracy")
@@ -189,7 +211,7 @@ if __name__ == '__main__':
     
     # KNN params
     norm = 2
-    Method = 'cumulative_time'
+    Method = 'non-cumulative'
     
     k_tune_params = {'kcv': 4,
                      'shuffles': 5,
@@ -203,21 +225,34 @@ if __name__ == '__main__':
                   }
     
     
+    # ensemble f.s. params
+    USE_ENSEMBLES = False
+
+    ensemble_params = {'kcv': 4,
+            'shuffles': 5,
+            'n_ensembles': 25,
+            'subset_size': 30,
+            'K': 100,
+            'Method': Method,
+            'norm': norm,
+            }
+    n_feats = 25
+
     # NCA params
     USE_NCA = True
     graphParams = {'ALPHA': 0.5,
-                   'LAMBDA': 0,
-                   'KAPPA': 1.0,
-                   'OPTIM': 'GD',
-                   'LEARN_RATE': 0.01}
-    
+            'LAMBDA': 0,
+            'KAPPA': 1.0,
+            'OPTIM': 'GD',
+            'LEARN_RATE': 0.01}
+
     nca_train_params = {'BATCH_SIZE': 200,
-                        'PLOT_STEP': 200,
-                        'MODEL_SAVE_STEP': 200,
-                        'MAX_ITIR': 100,
-                       }
-    
-    
+            'PLOT_STEP': 200,
+            'MODEL_SAVE_STEP': 200,
+            'MAX_ITIR': 100,
+            }
+
+
     # Itirate through datasets
     #=================================================================
 
@@ -231,12 +266,15 @@ if __name__ == '__main__':
             os.system('mkdir ' + RESULTPATH + description)
 
             # now get accuracy and save
-            get_cv_accuracy(dpath=dpath, site=site, dtype=dtype, \
-                            description = description,\
-                            RESULTPATH = RESULTPATH + description + '/', \
-                            k_tune_params = k_tune_params, \
-                            knn_params = knn_params, \
-                            USE_NCA = USE_NCA, \
-                            graphParams = graphParams, \
-                            nca_train_params = nca_train_params)
+            get_cv_accuracy(dpath=dpath, site=site, dtype=dtype, 
+                    description = description,
+                    RESULTPATH = RESULTPATH + description + '/', 
+                    k_tune_params = k_tune_params, 
+                    knn_params = knn_params, 
+                    USE_ENSEMBLES = USE_ENSEMBLES,
+                    ensemble_params = ensemble_params,
+                    n_feats = n_feats,
+                    USE_NCA = USE_NCA, 
+                    graphParams = graphParams, 
+                    nca_train_params = nca_train_params)
 

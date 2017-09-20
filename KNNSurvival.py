@@ -102,7 +102,7 @@ class SurvivalKNN(object):
     # Supporting methods
     #==============================================================================
 
-    def _get_neighbor_idxs(self, X_test, X_train, norm = 1):
+    def _get_neighbor_idxs(self, X_test, X_train, norm = 2):
         
         """ 
         Get indices of nearest neighbors.
@@ -250,7 +250,7 @@ class SurvivalKNN(object):
     def predict(self, neighbor_idxs,
                 Survival_train, Censored_train, 
                 Survival_test = None, Censored_test = None, 
-                K = 15, Method = "cumulative_hazard"):
+                K = 30, Method = "cumulative_time"):
         
         """
         Predict testing set using 'prototype' (i.e. training) set using KNN
@@ -347,13 +347,13 @@ class SurvivalKNN(object):
 
 
     #%%===========================================================================
-    # model tuning and accuracy
+    # model tuning
     #============================================================================== 
 
-    def cv_tune(self, X, Survival, Censored,
-                kcv = 5, shuffles = 1, \
-                Ks = list(np.arange(10, 160, 10)),\
-                norm = 1, Method = "cumulative_hazard"):
+    def tune_k(self, X, Survival, Censored,
+               kcv=4, shuffles=5, \
+               Ks=list(np.arange(10, 160, 10)),\
+               norm=2, Method = "cumulative_time"):
 
         """
         Given an **optimization set**, get optimal K using
@@ -422,11 +422,102 @@ class SurvivalKNN(object):
 
     #==========================================================================   
 
+    def ensemble_feat_rank(self, X, T, C,
+                           featnames=None, 
+                           kcv=4, shuffles=5, 
+                           n_ensembles=50,
+                           subset_size=30,
+                           K=30,
+                           Method='cumulative_time',
+                           norm=2):
+        """
+        Perform feature selection using random ensembles.
+        Random ensembles of size subset_size are used to 
+        predict survival using KNN method and the model
+        accuracy is noted. Features are ranked by the median
+        accuracy of ensembles in which they appear.
+        
+        Args:
+        -----
+        X, T, C - *optimization/validation* set
+        kcv, shuffle - cross validation params
+        n_ensembles, subset_size - ensemble params
+        K, method, norm - KNN params
+        """
+
+        # Get split indices over optimization set
+        splitIdxs = \
+         dm.get_balanced_SplitIdxs(C,
+                                   K=kcv, SHUFFLES=shuffles,
+                                   USE_OPTIM=False)
+        
+        # Initialize accuracy
+        n_folds = len(splitIdxs['fold_cv_train'][0])
+        feat_ci = np.empty((n_ensembles, X.shape[1], n_folds))
+        feat_ci[:] = np.nan
+        
+        # Itirate through folds
+        
+        for fold in range(n_folds):
+        
+            # Isolate indices
+            train_idxs = splitIdxs['fold_cv_train'][0][fold]
+            test_idxs = splitIdxs['fold_cv_test'][0][fold]
+        
+            # Generate random ensembles
+            ensembles = np.random.randint(0, X.shape[1], [n_ensembles, subset_size])
+            
+            print("\n\tfold\tensemble\tCi")
+
+            for eidx in range(n_ensembles):
+            
+                # get neighbor indices based on this feature ensemble
+                fidx = ensembles[eidx, :]
+                neighborIdxs = self._get_neighbor_idxs(\
+                                X[test_idxs, :][:, fidx], 
+                                X[train_idxs, :][:, fidx], 
+                                norm=norm)
+        
+                # get accuracy
+                _, ci = self.predict(\
+                         neighborIdxs, 
+                         T[train_idxs], 
+                         C[train_idxs],
+                         Survival_test=T[test_idxs], 
+                         Censored_test=C[test_idxs],
+                         K=K,
+                         Method=Method)
+        
+                feat_ci[eidx, fidx, fold] = ci
+        
+                print("\t{}\t{}\t{}".format(fold, eidx, round(ci, 3)))
+        
+        # Get feature ranks
+        
+        # median ci across ensembles in each fold
+        median_ci = np.nanmedian(feat_ci, axis=0)
+        # median ci accross all folds
+        median_ci = np.nanmedian(median_ci, axis=1)
+        
+        feats_sorted = np.flip(np.argsort(median_ci), axis=0)
+
+        if featnames is not None:
+            featnames_sorted = featnames[feats_sorted]
+        else:
+            featnames_sorted = None
+
+        return median_ci, feats_sorted, featnames_sorted
+
+
+
+    #%%===========================================================================
+    # model accuracy
+    #============================================================================== 
 
     def cv_accuracy(self, X, Survival, Censored, \
                     splitIdxs, outer_fold, \
                     tune_params, \
-                    norm = 1, Method = 'cumulative_hazard'):
+                    norm = 2, Method = 'cumulative_time'):
 
         """
         Find model accuracy using KCV (after ptimizing K)
@@ -436,7 +527,7 @@ class SurvivalKNN(object):
         Censored - censorship (n,)
         splitIdxs - dict; indices of patients belonging to each fold
         outer_fold - fold index for optimization and non-optim. sets
-        tune_params - dict; parameters to pass to cv_tune method
+        tune_params - dict; parameters to pass to tune_k method
         """
 
         # Initialize
@@ -448,7 +539,7 @@ class SurvivalKNN(object):
         # find optimal K on validation set
         optimIdxs = splitIdxs['idx_optim'][outer_fold]
 
-        _, K_optim = self.cv_tune(X[optimIdxs, :], \
+        _, K_optim = self.tune_k(X[optimIdxs, :], \
                                   Survival[optimIdxs], \
                                   Censored[optimIdxs], \
                                   **tune_params)

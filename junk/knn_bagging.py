@@ -13,7 +13,7 @@ import DataManagement as dm
 # ===============================================================
 
 site = "GBMLGG"
-dtype = "Gene"
+dtype = "Integ"
 
 # Load data and split indices
 dpath = '/home/mtageld/Desktop/KNN_Survival/Data/' + \
@@ -39,83 +39,35 @@ X = Features[split_all['idx_optim'][outer_fold]]
 # ==============================================================
 
 RESULTPATH = "/home/mtageld/Desktop/KNN_Survival/Results/tmp/"
-
-kcv = 4
-shuffles = 5
-n_ensembles = 1000 # 25
-
-subset_size = 100 # 30
-K = 100
-Method = 'cumulative_time'
+Method = 'non-cumulative'
 norm = 2
+
+ensemble_params = {'featnames': data[dtype+'_Symbs'], 
+                   'kcv': 4,
+                   'shuffles': 5,
+                   'n_ensembles': 25,
+                   'subset_size': 30,
+                   'K': 100,
+                   'Method': Method,
+                   'norm': norm,
+                   }
 
 model = knn(RESULTPATH)
 
 # ==============================================================
-# Now tune model
+# Get top features
 # ==============================================================
 
-# Get split indices over optimization set
-splitIdxs = \
- dm.get_balanced_SplitIdxs(C,
-                           K=kcv, SHUFFLES=shuffles,
-                           USE_OPTIM=False)
-
-# Initialize accuracy
-n_folds = len(splitIdxs['fold_cv_train'][0])
-feat_ci = np.empty((n_ensembles, X.shape[1], n_folds))
-feat_ci[:] = np.nan
-
-# Itirate through folds
-
-for fold in range(n_folds):
-
-    # Isolate indices
-    train_idxs = splitIdxs['fold_cv_train'][0][fold]
-    test_idxs = splitIdxs['fold_cv_test'][0][fold]
-
-    # Generate random ensembles
-    ensembles = np.random.randint(0, X.shape[1], [n_ensembles, subset_size])
-    
-    for eidx in range(n_ensembles):
-    
-        # get neighbor indices based on this feature ensemble
-        fidx = ensembles[eidx, :]
-        neighborIdxs = model._get_neighbor_idxs(\
-                        X[test_idxs, :][:, fidx], 
-                        X[train_idxs, :][:, fidx], 
-                        norm=norm)
-
-        # get accuracy
-        _, ci = model.predict(\
-                 neighborIdxs, 
-                 T[train_idxs], 
-                 C[train_idxs],
-                 Survival_test=T[test_idxs], 
-                 Censored_test=C[test_idxs],
-                 K=K,
-                 Method=Method)
-
-        feat_ci[eidx, fidx, fold] = ci
-
-        print("fold {} of {}, ensemble {} of {}: Ci = {}".\
-            format(fold, n_folds-1, eidx, n_ensembles-1, round(ci, 3)))
-
-# Get feature ranks (lowest first)
-
-# median ci across ensembles in each fold
-median_ci = np.nanmedian(feat_ci, axis=0)
-# median ci accross all folds
-median_ci = np.nanmedian(median_ci, axis=1)
-
-feats_sorted = np.argsort(median_ci)
-featnames_sorted = data[dtype+'_Symbs'][feats_sorted]
+median_ci, feats_sorted, featnames_sorted = \
+    model.ensemble_feat_rank(X, T, C, **ensemble_params)
+                                
+print("Top 10 features are: \n{}".format(featnames_sorted[0:10]))
 
 # ==============================================================
 # Get accuracy using top features
 # ==============================================================
 
-n_feats = 100 # 50
+n_feats = 25
 
 tune_params = {'kcv': 4,
                'shuffles': 5,
@@ -125,7 +77,7 @@ tune_params = {'kcv': 4,
                }
 
 CIs, K_optim = model.cv_accuracy(\
-                Features[:, feats_sorted[-n_feats:]],
+                Features[:, feats_sorted[0:n_feats]],
                 Survival,
                 Censored,
                 split_all,

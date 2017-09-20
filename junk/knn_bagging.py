@@ -109,7 +109,7 @@ median_ci = np.nanmedian(feat_ci, axis=0)
 median_ci = np.nanmedian(median_ci, axis=1)
 
 feats_sorted = np.argsort(median_ci)
-featnames_sorted = data['Integ_Symbs'][feats_sorted]
+featnames_sorted = data[dtype+'_Symbs'][feats_sorted]
 
 # ==============================================================
 # Get accuracy using top features

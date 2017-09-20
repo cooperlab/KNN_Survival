@@ -12,9 +12,12 @@ import DataManagement as dm
 # Load optimization set
 # ===============================================================
 
+site = "GBMLGG"
+dtype = "Gene"
+
 # Load data and split indices
 dpath = '/home/mtageld/Desktop/KNN_Survival/Data/' + \
-    'SingleCancerDatasets/GBMLGG/GBMLGG_Integ_Preprocessed.mat'
+    'SingleCancerDatasets/'+site+'/'+site+'_'+dtype+'_Preprocessed.mat'
 
 data = loadmat(dpath)
 with open(dpath.split('.mat')[0] + '_splitIdxs.pkl', 'rb') as f:
@@ -23,7 +26,7 @@ with open(dpath.split('.mat')[0] + '_splitIdxs.pkl', 'rb') as f:
 N = len(data['Survival'][0])
 Survival = data['Survival'].reshape([N, ])
 Censored = data['Censored'].reshape([N, ])
-Features = data['Integ_X']
+Features = data[dtype + '_X']
 
 # isolate optimization set
 outer_fold = 0
@@ -39,9 +42,9 @@ RESULTPATH = "/home/mtageld/Desktop/KNN_Survival/Results/tmp/"
 
 kcv = 4
 shuffles = 5
-n_ensembles = 25
+n_ensembles = 1000 # 25
 
-subset_size = 10
+subset_size = 100 # 30
 K = 100
 Method = 'cumulative_time'
 norm = 2
@@ -112,19 +115,27 @@ featnames_sorted = data['Integ_Symbs'][feats_sorted]
 # Get accuracy using top features
 # ==============================================================
 
+n_feats = 100 # 50
+
 tune_params = {'kcv': 4,
                'shuffles': 5,
-               'Ks': list(np.arange(10, 160, 10)).
+               'Ks': list(np.arange(10, 160, 10)),
                'norm': norm,
                'Method': Method,
                }
 
 CIs, K_optim = model.cv_accuracy(\
-                Features[:, feats_sorted[-25:]],
+                Features[:, feats_sorted[-n_feats:]],
                 Survival,
                 Censored,
                 split_all,
                 outer_fold=outer_fold,
-                tune_params,
+                tune_params=tune_params,
                 norm=norm,
                 Method=Method)
+
+print("\n25% percentile = {}".format(np.percentile(CIs, 25)))
+print("50% percentile = {}".format(np.percentile(CIs, 50)))
+print("75% percentile = {}".format(np.percentile(CIs, 75)))
+
+

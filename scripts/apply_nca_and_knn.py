@@ -222,7 +222,7 @@ if __name__ == '__main__':
     
     # ensemble f.s. params  -----------------------------------------
 
-    USE_ENSEMBLES = False
+    USE_ENSEMBLES = True
 
     ensemble_params = \
             {'kcv': 4,

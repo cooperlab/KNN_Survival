@@ -201,7 +201,7 @@ if __name__ == '__main__':
     
     # dataset and description
     sites = ["GBMLGG", "BRCA", "KIPAN"]#, "LUSC"]
-    dtype = "Gene"
+    dtypes = ["Gene",] #"Integ]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']

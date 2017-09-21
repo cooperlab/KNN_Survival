@@ -250,7 +250,7 @@ class SurvivalKNN(object):
     def predict(self, neighbor_idxs,
                 Survival_train, Censored_train, 
                 Survival_test = None, Censored_test = None, 
-                K = 30, Method = "cumulative_time"):
+                K = 30, Method = "cumulative-time"):
         
         """
         Predict testing set using 'prototype' (i.e. training) set using KNN
@@ -290,7 +290,7 @@ class SurvivalKNN(object):
                 # now get overall time prediction            
                 T_test[idx] = np.sum(status)
                 
-        elif Method in ['cumulative_time', 'cumulative_hazard']:
+        elif Method in ['cumulative-time', 'cumulative-hazard']:
 
                 # itirate through patients
 
@@ -302,13 +302,13 @@ class SurvivalKNN(object):
     
                     if C.min() == 1:
                         # All cases are censored
-                        if Method == "cumulative_time":
+                        if Method == "cumulative-time":
                             T_test[idx] = T.max()
-                        elif Method == "cumulative_hazard":
+                        elif Method == "cumulative-hazard":
                             T_test[idx] = 0
                         continue
                         
-                    if Method == "cumulative_time":
+                    if Method == "cumulative-time":
                     
                         # Get km estimator
                         t, f = self._km_estimator(T, C)
@@ -316,7 +316,7 @@ class SurvivalKNN(object):
                         # Get mean survival time
                         T_test[idx] = np.sum(np.diff(t) * f[0:-1])
                     
-                    elif Method == 'cumulative_hazard':
+                    elif Method == 'cumulative-hazard':
                     
                         # Get NA estimator
                         T = Survival_train[neighbor_idxs[idx, :]]
@@ -332,7 +332,7 @@ class SurvivalKNN(object):
         
         # Get c-index
         CI = 0
-        if Method == "cumulative_hazard":
+        if Method == "cumulative-hazard":
             prediction_type = "risk"
         else:
             prediction_type = "survival_time"
@@ -353,7 +353,7 @@ class SurvivalKNN(object):
     def tune_k(self, X, Survival, Censored,
                kcv=4, shuffles=5, \
                Ks=list(np.arange(10, 160, 10)),\
-               norm=2, Method = "cumulative_time"):
+               norm=2, Method = "cumulative-time"):
 
         """
         Given an **optimization set**, get optimal K using
@@ -428,7 +428,7 @@ class SurvivalKNN(object):
                            n_ensembles=50,
                            subset_size=30,
                            K=30,
-                           Method='cumulative_time',
+                           Method='cumulative-time',
                            norm=2):
         """
         Perform feature selection using random ensembles.
@@ -523,7 +523,7 @@ class SurvivalKNN(object):
     def cv_accuracy(self, X, Survival, Censored, \
                     splitIdxs, outer_fold, \
                     tune_params, \
-                    norm = 2, Method = 'cumulative_time'):
+                    norm = 2, Method = 'cumulative-time'):
 
         """
         Find model accuracy using KCV (after ptimizing K)

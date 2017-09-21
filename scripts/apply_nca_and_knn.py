@@ -200,13 +200,13 @@ if __name__ == '__main__':
     RESULTPATH = projectPath + "Results/tmp/"
     
     # dataset and description
-    sites = ["GBMLGG", "BRCA", "KIPAN", "LUSC"]
+    sites = ["GBMLGG", "BRCA", "KIPAN"]#, "LUSC"]
     dtypes = ["Integ",] # "Gene"]
     
     # KNN params ----------------------------------------------------
     
     norm = 2
-    Method = 'non-cumulative'
+    Method = 'cumulative-time'
     
     k_tune_params = {'kcv': 4,
                      'shuffles': 5,

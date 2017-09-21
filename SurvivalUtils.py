@@ -143,7 +143,12 @@ def c_index(prediction, T, C, prediction_type = 'risk'):
                         if(risk[i] > risk[j]):
                             score = score + 1
     
-    return score / n_orderable
+    if n_orderable > 0:
+        ci = score / n_orderable
+    else:
+        ci = 0
+    
+    return ci
 
 #==============================================================================
 

@@ -206,7 +206,7 @@ if __name__ == '__main__':
     # KNN params ----------------------------------------------------
     
     norm = 2
-    Method = 'non-cumulative'
+    Method = 'cumulative_time'
     
     k_tune_params = {'kcv': 4,
                      'shuffles': 5,
@@ -222,19 +222,19 @@ if __name__ == '__main__':
     
     # ensemble f.s. params  -----------------------------------------
 
-    USE_ENSEMBLES = False
+    USE_ENSEMBLES = True
 
     ensemble_params = \
             {'kcv': 4,
             'shuffles': 5,
-            'n_ensembles': 50,
+            'n_ensembles': 100,
             'subset_size': 30,
-            'K': 100,
+            'K': 50,
             'Method': Method,
             'norm': norm,
             }
 
-    n_feats = 25
+    n_feats = 30
 
     # NCA params  ---------------------------------------------------
     

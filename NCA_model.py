@@ -374,7 +374,7 @@ class SurvivalNCA(object):
                              title= "cost vs. epoch", 
                              xlab= "epoch", ylab= "cost", 
                              savename= self.RESULTPATH + "plots/" +
-                              self.description + "cost.png")
+                              self.description + "cost.svg")
 
     
             # Begin epochs
@@ -543,7 +543,7 @@ class SurvivalNCA(object):
                           "feature " + rank_type, 
                           "feature_index", rank_type, 
                           self.RESULTPATH + "plots/" + self.description + 
-                          "feat_" + rank_type+"_.png")
+                          "feat_" + rank_type+"_.svg")
         
         # rank features
         

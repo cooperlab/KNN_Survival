@@ -206,7 +206,7 @@ if __name__ == '__main__':
     # KNN params ----------------------------------------------------
     
     norm = 2
-    Method = 'cumulative_time'
+    Method = 'non-cumulative'
     
     k_tune_params = {'kcv': 4,
                      'shuffles': 5,
@@ -222,7 +222,7 @@ if __name__ == '__main__':
     
     # ensemble f.s. params  -----------------------------------------
 
-    USE_ENSEMBLES = True
+    USE_ENSEMBLES = False
 
     ensemble_params = \
             {'kcv': 4,
@@ -238,7 +238,8 @@ if __name__ == '__main__':
 
     # NCA params  ---------------------------------------------------
     
-    USE_NCA = False
+    USE_NCA = True
+
     graphParams = \
             {'ALPHA': 0.5,
             'LAMBDA': 0,
@@ -257,6 +258,12 @@ if __name__ == '__main__':
 
     # Itirate through datasets
     #=================================================================
+
+    RESULTPATH = RESULTPATH + \
+                 Method + "_" + \
+                 str(USE_ENSEMBLES) + "Ensemble_" + \
+                 str(USE_NCA) + "NCA/"
+    os.system("mkdir " + RESULTPATH)
 
     for dtype in dtypes:
         for site in sites:

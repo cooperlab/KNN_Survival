@@ -197,32 +197,29 @@ if __name__ == '__main__':
     
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH = projectPath + "Results/tmp/"
+    RESULTPATH = projectPath + "Results/0_20Sep2017/Gene/"
     
     # dataset and description
     sites = ["GBMLGG", "BRCA", "KIPAN"]#, "LUSC"]
-    dtypes = ["Integ",] # "Gene"]
-    
-    # KNN params ----------------------------------------------------
+    dtype = "Gene"
     
     norm = 2
-    Method = 'cumulative-time'
+    Methods = ['cumulative-time', 'non-cumulative']
+
+    
+    # KNN params ----------------------------------------------------
     
     k_tune_params = {'kcv': 4,
                      'shuffles': 5,
                      'Ks': list(np.arange(10, 160, 10)),
                      'norm': norm,
-                     'Method': Method,
                     }
     
     knn_params = {'norm': norm,
-                  'Method': Method,
                   }
     
     
     # ensemble f.s. params  -----------------------------------------
-
-    USE_ENSEMBLES = True
 
     ensemble_params = \
             {'kcv': 4,
@@ -230,7 +227,6 @@ if __name__ == '__main__':
             'n_ensembles': 100,
             'subset_size': 30,
             'K': 50,
-            'Method': Method,
             'norm': norm,
             }
 
@@ -238,8 +234,6 @@ if __name__ == '__main__':
 
     # NCA params  ---------------------------------------------------
     
-    USE_NCA = True
-
     graphParams = \
             {'ALPHA': 0.5,
             'LAMBDA': 0,
@@ -249,41 +243,55 @@ if __name__ == '__main__':
             }
 
     nca_train_params = \
-            {'BATCH_SIZE': 200,
+            {'BATCH_SIZE': 40,
             'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
-            'MAX_ITIR': 100,
+            'MAX_ITIR': 50,
             }
 
 
-    # Itirate through datasets
+    # Itirate through experiments
     #=================================================================
 
-    RESULTPATH = RESULTPATH + \
-                 Method + "_" + \
-                 str(USE_ENSEMBLES) + "Ensemble_" + \
-                 str(USE_NCA) + "NCA/"
-    os.system("mkdir " + RESULTPATH)
+    # Itirate through experiments
+    
+    for USE_NCA in [False, True]:
+        for USE_ENSEMBLES in [False, True]:
+            for Method in Methods:
 
-    for dtype in dtypes:
-        for site in sites:
+                    # pass params to dicts
+                    k_tune_params['Method'] = Method
+                    knn_params['Method'] = Method
+                    ensemble_params['Method'] = Method
+                
+                    # Itirate through datasets
 
-            description = site +"_"+ dtype +"_"
-            dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ site +"_"+ dtype+"_Preprocessed.mat"
-
-            # create output directory
-            os.system('mkdir ' + RESULTPATH + description)
-
-            # now get accuracy and save
-            get_cv_accuracy(dpath=dpath, site=site, dtype=dtype, 
-                    description = description,
-                    RESULTPATH = RESULTPATH + description + '/', 
-                    k_tune_params = k_tune_params, 
-                    knn_params = knn_params, 
-                    USE_ENSEMBLES = USE_ENSEMBLES,
-                    ensemble_params = ensemble_params,
-                    n_feats = n_feats,
-                    USE_NCA = USE_NCA, 
-                    graphParams = graphParams, 
-                    nca_train_params = nca_train_params)
-
+                    RESULTPATH = RESULTPATH + \
+                                 Method + "_" + \
+                                 str(USE_ENSEMBLES) + "Ensemble_" + \
+                                 str(USE_NCA) + "NCA/"
+                    os.system("mkdir " + RESULTPATH)
+                
+                    for dtype in dtypes:
+                        for site in sites:
+                
+                            description = site +"_"+ dtype +"_"
+                            dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \
+                                    site +"_"+ dtype+"_Preprocessed.mat"
+                
+                            # create output directory
+                            os.system('mkdir ' + RESULTPATH + description)
+                
+                            # now get accuracy and save
+                            get_cv_accuracy(dpath=dpath, site=site, dtype=dtype, 
+                                    description = description,
+                                    RESULTPATH = RESULTPATH + description + '/', 
+                                    k_tune_params = k_tune_params, 
+                                    knn_params = knn_params, 
+                                    USE_ENSEMBLES = USE_ENSEMBLES,
+                                    ensemble_params = ensemble_params,
+                                    n_feats = n_feats,
+                                    USE_NCA = USE_NCA, 
+                                    graphParams = graphParams, 
+                                    nca_train_params = nca_train_params)
+                

@@ -197,7 +197,7 @@ if __name__ == '__main__':
     
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH = projectPath + "Results/0_20Sep2017/Gene/"
+    RESULTPATH_BASE = projectPath + "Results/0_20Sep2017/Gene/"
     
     # dataset and description
     sites = ["GBMLGG", "BRCA", "KIPAN"]#, "LUSC"]
@@ -224,8 +224,8 @@ if __name__ == '__main__':
     ensemble_params = \
             {'kcv': 4,
             'shuffles': 5,
-            'n_ensembles': 100,
-            'subset_size': 30,
+            'n_ensembles': 1500,
+            'subset_size': 50,
             'K': 50,
             'norm': norm,
             }
@@ -266,7 +266,7 @@ if __name__ == '__main__':
                 
                     # Itirate through datasets
 
-                    RESULTPATH = RESULTPATH + \
+                    RESULTPATH = RESULTPATH_BASE + \
                                  Method + "_" + \
                                  str(USE_ENSEMBLES) + "Ensemble_" + \
                                  str(USE_NCA) + "NCA/"

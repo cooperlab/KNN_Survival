@@ -54,7 +54,7 @@ class SurvivalKNN(object):
     def __init__(self, 
                  RESULTPATH, description=""):
         
-        """Instantiate a survival NCA object"""
+        """Instantiate a survival KNN object"""
         
         # Set instance attributes
         #==================================================================
@@ -503,6 +503,12 @@ class SurvivalKNN(object):
 
         if featnames is not None:
             featnames_sorted = featnames[feats_sorted]
+
+            # save ranked feature list
+            savename = self.RESULTPATH + self.description + "featnames_ranked.txt"
+            with open(savename, 'wb') as f:
+                np.savetxt(f, featnames_ranked, fmt='%s', delimiter='\t')
+
         else:
             featnames_sorted = None
 

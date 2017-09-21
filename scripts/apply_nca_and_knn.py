@@ -31,6 +31,13 @@ def get_cv_accuracy(dpath, site, dtype, description,
     Get KNN cross validation accuracy with or without ensembles and NCA
     """
     
+    # Get a dict of function params and save
+    params_all = locals()
+    with open(RESULTPATH + description + \
+                      'params_all.pkl','wb') as f:
+        _pickle.dump(params_all, f)
+
+
     # Load data
     #==========================================================================
     
@@ -77,7 +84,6 @@ def get_cv_accuracy(dpath, site, dtype, description,
     n_folds = len(splitIdxs['fold_cv_test'][0])
     
     CIs = np.zeros([n_folds, n_outer_folds])
-    K_optim = np.zeros([n_outer_folds])
     
     #
     # itirate through folds
@@ -159,14 +165,12 @@ def get_cv_accuracy(dpath, site, dtype, description,
         # get accuracy
         print("\nGetting accuracy.")
         
-        ci, k_optim = knnmodel.cv_accuracy(X, Survival, Censored, \
-                                           splitIdxs, outer_fold = outer_fold,\
-                                           tune_params = k_tune_params)
+        ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, \
+                                     splitIdxs, outer_fold=outer_fold,\
+                                     tune_params=k_tune_params)
         CIs[:, outer_fold] = ci
-        K_optim[outer_fold] = k_optim
+       
 
-        
-        
     print("\nAccuracy")
     print("------------------------")
     print("25th percentile = {}".format(np.percentile(CIs, 25)))
@@ -175,20 +179,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
     
     
     # Save results
-    Results = {'USE_NCA': USE_NCA,
-               'graphParams': graphParams,
-               'nca_train_params': nca_train_params,
-               'k_tune_params': k_tune_params,
-               'knn_params': knn_params,
-               'CIs': CIs,
-               'K_optim': K_optim,
-               }
-    
-    
     print("\nSaving final results.")
-    with open(RESULTPATH + description + \
-                      'Results.pkl','wb') as f:
-        _pickle.dump(Results, f)
+    with open(RESULTPATH + description + 'testing_Ci.txt','wb') as f:
+        np.savetxt(f, CIs, fmt='%s', delimiter='\t')
 
 
 
@@ -200,16 +193,18 @@ if __name__ == '__main__':
     # Params
     #=================================================================
     
-    # paths
+    # paths ----------------------------------------------------------
+    
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
     RESULTPATH = projectPath + "Results/tmp/"
     
     # dataset and description
-    sites = ["GBMLGG", "BRCA", "KIPAN",]# "LUSC"]
+    sites = ["GBMLGG", "BRCA", "KIPAN", "LUSC"]
     dtypes = ["Integ",] # "Gene"]
     
-    # KNN params
+    # KNN params ----------------------------------------------------
+    
     norm = 2
     Method = 'non-cumulative'
     
@@ -225,28 +220,35 @@ if __name__ == '__main__':
                   }
     
     
-    # ensemble f.s. params
+    # ensemble f.s. params  -----------------------------------------
+
     USE_ENSEMBLES = False
 
-    ensemble_params = {'kcv': 4,
+    ensemble_params = \
+            {'kcv': 4,
             'shuffles': 5,
-            'n_ensembles': 25,
+            'n_ensembles': 50,
             'subset_size': 30,
             'K': 100,
             'Method': Method,
             'norm': norm,
             }
+
     n_feats = 25
 
-    # NCA params
-    USE_NCA = True
-    graphParams = {'ALPHA': 0.5,
+    # NCA params  ---------------------------------------------------
+    
+    USE_NCA = False
+    graphParams = \
+            {'ALPHA': 0.5,
             'LAMBDA': 0,
             'KAPPA': 1.0,
             'OPTIM': 'GD',
-            'LEARN_RATE': 0.01}
+            'LEARN_RATE': 0.01
+            }
 
-    nca_train_params = {'BATCH_SIZE': 200,
+    nca_train_params = \
+            {'BATCH_SIZE': 200,
             'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
             'MAX_ITIR': 100,

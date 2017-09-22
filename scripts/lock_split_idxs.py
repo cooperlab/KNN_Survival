@@ -50,7 +50,7 @@ def Preprocess_and_split(projectPath, site, dtype, \
     # process outcomes
     if np.min(Data['Survival']) < 0:
         Data['Survival'] = Data['Survival'] - np.min(Data['Survival']) + 1
-    N = Data['Survival'].shape[0]
+    N = Data['Survival'].shape[1]
     Data['Survival'] = np.int32(Data['Survival']).reshape([N,])
     Data['Censored'] = np.int32(Data['Censored']).reshape([N,])
     
@@ -85,8 +85,8 @@ if __name__ == '__main__':
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
     
-    sites = ["GBMLGG", "BRCA", "KIPAN", "LUSC"]
-    dtypes = ["Integ", "Gene"]
+    sites = ['MM', ] #["GBMLGG", "BRCA", "KIPAN", "LUSC"]
+    dtypes = ['Gene', ] #["Integ", "Gene"]
     
     K_OPTIM = 2
     K = 3

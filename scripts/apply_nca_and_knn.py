@@ -246,7 +246,7 @@ if __name__ == '__main__':
             {'BATCH_SIZE': 40,
             'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
-            'MAX_ITIR': 50,
+            'MAX_ITIR': 30,
             }
 
 

@@ -573,19 +573,27 @@ class SurvivalNCA(object):
                             
         """ plots cost/other metric to monitor progress """
         
-        print("Plotting " + title)
+        #print("Plotting " + title)
+        #
+        #fig, ax = plt.subplots() 
+        #ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+        #if arr2 is not None:
+        #    ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
+        #plt.title(title, fontsize =16, fontweight ='bold')
+        #plt.xlabel(xlab)
+        #plt.ylabel(ylab) 
+        #plt.tight_layout()
+        #plt.savefig(savename)
+        #plt.close()
         
-        fig, ax = plt.subplots() 
-        ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
-        if arr2 is not None:
-            ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
-        plt.title(title, fontsize =16, fontweight ='bold')
-        plt.xlabel(xlab)
-        plt.ylabel(ylab) 
-        plt.tight_layout()
-        plt.savefig(savename)
-        plt.close()
-        
+        #
+        # Saving instead of plotting to avoid
+        # Xdisplay issues when using screen
+        #
+        print("Saving " + title)
+        with open(savename.split('.')[0] + '.txt', 'wb') as f:
+            np.savetxt(f, arr, fmt='%s', delimiter='\t')
+
     #==========================================================================    
         
 #%% ###########################################################################

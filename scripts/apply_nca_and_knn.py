@@ -270,7 +270,12 @@ if __name__ == '__main__':
                                  Method + "_" + \
                                  str(USE_ENSEMBLES) + "Ensemble_" + \
                                  str(USE_NCA) + "NCA/"
-                    os.system("mkdir " + RESULTPATH)
+                    
+                    success = os.system("mkdir " + RESULTPATH)
+
+                    if success != 0:
+                        print("Folder exists, experiment already done.")
+                        continue
                 
                     for dtype in dtypes:
                         for site in sites:

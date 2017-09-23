@@ -255,8 +255,8 @@ if __name__ == '__main__':
 
     # Itirate through experiments
     
-    for USE_NCA in [False, True]:
-        for USE_ENSEMBLES in [False, True]:
+    for USE_ENSEMBLES in [False, True]:
+        for USE_NCA in [False, True]:
             for Method in Methods:
 
                     # pass params to dicts

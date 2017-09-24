@@ -193,13 +193,13 @@ if __name__ == '__main__':
     
     # paths ----------------------------------------------------------
     
-    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH_BASE = projectPath + "Results/tmp/"
+    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    RESULTPATH_BASE = projectPath + "Results/2_24Sep2017/"
     
     # dataset and description
-    sites = ["GBMLGG", ] #"BRCA", "KIPAN",] # "LUSC"]
-    dtypes = ["Integ",] # "Gene]
+    sites = ["MM", "GBMLGG", "BRCA", "KIPAN",]
+    dtypes = ["Integ", "Gene"]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
@@ -226,8 +226,7 @@ if __name__ == '__main__':
             }
     
     nca_train_params = \
-            {'BATCH_SIZE': 200, #40,
-            'PLOT_STEP': 200,
+            {'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
             'MAX_ITIR': 50,
             }
@@ -270,6 +269,15 @@ if __name__ == '__main__':
             
             for dtype in dtypes:
                 for site in sites:
+
+                    if dtype == "Gene":
+                        nca_train_params['BATCH_SIZE'] = 40
+                    else:
+                        nca_train_params['BATCH_SIZE'] = 200
+
+                    if (site == "MM") and (dtype == "Integ"):
+                        continue
+
                     
                     description = site +"_"+ dtype +"_"
                     dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \

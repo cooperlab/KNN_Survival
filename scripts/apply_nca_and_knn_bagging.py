@@ -154,6 +154,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
            ci, _, _ = knnmodel.post_nca_cv_accuracy(\
                    X, Survival, Censored,
                    splitIdxs=splitIdxs,
+                   outer_fold=outer_fold,
                    k_tune_params=k_tune_params,
                    n_feats_kcv_params=n_feats_kcv_params,
                    bagging_params=bagging_params)
@@ -161,10 +162,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
         else:
         
             # Get accuracy without NCA
-            ci, _ = knnmodel.cv_accuracy(X[:, 0:n_feats_optim], 
-                                         Survival, Censored, \
-                                         splitIdxs, outer_fold=outer_fold,\
-                                         tune_params=k_tune_params)
+            ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, 
+                                         splitIdxs, outer_fold=outer_fold,
+                                         k_tune_params=k_tune_params)
         
         # record result
         CIs[:, outer_fold] = ci

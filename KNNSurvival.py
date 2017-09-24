@@ -331,7 +331,7 @@ class SurvivalKNN(object):
                    
         
         # Get c-index
-        CI = 0
+        Ci = 0
         if Method == "cumulative-hazard":
             prediction_type = "risk"
         else:
@@ -346,7 +346,7 @@ class SurvivalKNN(object):
 
     #==========================================================================   
 
-     def post_nca_bagging(self, X_test, X_train,
+    def post_nca_bagging(self, X_test, X_train,
                           Survival_train,
                           Censored_train,
                           Survival_test=None,
@@ -472,10 +472,10 @@ class SurvivalKNN(object):
             
                 # Predict testing set
                 _, Ci = self.predict(neighbor_idxs,
-                                         Survival_train, Censored_train, 
-                                         Survival_test = Survival_test, 
-                                         Censored_test = Censored_test, 
-                                         K = K, Method = Method)
+                                     Survival_train, Censored_train, 
+                                     Survival_test = Survival_test, 
+                                     Censored_test = Censored_test, 
+                                     K = K, Method = Method)
             
                 CIs[fold, kidx] = Ci
             
@@ -676,8 +676,7 @@ class SurvivalKNN(object):
 
     def cv_accuracy(self, X, Survival, Censored, \
                     splitIdxs, outer_fold, \
-                    tune_params, \
-                    norm = 2, Method = 'cumulative-time'):
+                    k_tune_params):
 
         """
         Find model accuracy using KCV (after ptimizing K)
@@ -687,10 +686,12 @@ class SurvivalKNN(object):
         Censored - censorship (n,)
         splitIdxs - dict; indices of patients belonging to each fold
         outer_fold - fold index for optimization and non-optim. sets
-        tune_params - dict; parameters to pass to tune_k method
+        k_tune_params - dict; parameters to pass to tune_k method
         """
 
         # Initialize
+        norm = k_tune_params['norm']
+        Method = k_tune_params['Method']
         n_folds = len(splitIdxs['fold_cv_train'][0])
         CIs = np.zeros([n_folds])
 
@@ -702,7 +703,7 @@ class SurvivalKNN(object):
         _, K_optim = self.tune_k(X[optimIdxs, :], \
                                   Survival[optimIdxs], \
                                   Censored[optimIdxs], \
-                                  **tune_params)
+                                  **k_tune_params)
         
         print("outer_fold \t fold \t Ci")
 
@@ -728,7 +729,8 @@ class SurvivalKNN(object):
                                  Survival_train, Censored_train, 
                                  Survival_test = Survival_test, 
                                  Censored_test = Censored_test, 
-                                 K = K_optim, Method = Method)
+                                 K = K_optim, 
+                                 Method = Method)
             
             CIs[fold] = Ci
                
@@ -736,3 +738,99 @@ class SurvivalKNN(object):
 
 
         return CIs, K_optim
+
+    #==========================================================================   
+    
+    def post_nca_cv_accuracy(self, X, Survival, Censored,
+                             splitIdxs, outer_fold,
+                             k_tune_params={},
+                             n_feats_kcv_params={},
+                             bagging_params={}):
+
+        """
+        Find model accuracy using KCV after NCA.
+        
+        X - features (n,d) - IMPORTANT: HAS to be NCA-transformed
+                             and sorted by ad feature weight
+        Survival - survival (n,)
+        Censored - censorship (n,)
+        splitIdxs - dict; indices of patients belonging to each fold
+        outer_fold - fold index for optimization and non-optim. sets
+        k_tune_params - dict; parameters to pass to tune_k method
+        n_feats_kcv_params - dict; parameters to pass to pick optima no of feats
+        bagging_params - dict; parameterss for post-nca bagging procedure
+        """
+        
+        # Initialize
+        norm = k_tune_params['norm']
+        Method = k_tune_params['Method']
+        n_folds = len(splitIdxs['fold_cv_train'][0])
+        CIs = np.zeros([n_folds])
+
+        print("\nOptimizing K for this outer fold.")
+
+        optimIdxs = splitIdxs['idx_optim'][outer_fold]
+
+        # Find optimal K to use
+        #====================================
+
+        _, K_optim = self.tune_k(\
+                X[optimIdxs, :],
+                Survival[optimIdxs],
+                Censored[optimIdxs],
+                **k_tune_params)
+        
+        # Get optimal no of features to use
+        #===================================
+        
+        # get accuracy
+        print("\nOptimizing no of features to use.")
+        
+        # Get optimal no of feats
+        _, n_feats_optim = \
+            self.get_optimal_n_feats(\
+                X=X[optimIdxs, :], 
+                T=Survival[optimIdxs], 
+                C=Censored[optimIdxs],
+                K=K_optim,
+                **n_feats_kcv_params)
+
+        # Restrict X to informative features
+        X = X[:, 0:n_feats_optim]
+
+
+        print("outer_fold \t fold \t Ci")
+
+        for fold in range(n_folds):
+        
+            # Isolate patients belonging to fold
+        
+            idxs_train = splitIdxs['fold_cv_train'][outer_fold][fold]
+            idxs_test = splitIdxs['fold_cv_test'][outer_fold][fold]
+            
+            X_test = X[idxs_test, :]
+            X_train = X[idxs_train, :]
+            Survival_train = Survival[idxs_train]
+            Censored_train = Censored[idxs_train]
+            Survival_test = Survival[idxs_test]
+            Censored_test = Censored[idxs_test]
+        
+    
+            # Get accuracy using bagged subspaces KNN approach
+            #==================================================
+            
+            _, Ci = \
+                self.post_nca_bagging(\
+                    X_test, X_train,
+                    Survival_train,
+                    Censored_train,
+                    Survival_test=Survival_test,
+                    Censored_test=Censored_test,
+                    K=K_optim,
+                    **bagging_params)
+                                        
+            CIs[fold] = Ci 
+            print("{} \t {} \t {}".format(outer_fold, fold, round(Ci, 3)))
+
+        return CIs, K_optim, n_feats_optim
+

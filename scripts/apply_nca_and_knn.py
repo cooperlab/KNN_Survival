@@ -298,5 +298,4 @@ if __name__ == '__main__':
                                     n_feats = n_feats,
                                     USE_NCA = USE_NCA, 
                                     graphParams = graphParams, 
-                                    nca_train_params = nca_train_params)
-                
+                                    nca_train_params = nca_train_params) 

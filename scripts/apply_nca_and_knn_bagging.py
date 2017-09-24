@@ -7,8 +7,8 @@ Created on Sat Sep  9 16:54:33 2017
 
 import os
 import sys
-sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
-#sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
+#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
 import _pickle
 from scipy.io import loadmat
@@ -52,7 +52,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
     Data = loadmat(dpath)
     
     Features = Data[dtype + '_X']
-    fnames = Data[dtype + '_Symbs']
+
+    if site != "MM":
+        fnames = Data[dtype + '_Symbs']
     
     N = Features.shape[0]
     Survival = Data['Survival'].reshape([N,])
@@ -127,8 +129,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
                           **nca_train_params)
            
            # get feature ranks
-           ncamodel.rankFeats(X, fnames, rank_type = "weights")
-           ncamodel.rankFeats(X, fnames, rank_type = "stdev")
+           if site != "MM":
+               ncamodel.rankFeats(X, fnames, rank_type = "weights")
+               ncamodel.rankFeats(X, fnames, rank_type = "stdev")
         
            
            # Transform features according to learned nca model
@@ -289,7 +292,7 @@ if __name__ == '__main__':
                     # get cv accuracy
                     get_cv_accuracy(dpath=dpath, site=site, dtype=dtype,
                                     description=description,
-                                    RESULTPATH=RESULTPATH,
+                                    RESULTPATH=RESULTPATH + description + '/',
                                     k_tune_params=k_tune_params,
                                     knn_params=knn_params,
                                     USE_NCA=USE_NCA,

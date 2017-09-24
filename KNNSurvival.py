@@ -339,11 +339,82 @@ class SurvivalKNN(object):
 
         if Survival_test is not None:
             assert (Censored_test is not None)
-            CI = sUtils.c_index(T_test, Survival_test, Censored_test, 
+            Ci = sUtils.c_index(T_test, Survival_test, Censored_test, 
                                 prediction_type= prediction_type)
             
-        return T_test, CI
+        return T_test, Ci
 
+    #==========================================================================   
+
+     def post_nca_bagging(self, X_test, X_train,
+                          Survival_train,
+                          Censored_train,
+                          Survival_test=None,
+                          Censored_test=None,
+                          min_n_feats=10,
+                          n_subspaces=20,
+                          K=30,
+                          Method="cumulative-time",
+                          norm=2):
+
+        """
+        Get accuracy using bagged subspaces KNN approach
+        following NCA and sorting features by absolute weight.
+
+        Args:
+        ------
+        X_test, X_train - training and testing set
+                          IMPORTANT: Must be NCA-transformed
+                          first and columns sorted by absolute
+                          feature weight
+
+        n_subspaces - no of subspaces to use.
+        min_n_feats - minimum no of features to use
+        """
+    
+        # initialize
+        preds = np.zeros([X_test.shape[0], n_subspaces])
+
+        if Method == "cumulative-hazard":
+            prediction_type = "risk"
+        else:
+            prediction_type = "survival_time"
+        
+        # get random subspaces
+        if n_subspaces > X_test.shape[1]:
+            n_subspaces = X_test.shape[1]
+
+        maxidxs = np.arange(min_n_feats, X_test.shape[1])
+        np.random.shuffle(maxidxs)
+        maxidxs = maxidxs[0: n_subspaces]
+
+        for subspace, fidx_max in enumerate(maxidxs):
+
+            #print('\t\tSubspace {} of {}'.format(subspace, n_subspaces-1))
+            
+            # Get neighbor indices    
+            neighbor_idxs = self._get_neighbor_idxs(\
+                    X_test[:, 0:fidx_max], 
+                    X_train[:, 0:fidx_max], 
+                    norm = norm)
+        
+            # Predict testing set
+            t_test, _ = self.predict(neighbor_idxs,
+                                     Survival_train, Censored_train, 
+                                     K=K, Method=Method)
+           
+            preds[:, subspace] = t_test
+
+        # Aggregate prediction
+        t_test = np.mean(preds, axis=1)
+
+        # Get Ci if survival data available
+        Ci = 0
+        if Survival_test is not None:
+            assert (Censored_test is not None)
+            Ci = sUtils.c_index(t_test, Survival_test, Censored_test, 
+                                prediction_type= prediction_type)
+        return t_test, Ci
 
 
     #%%===========================================================================

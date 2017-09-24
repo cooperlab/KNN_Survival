@@ -59,7 +59,7 @@ nca_train_params = \
         {'BATCH_SIZE': 200, #40,
         'PLOT_STEP': 200,
         'MODEL_SAVE_STEP': 200,
-        'MAX_ITIR': 2,
+        'MAX_ITIR': 25,
         }
 
 n_feats_kcv_params = \
@@ -69,6 +69,14 @@ n_feats_kcv_params = \
          'K': 30,
          'norm': norm,
          }
+
+bagging_params = \
+        {'min_n_feats': 10,
+         'n_subspaces': 20,
+         'norm': norm,
+         }
+
+         
 
 # Now run experiment
 #=================================================================
@@ -81,6 +89,7 @@ Method = Methods[0]
 k_tune_params['Method'] = Method
 knn_params['Method'] = Method
 n_feats_kcv_params['Method'] = Method
+bagging_params['Method'] = Method
 
 # Itirate through datasets
 
@@ -168,21 +177,6 @@ for site in sites:
     # itirate through folds
     #
     
-    # -------------------------------------------
-    # *** I N P U T S ***
-    # -------------------------------------------
-
-    import SurvivalUtils as sUtils
-
-    n_subspaces = 10
-
-    if Method == "cumulative-hazard":
-        prediction_type = "risk"
-    else:
-        prediction_type = "survival_time"
-
-    # -------------------------------------------
-    
     #outer_fold = 0
     for outer_fold in range(n_outer_folds):
         
@@ -254,12 +248,17 @@ for site in sites:
                 C=Censored[optimIdxs],
                 **n_feats_kcv_params)
 
+
+        # Restrict X to informative features
+        X = X[:, 0:n_feats_optim]
+
         # Find optimal K to use
         #====================================
 
         print("\nFinding optimal K to use.")
 
-        _, K_optim = knnmodel.tune_k(X[optimIdxs, :],
+        _, K_optim = knnmodel.tune_k(\
+                X[optimIdxs, :],
                 Survival[optimIdxs],
                 Censored[optimIdxs],
                 **k_tune_params)
@@ -284,36 +283,19 @@ for site in sites:
     
             # Get accuracy using bagged subspaces KNN approach
             #==================================================
-    
-            # initialize
-            preds = np.zeros([X_test.shape[0], n_subspaces)
-
-            for subspace in range(n_subspaces):
-
-                print('\t\tSubspace {} of {}'.format(subspace, n_subspaces-1))
-                
-                # maximum feature index
-                fidx_max = np.random.randint(10, n_feats_optim+1)
-    
-                # Get neighbor indices    
-                neighbor_idxs = knnmodel._get_neighbor_idxs(\
-                        X_test[:, 0:fidx_max], 
-                        X_train[:, 0:fidx_max], 
-                        norm = norm)
             
-                # Predict testing set
-                t_test, _ = self.predict(neighbor_idxs,
-                                     Survival_train, Censored_train, 
-                                     K = K_optim, Method = Method)
-               
-                preds[:, subspace] = t_test
-
-            # Aggregate prediction and get ci
-            t_test = np.mean(preds, axis=1)
-            CIs[fold, outer_fold] = \
-                    sUtils.c_index(t_test, Survival_test, Censored_test, 
-                                   prediction_type= prediction_type)
-
+            _, Ci = \
+                knnmodel.post_nca_bagging(\
+                    X_test, X_train,
+                    Survival_train,
+                    Censored_train,
+                    Survival_test=Survival_test,
+                    Censored_test=Censored_test,
+                    K=K_optim,
+                    **bagging_params)
+                                        
+            CIs[fold, outer_fold] = Ci 
+            print("{} \t {} \t {}".format(outer_fold, fold, round(Ci, 3)))
         
         #====================================================================
         

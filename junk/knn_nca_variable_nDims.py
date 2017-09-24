@@ -28,7 +28,7 @@ projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
 RESULTPATH_BASE = projectPath + "Results/tmp/"
 
 # dataset and description
-sites = ["GBMLGG",] # "BRCA", "KIPAN", "LUSC"]
+sites = ["GBMLGG", ] # "BRCA", "KIPAN", "LUSC"]
 dtypes = ["Integ",] # "Gene]
 
 norm = 2
@@ -59,7 +59,7 @@ nca_train_params = \
         {'BATCH_SIZE': 200, #40,
         'PLOT_STEP': 200,
         'MODEL_SAVE_STEP': 200,
-        'MAX_ITIR': 2,
+        'MAX_ITIR': 100,
         }
 
 # Now run experiment
@@ -143,7 +143,7 @@ os.system('mkdir ' + RESULTPATH_KNN)
 #==============================================================================
 
 # Instantiate a KNN survival model.
-knnmodel = knn.SurvivalKNN(RESULTPATH_KNN, description = description)
+knnmodel = knn.SurvivalKNN(RESULTPATH_KNN, description=description)
 
 #
 # initialize
@@ -221,109 +221,37 @@ print("\nOptimizing no of features to use.")
 sort_idxs = np.flip(np.abs(w).argsort(), axis=0)
 X = X[:, sort_idxs]
 
-# *** NEEDED INPUTS *** ------
-
-import DataManagement as dm
-
-# norm
-# Method
-K = 50
-
-X_optim = X[optimIdxs, :]
-Survival_optim = Survival[optimIdxs]
-Censored_optim = Censored[optimIdxs]
-
-kcv = k_tune_params['kcv']
-shuffles = k_tune_params['shuffles']
-
-# ----------------------------
-
-"""
-Find the nearest neighbors using the first n_feats. Similar
-concept to using the first principal components
-of PCA_transformed datasets. 
-
-IMPORTANT: this assumes that the transformed features
-have been sorted by andolute feature weight 
-(from largest to smallest).
-
-"""
-
-# Get split indices over optimization set
-splitIdxs = dm.get_balanced_SplitIdxs(Censored_optim, \
-                                      K=kcv, SHUFFLES=shuffles,\
-                                      USE_OPTIM = False)
-
-# Initialize
-n_folds = len(splitIdxs['fold_cv_train'][0])
-CIs = np.zeros([n_folds, len(Ks)])
-
-for fold in range(n_folds):
-
-    print("\n\tFold {} of {}".format(fold, n_folds-1))
-    
-    # Isolate patients belonging to fold
-
-    idxs_train = splitIdxs['fold_cv_train'][0][fold]
-    idxs_test = splitIdxs['fold_cv_test'][0][fold]
-    
-    X_test = X[idxs_test, :]
-    X_train = X[idxs_train, :]
-    Survival_train = Survival[idxs_train]
-    Censored_train = Censored[idxs_train]
-    Survival_test = Survival[idxs_test]
-    Censored_test = Censored[idxs_test]
-
-    print("\tn_feats\tCi")
-
-    for n_feats in range(1, 100): #X.shape[1]):
-
-        # Get neighbor indices
-        neighbor_idxs = knnmodel._get_neighbor_idxs(\
-                X_test[:, 0:n_feats], 
-                X_train[:, 0:n_feats], 
-                norm=norm)
-    
-        # Predict testing set
-        _, Ci = knnmodel.predict(neighbor_idxs,
-                                 Survival_train, Censored_train, 
-                                 Survival_test = Survival_test, 
-                                 Censored_test = Censored_test, 
-                                 K = K, Method = Method)
-
-
-
-        CIs[fold, n_feats] = Ci
-        
-        print("\t{} \t {}".format(K, round(Ci, 3)))
-
-
-# Get optimal K
-CIs_median = np.median(CIs, axis=0)
-CI_optim = np.max(CIs_median)
-n_feats_optim = np.argmax(CIs_median)+1
-print("\nOptimal: n_feats = {}, Ci = {}\n".format(K_optim, round(CI_optim, 3)))
-
-
-
+# Get optimal no of feats
+_, n_feats_optim = \
+    knnmodel.get_optimal_n_feats(\
+        self, 
+        X=X[optimIdxs, :], 
+        T=Survival[optimIdxs], 
+        C=Censored[optimIdxs],
+        kcv=4,
+        shuffles=2,
+        n_feats_max=100,
+        K=30,
+        Method='cumulative-time',
+        norm=2)
 
 #====================================================================
-#====================================================================
 
-#ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, \
-#                             splitIdxs, outer_fold=outer_fold,\
-#                             tune_params=k_tune_params)
-#CIs[:, outer_fold] = ci
-#   
-#
-#print("\nAccuracy")
-#print("------------------------")
-#print("25th percentile = {}".format(np.percentile(CIs, 25)))
-#print("50th percentile = {}".format(np.percentile(CIs, 50)))
-#print("75th percentile = {}".format(np.percentile(CIs, 75)))
-#
-#
-## Save results
-#print("\nSaving final results.")
-#with open(RESULTPATH + description + 'testing_Ci.txt','wb') as f:
-#    np.savetxt(f, CIs, fmt='%s', delimiter='\t')
+ci, _ = knnmodel.cv_accuracy(X[:, 0:n_feats_optim], 
+                             Survival, Censored, \
+                             splitIdxs, outer_fold=outer_fold,\
+                             tune_params=k_tune_params)
+CIs[:, outer_fold] = ci
+   
+
+print("\nAccuracy")
+print("------------------------")
+print("25th percentile = {}".format(np.percentile(CIs, 25)))
+print("50th percentile = {}".format(np.percentile(CIs, 50)))
+print("75th percentile = {}".format(np.percentile(CIs, 75)))
+
+
+# Save results
+print("\nSaving final results.")
+with open(RESULTPATH + description + 'testing_Ci.txt','wb') as f:
+    np.savetxt(f, CIs, fmt='%s', delimiter='\t')

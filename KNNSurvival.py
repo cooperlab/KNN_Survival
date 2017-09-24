@@ -514,7 +514,89 @@ class SurvivalKNN(object):
 
         return median_ci, feats_sorted, featnames_sorted
 
+    #==========================================================================   
+    def get_optimal_n_feats(self, X, T, C,
+                            kcv=4,
+                            shuffles=2,
+                            n_feats_max=100,
+                            K=30,
+                            Method='cumulative-time',
+                            norm=2):
 
+        """
+        Find the optimal number of features to use
+        from the NCA-transformed dataset.
+        Similar concept to using the first principal 
+        components of PCA_transformed datasets. 
+        
+        IMPORTANT: this assumes that the transformed features
+        have been sorted by absolute feature weight 
+        (from largest to smallest).
+
+        Args:
+        -----
+        X, T, C - optimization set
+        """
+        
+        # Get split indices over optimization set
+        splitIdxs = dm.get_balanced_SplitIdxs(C, \
+                                              K=kcv, SHUFFLES=shuffles,\
+                                              USE_OPTIM = False)
+        
+        # Initialize
+        n_folds = len(splitIdxs['fold_cv_train'][0])
+        n_feats_all = np.arange(1, n_feats_max, 2)
+        CIs = np.zeros([n_folds, len(n_feats_all)])
+        
+        for fold in range(n_folds):
+        
+            print("\n\tFold {} of {}".format(fold, n_folds-1))
+            
+            # Isolate patients belonging to fold
+        
+            idxs_train = splitIdxs['fold_cv_train'][0][fold]
+            idxs_test = splitIdxs['fold_cv_test'][0][fold]
+            
+            X_test = X[idxs_test, :]
+            X_train = X[idxs_train, :]
+            T_train = T[idxs_train]
+            C_train = C[idxs_train]
+            T_test = T[idxs_test]
+            C_test = C[idxs_test]
+        
+            print("\tn_feats \t Ci")
+        
+            for fidx, n_feats in enumerate(n_feats_all):
+        
+                # Get neighbor indices
+                neighbor_idxs = self._get_neighbor_idxs(\
+                        X_test[:, 0:n_feats], 
+                        X_train[:, 0:n_feats], 
+                        norm=norm)
+            
+                # Predict testing set
+                _, Ci = self.predict(neighbor_idxs,
+                                     T_train, C_train, 
+                                     Survival_test=T_test, 
+                                     Censored_test=C_test, 
+                                     K=K, Method=Method)
+        
+        
+        
+                CIs[fold, fidx] = Ci
+                
+                print("\t{} \t {}".format(n_feats, round(Ci, 3)))
+        
+        
+        # Get optimal K
+        CIs_median = np.median(CIs, axis=0)
+        CI_optim = np.max(CIs_median)
+        
+        n_feats_optim = n_feats_all[np.argmax(CIs_median)]
+        print("\nOptimal: n_feats = {}, Ci = {}\n".format(n_feats_optim, round(CI_optim, 3)))
+
+        return CIs, n_feats_optim
+        
 
     #%%===========================================================================
     # model accuracy

@@ -202,7 +202,7 @@ if __name__ == '__main__':
     dtypes = ["Integ",] # "Gene]
     
     norm = 2
-    Methods = ['cumulative-time',] # 'non-cumulative']
+    Methods = ['cumulative-time', 'non-cumulative']
     
     # KNN params ----------------------------------------------------
     

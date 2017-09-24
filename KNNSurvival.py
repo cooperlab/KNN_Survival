@@ -515,6 +515,7 @@ class SurvivalKNN(object):
         return median_ci, feats_sorted, featnames_sorted
 
     #==========================================================================   
+
     def get_optimal_n_feats(self, X, T, C,
                             kcv=4,
                             shuffles=2,

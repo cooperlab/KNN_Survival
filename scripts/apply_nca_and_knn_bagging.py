@@ -275,7 +275,7 @@ if __name__ == '__main__':
                         nca_train_params['BATCH_SIZE'] = 40
                         nca_train_params['MAX_ITIR'] = 3
                     else:
-                        nca_train_params['BATCH_SIZE'] = 200
+                        nca_train_params['BATCH_SIZE'] = 400
                         nca_train_params['MAX_ITIR'] = 25
 
                     if (site == "MM") and (dtype == "Integ"):

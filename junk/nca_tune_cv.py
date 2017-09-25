@@ -100,7 +100,7 @@ success = os.system("mkdir " + RESULTPATH)
 #    continue
 
 dtype = "Integ"
-site = "BRCA"
+site = "GBMLGG"
 #for dtype in dtypes:
 #    for site in sites:
 
@@ -108,8 +108,8 @@ if dtype == "Gene":
     nca_train_params['BATCH_SIZE'] = 40
     nca_train_params['MAX_ITIR'] = 3
 else:
-    nca_train_params['BATCH_SIZE'] = 200
-    nca_train_params['MAX_ITIR'] = 25
+    nca_train_params['BATCH_SIZE'] = 400
+    nca_train_params['MAX_ITIR'] = 50
 
 #if (site == "MM") and (dtype == "Integ"):
 #    continue
@@ -201,21 +201,90 @@ optimIdxs = splitIdxs['idx_optim'][outer_fold]
 USE_NCA = True
 #if USE_NCA:
 
-#raise Exception("On purpose.")
+# instantiate NCA model
+ncamodel = nca.SurvivalNCA(RESULTPATH_NCA, \
+                           description = description, \
+                           LOADPATH = LOADPATH)
+                           
     
+#%%
+# Finding optimal values for ALPHA and LAMBDA (regularization)
+#==============================================================
+
+# Params !!!!!!!!!!!!!!!!!!!!
+VALID_RATIO = 0.5
+K = 50
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+ALPHAS = np.arange(0, 1.1, 0.2)
+LAMBDAS = np.arange(0.2, 1.1, 0.2)
+
+# Get training and validation set
+stoppoint = int(VALID_RATIO * len(optimIdxs))
+optimIdxs_valid = optimIdxs[0:stoppoint]
+optimIdxs_train = optimIdxs[stoppoint:]
+
+x_valid = X[optimIdxs_valid, :]
+
+cis = []
+
+for ALPHA in ALPHAS:
+    for LAMBDA in LAMBDAS:
+
+        graphParams['ALPHA'] = ALPHA
+        graphParams['LAMBDA'] = LAMBDA
+        
+        w = ncamodel.train(features = X[optimIdxs_train, :],\
+                           survival = Survival[optimIdxs_train],\
+                           censored = Censored[optimIdxs_train],\
+                           COMPUT_GRAPH_PARAMS = graphParams,\
+                           **nca_train_params)
+        ncamodel.reset_TrainHistory()
+        
+        # transform
+        W = np.zeros((len(w), len(w)))
+        np.fill_diagonal(W, w)
+        x_valid_transformed = np.dot(X[optimIdxs_valid, :], W)
+        
+        # get neighbor indices    
+        neighbor_idxs = knnmodel._get_neighbor_idxs(x_valid_transformed, 
+                                                    X[optimIdxs_train, :], 
+                                                    norm = norm)
+        
+        # Predict testing set
+        _, Ci = knnmodel.predict(neighbor_idxs,
+                                 Survival_train=Survival[optimIdxs_train], 
+                                 Censored_train=Censored[optimIdxs_train], 
+                                 Survival_test = Survival[optimIdxs_valid], 
+                                 Censored_test = Censored[optimIdxs_valid], 
+                                 K = K, Method = Method)
+        
+        cis.append([ALPHA, LAMBDA, Ci])
+        
+        print("\n----------------------")
+        print("ALPHA\tLAMBDA\tCi")
+        print("{}\t{}\t{}".format(ALPHA, LAMBDA, round(Ci, 3)))
+        print("----------------------\n")
+
+cis = np.array(cis)
+optimal = cis[:,2].argmax()
+ALPHA_OPTIM = cis[optimal, 0]
+LAMBDA_OPTIM = cis[optimal, 1]
+
+print("\nOptimal Alpha, Lambda = {}, {}".format(ALPHA_OPTIM, LAMBDA_OPTIM))
+
+#%%
+    
+raise Exception("On purpose.")
+
 # Learn NCA matrix on optimization set
 #========================================
 
 print("\nLearning NCA on optimization set\n")
 
-# instantiate
- 
-ncamodel = nca.SurvivalNCA(RESULTPATH_NCA, \
-                           description = description, \
-                           LOADPATH = LOADPATH)
-                           
 
-graphParams['ALPA'] = 1
+
+graphParams['ALPHA'] = 1
 graphParams['LAMBDA'] = 0.1
 
 w = ncamodel.train(features = X[optimIdxs, :],\

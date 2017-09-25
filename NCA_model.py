@@ -402,8 +402,12 @@ class SurvivalNCA(object):
                     # Divide into balanced batches
                     #==========================================================
                       
-                    # Get balanced batches
-                    batchIdxs = dm.get_balanced_batches(censored, BATCH_SIZE = BATCH_SIZE)
+                    # Get balanced batches (if relevant)
+                    if BATCH_SIZE < censored.shape[0]:
+                        batchIdxs = dm.get_balanced_batches(censored, BATCH_SIZE = BATCH_SIZE)
+                    else:
+                        batchIdxs = [np.arange(censored.shape[0])]
+                        
                     if USE_VALID:
                         batchIdxs_valid = \
                             dm.get_balanced_batches(censored_valid, BATCH_SIZE = BATCH_SIZE)  

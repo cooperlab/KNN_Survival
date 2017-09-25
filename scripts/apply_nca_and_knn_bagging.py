@@ -224,14 +224,13 @@ if __name__ == '__main__':
             {'ALPHA': 0.5,
             'LAMBDA': 0,
             'KAPPA': 1.0,
-            'OPTIM': 'Adam',
+            'OPTIM': 'GD',
             'LEARN_RATE': 0.01,
             }
     
     nca_train_params = \
             {'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
-            'MAX_ITIR': 50,
             }
     
     n_feats_kcv_params = \
@@ -243,14 +242,14 @@ if __name__ == '__main__':
     
     bagging_params = \
             {'min_n_feats': 10,
-             'n_subspaces': 20,
+             'n_subspaces': 100,
              'norm': norm,
              }
     
     # Now run experiment
     #=================================================================
     
-    for USE_NCA in [False, True]:
+    for USE_NCA in [True, False]:
         for Method in Methods:
     
             # pass params to dicts
@@ -275,8 +274,10 @@ if __name__ == '__main__':
 
                     if dtype == "Gene":
                         nca_train_params['BATCH_SIZE'] = 40
+                        nca_train_params['MAX_ITIR'] = 15
                     else:
                         nca_train_params['BATCH_SIZE'] = 200
+                        nca_train_params['MAX_ITIR'] = 25
 
                     if (site == "MM") and (dtype == "Integ"):
                         continue

@@ -384,7 +384,7 @@ class SurvivalNCA(object):
                 itir = 0
                 while itir < MAX_ITIR:
                     
-                    pUtils.Log_and_print("\n\tTraining epoch {}\n".format(self.EPOCHS_RUN))
+                    #pUtils.Log_and_print("\n\tTraining epoch {}\n".format(self.EPOCHS_RUN))
                     
                     itir += 1
                     cost_tot = 0
@@ -441,8 +441,8 @@ class SurvivalNCA(object):
                         #self.Costs_batchLevel_train.append(cost)                  
                         cost_tot += cost                        
                         
-                        pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
-                             format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
+                        #pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
+                        #     format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
                      
 
                     # Run over validation set

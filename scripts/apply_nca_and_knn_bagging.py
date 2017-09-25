@@ -289,8 +289,6 @@ if __name__ == '__main__':
                     # create output directory
                     os.system('mkdir ' + RESULTPATH + description)
                     
-                    raise Exception("On purpose")
-            
                     # get cv accuracy
                     get_cv_accuracy(dpath=dpath, site=site, dtype=dtype,
                                     description=description,

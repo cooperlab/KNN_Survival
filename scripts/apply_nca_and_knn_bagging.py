@@ -108,59 +108,59 @@ def get_cv_accuracy(dpath, site, dtype, description,
         
         if USE_NCA:
         
-           # Learn NCA matrix on optimization set
-           #========================================
-           
-           print("\nLearning NCA on optimization set\n")
-           
-           # instantiate
-        
-           RESULTPATH_NCA_FOLD = RESULTPATH_NCA + "fold_{}/".format(outer_fold)
-           os.system("mkdir " + RESULTPATH_NCA_FOLD)
-        
-           ncamodel = nca.SurvivalNCA(RESULTPATH_NCA_FOLD, \
-                                      description = description, \
-                                      LOADPATH = LOADPATH)
-                                      
-           ncamodel.train(features = X[optimIdxs, :],\
-                          survival = Survival[optimIdxs],\
-                          censored = Censored[optimIdxs],\
-                          COMPUT_GRAPH_PARAMS = graphParams,\
-                          **nca_train_params)
-           
-           # get feature ranks
-           if site != "MM":
-               ncamodel.rankFeats(X, fnames, rank_type = "weights")
-               ncamodel.rankFeats(X, fnames, rank_type = "stdev")
-        
-           
-           # Transform features according to learned nca model
-           #===================================================
-           
-           print("\nTransforming feats according to learned NCA model.")
-           
-           # get learned weights
-           w = np.load(RESULTPATH_NCA_FOLD + 'model/' + description + 'featWeights.npy')  
-           W = np.zeros([len(w), len(w)])
-           np.fill_diagonal(W, w)
-           
-           # transform
-           X = np.dot(X, W)
-        
-           # sort X by absolute feature weights
-           sort_idxs = np.flip(np.abs(w).argsort(), axis=0)
-           X = X[:, sort_idxs]
-
-           # Get bagged post-NCA accuracy
-           #================================================
-
-           ci, _, _ = knnmodel.post_nca_cv_accuracy(\
-                   X, Survival, Censored,
-                   splitIdxs=splitIdxs,
-                   outer_fold=outer_fold,
-                   k_tune_params=k_tune_params,
-                   n_feats_kcv_params=n_feats_kcv_params,
-                   bagging_params=bagging_params)
+            # Learn NCA matrix on optimization set
+            #========================================
+            
+            print("\nLearning NCA on optimization set\n")
+            
+            # instantiate
+         
+            RESULTPATH_NCA_FOLD = RESULTPATH_NCA + "fold_{}/".format(outer_fold)
+            os.system("mkdir " + RESULTPATH_NCA_FOLD)
+         
+            ncamodel = nca.SurvivalNCA(RESULTPATH_NCA_FOLD, \
+                                       description = description, \
+                                       LOADPATH = LOADPATH)
+                                       
+            ncamodel.train(features = X[optimIdxs, :],\
+                           survival = Survival[optimIdxs],\
+                           censored = Censored[optimIdxs],\
+                           COMPUT_GRAPH_PARAMS = graphParams,\
+                           **nca_train_params)
+            
+            # get feature ranks
+            if site != "MM":
+                ncamodel.rankFeats(X, fnames, rank_type = "weights")
+                ncamodel.rankFeats(X, fnames, rank_type = "stdev")
+         
+            
+            # Transform features according to learned nca model
+            #===================================================
+            
+            print("\nTransforming feats according to learned NCA model.")
+            
+            # get learned weights
+            w = np.load(RESULTPATH_NCA_FOLD + 'model/' + description + 'featWeights.npy')  
+            W = np.zeros([len(w), len(w)])
+            np.fill_diagonal(W, w)
+            
+            # transform
+            X = np.dot(X, W)
+         
+            # sort X by absolute feature weights
+            sort_idxs = np.flip(np.abs(w).argsort(), axis=0)
+            X = X[:, sort_idxs]
+ 
+            # Get bagged post-NCA accuracy
+            #================================================
+ 
+            ci, _, _ = knnmodel.post_nca_cv_accuracy(\
+                    X, Survival, Censored,
+                    splitIdxs=splitIdxs,
+                    outer_fold=outer_fold,
+                    k_tune_params=k_tune_params,
+                    n_feats_kcv_params=n_feats_kcv_params,
+                    bagging_params=bagging_params)
 
         else:
         
@@ -172,7 +172,6 @@ def get_cv_accuracy(dpath, site, dtype, description,
         # record result
         CIs[:, outer_fold] = ci
            
-        
     print("\nAccuracy")
     print("------------------------")
     print("25th percentile = {}".format(np.percentile(CIs, 25)))
@@ -241,7 +240,7 @@ if __name__ == '__main__':
              }
     
     bagging_params = \
-            {'min_n_feats': 10,
+            {'min_n_feats': 20,
              'n_subspaces': 100,
              'norm': norm,
              }
@@ -274,7 +273,7 @@ if __name__ == '__main__':
 
                     if dtype == "Gene":
                         nca_train_params['BATCH_SIZE'] = 40
-                        nca_train_params['MAX_ITIR'] = 15
+                        nca_train_params['MAX_ITIR'] = 10
                     else:
                         nca_train_params['BATCH_SIZE'] = 200
                         nca_train_params['MAX_ITIR'] = 25

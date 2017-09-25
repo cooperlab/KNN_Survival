@@ -406,7 +406,7 @@ class SurvivalKNN(object):
             preds[:, subspace] = t_test
 
         # Aggregate prediction
-        t_test = np.mean(preds, axis=1)
+        t_test = np.median(preds, axis=1)
 
         # Get Ci if survival data available
         Ci = 0

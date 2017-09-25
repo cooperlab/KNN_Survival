@@ -78,7 +78,7 @@ bagging_params = \
 
 
 USE_NCA = True
-Method = Methods[0]
+Method = Methods[1]
 #for USE_NCA in [True, False]:
 #    for Method in Methods:
 
@@ -100,7 +100,7 @@ success = os.system("mkdir " + RESULTPATH)
 #    continue
 
 dtype = "Integ"
-site = "GBMLGG"
+site = "BRCA"
 #for dtype in dtypes:
 #    for site in sites:
 
@@ -304,8 +304,37 @@ for outer_fold in range(n_outer_folds):
     X = np.dot(X, W)
     
     print("\nGetting accuracy.")        
-    ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, \
-                                 splitIdxs, outer_fold=outer_fold,\
-                                 k_tune_params=k_tune_params)
+    
+    #ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, \
+    #                             splitIdxs, outer_fold=outer_fold,\
+    #                             k_tune_params=k_tune_params)
+    
+    # Get bagged post-NCA accuracy
+    #================================================
+    
+    # sort X by absolute feature weights
+    sort_idxs = np.flip(np.abs(w).argsort(), axis=0)
+    X = X[:, sort_idxs]
+    
+    ci, _, _ = knnmodel.post_nca_cv_accuracy(\
+            X, Survival, Censored,
+            splitIdxs=splitIdxs,
+            outer_fold=outer_fold,
+            k_tune_params=k_tune_params,
+            n_feats_kcv_params=n_feats_kcv_params,
+            bagging_params=bagging_params)
     
     CIs[:, outer_fold] = ci
+
+#%%    
+print("\nAccuracy")
+print("------------------------")
+print("25th percentile = {}".format(np.percentile(CIs, 25)))
+print("50th percentile = {}".format(np.percentile(CIs, 50)))
+print("75th percentile = {}".format(np.percentile(CIs, 75)))
+
+
+# Save results
+print("\nSaving final results.")
+with open(RESULTPATH + description + 'testing_Ci.txt','wb') as f:
+    np.savetxt(f, CIs, fmt='%s', delimiter='\t')

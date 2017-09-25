@@ -371,18 +371,20 @@ class SurvivalKNN(object):
         n_subspaces - no of subspaces to use.
         min_n_feats - minimum no of features to use
         """
-    
-        # initialize
-        preds = np.zeros([X_test.shape[0], n_subspaces])
 
         if Method == "cumulative-hazard":
             prediction_type = "risk"
         else:
             prediction_type = "survival_time"
         
-        # get random subspaces
+        # sanity checks
         if n_subspaces > X_test.shape[1]:
             n_subspaces = X_test.shape[1]
+        if min_n_feats > X_test.shape[1]:
+            min_n_feats = X_test.shape[1]-1
+            
+        # initialize
+        preds = np.zeros([X_test.shape[0], n_subspaces-min_n_feats])
 
         maxidxs = np.arange(min_n_feats, X_test.shape[1])
         np.random.shuffle(maxidxs)
@@ -578,7 +580,7 @@ class SurvivalKNN(object):
             # save ranked feature list
             savename = self.RESULTPATH + self.description + "featnames_ranked.txt"
             with open(savename, 'wb') as f:
-                np.savetxt(f, featnames_ranked, fmt='%s', delimiter='\t')
+                np.savetxt(f, featnames_sorted, fmt='%s', delimiter='\t')
 
         else:
             featnames_sorted = None
@@ -762,8 +764,6 @@ class SurvivalKNN(object):
         """
         
         # Initialize
-        norm = k_tune_params['norm']
-        Method = k_tune_params['Method']
         n_folds = len(splitIdxs['fold_cv_train'][0])
         CIs = np.zeros([n_folds])
 

@@ -273,7 +273,7 @@ if __name__ == '__main__':
 
                     if dtype == "Gene":
                         nca_train_params['BATCH_SIZE'] = 40
-                        nca_train_params['MAX_ITIR'] = 10
+                        nca_train_params['MAX_ITIR'] = 3
                     else:
                         nca_train_params['BATCH_SIZE'] = 200
                         nca_train_params['MAX_ITIR'] = 25

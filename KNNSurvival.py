@@ -379,7 +379,7 @@ class SurvivalKNN(object):
         
         # sanity checks
         if n_subspaces > X_test.shape[1]:
-            n_subspaces = X_test.shape[1]
+            n_subspaces = X_test.shape[1]-1
         if min_n_feats > X_test.shape[1]:
             min_n_feats = X_test.shape[1]-1
             

@@ -281,7 +281,7 @@ class comput_graph(object):
                     minimize(self.cost)
 
         # Merge all summaries for tensorboard
-        self.tbsummaries = tf.summary.merge_all()
+        #self.tbsummaries = tf.summary.merge_all()
 
 
 #%%############################################################################ 

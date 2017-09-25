@@ -25,7 +25,7 @@ import numpy as np
 import tensorflow as tf
 #from scipy.io import loadmat, savemat
 #from matplotlib import cm
-import matplotlib.pylab as plt
+#import matplotlib.pylab as plt
 
 import logging
 import datetime
@@ -62,10 +62,10 @@ class SurvivalNCA(object):
     ###########################################################################
     
     # default graph params
-    default_graphParams = {'ALPHA': 0.1,
-                           'LAMBDA': 1.0,
+    default_graphParams = {'ALPHA': 0.5,
+                           'LAMBDA': 0,
                            'KAPPA': 1.0,
-                           'OPTIM': 'Adam',
+                           'OPTIM': 'GD',
                            'LEARN_RATE': 0.01}
     userspecified_graphParams = ['dim_input',]
     
@@ -335,8 +335,8 @@ class SurvivalNCA(object):
                 sess.run(tf.global_variables_initializer())
                 
             # for tensorboard visualization
-            train_writer = tf.summary.FileWriter(self.RESULTPATH + 'model/tensorboard', 
-                                                 sess.graph)
+            #train_writer = tf.summary.FileWriter(self.RESULTPATH + 'model/tensorboard', 
+            #                                     sess.graph)
 
             # Define some methods
             #==================================================================
@@ -483,8 +483,8 @@ class SurvivalNCA(object):
                    
 
                     # periodically save model
-                    if (self.EPOCHS_RUN % MODEL_SAVE_STEP) == 0:
-                        _saveTFmodel() 
+                    #if (self.EPOCHS_RUN % MODEL_SAVE_STEP) == 0:
+                    #    _saveTFmodel() 
                     
                     # periodically monitor progress
                     if (self.EPOCHS_RUN % PLOT_STEP == 0) and \
@@ -495,7 +495,7 @@ class SurvivalNCA(object):
                 pass
                 
             # save final model and plot costs
-            _saveTFmodel()
+            #_saveTFmodel()
             _monitorProgress()
 
             pUtils.Log_and_print("\nFinished training model.")
@@ -503,8 +503,10 @@ class SurvivalNCA(object):
             
             # save learned weights
             w = sess.run(graph.w, feed_dict = feed_dict)
-            np.save(self.RESULTPATH + 'model/' + self.description + \
-                    'featWeights.npy', w)
+            #np.save(self.RESULTPATH + 'model/' + self.description + \
+            #        'featWeights.npy', w)
+            
+        return w
 
                         
     #%%============================================================================

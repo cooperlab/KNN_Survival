@@ -246,11 +246,11 @@ if __name__ == '__main__':
     
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH_BASE = projectPath + "Results/2_24Sep2017/"
+    RESULTPATH_BASE = projectPath + "Results/2_24Sep2017/Gene/"
     
     # dataset and description
-    sites = ["MM", "GBMLGG", "BRCA", "KIPAN",]
-    dtypes = ["Integ", ] #"Gene"]
+    sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
+    dtypes = ["Gene", ] #"Integ"]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
@@ -325,7 +325,7 @@ if __name__ == '__main__':
                     
                     if dtype == "Gene":
                         nca_train_params['BATCH_SIZE'] = 40
-                        nca_train_params['MAX_ITIR'] = 3
+                        nca_train_params['MAX_ITIR'] = 4
                     else:
                         nca_train_params['BATCH_SIZE'] = 400
                         nca_train_params['MAX_ITIR'] = 25

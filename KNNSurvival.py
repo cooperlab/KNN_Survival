@@ -388,7 +388,7 @@ class SurvivalKNN(object):
 
         maxidxs = np.arange(min_n_feats, X_test.shape[1])
         np.random.shuffle(maxidxs)
-        maxidxs = maxidxs[0: n_subspaces]
+        maxidxs = maxidxs[0: n_subspaces-min_n_feats]
 
         for subspace, fidx_max in enumerate(maxidxs):
 

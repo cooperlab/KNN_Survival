@@ -15,7 +15,7 @@ import _pickle
 from scipy.io import loadmat
 import numpy as np
 
-import NCA_model as nca
+import NCA_model_experimental as nca
 import KNNSurvival as knn
 
 #%%
@@ -134,7 +134,12 @@ def get_cv_accuracy(dpath, site, dtype, description,
                     graphParams['ALPHA'] = ALPHA
                     graphParams['LAMBDA'] = LAMBDA
                     
-                    w = ncamodel.train(features = X[optimIdxs_train, :],\
+                    #w = ncamodel.train(features = X[optimIdxs_train, :],\
+                    #                   survival = Survival[optimIdxs_train],\
+                    #                   censored = Censored[optimIdxs_train],\
+                    #                   COMPUT_GRAPH_PARAMS = graphParams,\
+                    #                   **nca_train_params)
+                    W = ncamodel.train(features = X[optimIdxs_train, :],\
                                        survival = Survival[optimIdxs_train],\
                                        censored = Censored[optimIdxs_train],\
                                        COMPUT_GRAPH_PARAMS = graphParams,\
@@ -142,8 +147,8 @@ def get_cv_accuracy(dpath, site, dtype, description,
                     ncamodel.reset_TrainHistory()
                     
                     # transform
-                    W = np.zeros((len(w), len(w)))
-                    np.fill_diagonal(W, w)
+                    #W = np.zeros((len(w), len(w)))
+                    #np.fill_diagonal(W, w)
                     x_valid_transformed = np.dot(X[optimIdxs_valid, :], W)
                     x_train_transformed = np.dot(X[optimIdxs_train, :], W)
                     
@@ -185,13 +190,18 @@ def get_cv_accuracy(dpath, site, dtype, description,
             graphParams['ALPHA'] = ALPHA_OPTIM
             graphParams['LAMBDA'] = LAMBDA_OPTIM
             
-            w = ncamodel.train(features = X[optimIdxs, :],\
+            #w = ncamodel.train(features = X[optimIdxs, :],\
+            #                   survival = Survival[optimIdxs],\
+            #                   censored = Censored[optimIdxs],\
+            #                   COMPUT_GRAPH_PARAMS = graphParams,\
+            #                   **nca_train_params)
+            W = ncamodel.train(features = X[optimIdxs, :],\
                                survival = Survival[optimIdxs],\
                                censored = Censored[optimIdxs],\
                                COMPUT_GRAPH_PARAMS = graphParams,\
                                **nca_train_params)
-            W = np.zeros((len(w), len(w)))
-            np.fill_diagonal(W, w) 
+            #W = np.zeros((len(w), len(w)))
+            #np.fill_diagonal(W, w) 
             
             # Transform features according to learned nca model
             X = np.dot(X, W)
@@ -202,16 +212,21 @@ def get_cv_accuracy(dpath, site, dtype, description,
             #================================================
             
             # sort X by absolute feature weights
-            sort_idxs = np.flip(np.abs(w).argsort(), axis=0)
-            X = X[:, sort_idxs]
+            #sort_idxs = np.flip(np.abs(w).argsort(), axis=0)
+            #X = X[:, sort_idxs]
+            #
+            #ci, _, _ = knnmodel.post_nca_cv_accuracy(\
+            #        X, Survival, Censored,
+            #        splitIdxs=splitIdxs,
+            #        outer_fold=outer_fold,
+            #        k_tune_params=k_tune_params,
+            #        n_feats_kcv_params=n_feats_kcv_params,
+            #        bagging_params=bagging_params)
             
-            ci, _, _ = knnmodel.post_nca_cv_accuracy(\
-                    X, Survival, Censored,
-                    splitIdxs=splitIdxs,
-                    outer_fold=outer_fold,
-                    k_tune_params=k_tune_params,
-                    n_feats_kcv_params=n_feats_kcv_params,
-                    bagging_params=bagging_params)
+            # just get accuracy
+            ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, \
+                                         splitIdxs, outer_fold=outer_fold,\
+                                         k_tune_params=k_tune_params)
         
         else:
             # just get accuracy
@@ -246,11 +261,11 @@ if __name__ == '__main__':
     
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH_BASE = projectPath + "Results/2_24Sep2017/Integ/"
+    RESULTPATH_BASE = projectPath + "Results/3_26Sep2017/Gene/"
     
     # dataset and description
     sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
-    dtypes = ["Integ", ] #"Gene"]
+    dtypes = ["Gene", ] #"Integ"]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
@@ -324,8 +339,8 @@ if __name__ == '__main__':
                 for site in sites:
                     
                     if dtype == "Gene":
-                        nca_train_params['BATCH_SIZE'] = 40
-                        nca_train_params['MAX_ITIR'] = 4
+                        nca_train_params['BATCH_SIZE'] = 30
+                        nca_train_params['MAX_ITIR'] = 5
                     else:
                         nca_train_params['BATCH_SIZE'] = 400
                         nca_train_params['MAX_ITIR'] = 25

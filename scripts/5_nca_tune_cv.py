@@ -109,7 +109,6 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                        description = description, \
                                        LOADPATH = LOADPATH)
                                        
-                
             #%%
             # Finding optimal values for ALPHA and LAMBDA (regularization)
             #==============================================================
@@ -251,7 +250,7 @@ if __name__ == '__main__':
     
     # dataset and description
     sites = ["MM", "GBMLGG", "BRCA", "KIPAN",]
-    dtypes = ["Integ", "Gene"]
+    dtypes = ["Integ", ] #"Gene"]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']

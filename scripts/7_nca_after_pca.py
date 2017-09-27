@@ -288,7 +288,7 @@ if __name__ == '__main__':
     RESULTPATH_BASE = projectPath + "Results/4_26Sep2017/"
     
     # dataset and description
-    sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
+    sites = ["BRCA", "GBMLGG", "KIPAN", "MM"]
     dtypes = ["Gene", "Integ"]
     
     norm = 2

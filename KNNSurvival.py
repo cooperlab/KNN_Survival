@@ -32,8 +32,6 @@ import ProjectUtils as pUtils
 import SurvivalUtils as sUtils
 import DataManagement as dm
 
-#raise(Exception)
-
 #%%============================================================================
 # KNN model class (trainable model)
 #==============================================================================
@@ -281,6 +279,7 @@ class SurvivalKNN(object):
                 status[status < 0] = 0
                 
                 # remove timepoints where there are no known statuses
+                # (i.e. after last neighbor dies or gets censored)
                 status = status[:, totalKnown != 0]
                 totalKnown = totalKnown[totalKnown != 0]
                 
@@ -344,7 +343,90 @@ class SurvivalKNN(object):
             
         return T_test, Ci
 
-    #==========================================================================   
+    #==========================================================================
+    
+    def predict_with_bagging(self, X_test, X_train,
+                             Survival_train,
+                             Censored_train,
+                             Survival_test=None,
+                             Censored_test=None,
+                             n_bags=50, 
+                             feats_per_bag=None,
+                             K=30,
+                             Method="cumulative-time",
+                             norm=2):
+        
+        """
+        Predict survival with random subspace bagging.
+        """
+        
+        if Method == "cumulative-hazard":
+            prediction_type = "risk"
+        else:
+            prediction_type = "survival_time"
+        
+        #
+        # sanity checks and defaults
+        #
+        
+        assign_defaults = False
+        
+        if feats_per_bag is None:
+            assign_defaults = True
+        else:
+            assert ("int" in str(type(feats_per_bag)))
+            if feats_per_bag > X_test.shape[1]:
+                assign_defaults = True
+                
+        if assign_defaults:
+            feats_per_bag = np.int32(0.75 * X_test.shape[1])
+        
+        #
+        # initialize
+        #
+        
+        preds = np.zeros([X_test.shape[0], n_bags])
+        
+        # Doing all the shufling first since for some reason
+        # np shuffle does not work insider the next loop!
+        idxs = np.arange(X_train.shape[1])
+        idx_shuffles = []
+        for shuff in range(n_bags):
+            np.random.shuffle(idxs)
+            idx_shuffles.append(idxs.copy()[0:feats_per_bag])
+        
+        #
+        # predict using random subspaces
+        #
+        
+        for bag, idxs in enumerate(idx_shuffles):
+            
+            # Get neighbor indices    
+            neighbor_idxs = self._get_neighbor_idxs(\
+                    X_test[:, idxs], 
+                    X_train[:, idxs], 
+                    norm = norm)
+        
+            # Predict testing set
+            t_test, _ = self.predict(neighbor_idxs,
+                                     Survival_train, Censored_train, 
+                                     K=K, Method=Method)
+           
+            preds[:, bag] = t_test
+        
+        # Aggregate prediction
+        t_test = np.median(preds, axis=1)
+
+        # Get Ci if survival data available
+        Ci = 0
+        if Survival_test is not None:
+            assert (Censored_test is not None)
+            Ci = sUtils.c_index(t_test, Survival_test, Censored_test, 
+                                prediction_type= prediction_type)
+        return t_test, Ci
+        
+    
+    #==========================================================================
 
     def post_nca_bagging(self, X_test, X_train,
                           Survival_train,

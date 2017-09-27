@@ -53,7 +53,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
                     nca_train_params={},
                     n_feats_kcv_params={},
                     bagging_params={},
-                    elastic_net_params={}):
+                    elastic_net_params={},
+                    USE_PCA=False,
+                    NUMPC=300):
     
     """
     Get KNN cross validation accuracy with or without NCA
@@ -148,11 +150,12 @@ def get_cv_accuracy(dpath, site, dtype, description,
             x_train = X[optimIdxs_train, :]
             x_valid = X[optimIdxs_valid, :]
             
-            # Learn PCA matrix on training set and apply to all
-            NUMPC = 300 # no of principle components
-            coeff, x_train, _ = princomp(x_train, numpc=NUMPC)
-            M = (x_valid-np.mean(x_valid.T,axis=1)).T
-            x_valid = np.dot(coeff.T,M)
+            if USE_PCA:
+                print("\nLearning PCA matrix for prototyping.")
+                # Learn PCA matrix on training set and apply to all
+                coeff, x_train, _ = princomp(x_train, numpc=NUMPC)
+                M = (x_valid-np.mean(x_valid.T,axis=1)).T
+                x_valid = np.dot(coeff.T,M)
 
             cis = []
             
@@ -165,12 +168,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
                     graphParams['ALPHA'] = ALPHA
                     graphParams['LAMBDA'] = LAMBDA
                     
-                    #w = ncamodel.train(features = X[optimIdxs_train, :],\
-                    #                   survival = Survival[optimIdxs_train],\
-                    #                   censored = Censored[optimIdxs_train],\
-                    #                   COMPUT_GRAPH_PARAMS = graphParams,\
-                    #                   **nca_train_params)
-                    W = ncamodel.train(features = X[x_train, :],\
+                    W = ncamodel.train(features = x_train,\
                                        survival = Survival[optimIdxs_train],\
                                        censored = Censored[optimIdxs_train],\
                                        COMPUT_GRAPH_PARAMS = graphParams,\
@@ -178,8 +176,6 @@ def get_cv_accuracy(dpath, site, dtype, description,
                     ncamodel.reset_TrainHistory()
                     
                     # transform
-                    #W = np.zeros((len(w), len(w)))
-                    #np.fill_diagonal(W, w)
                     x_valid_transformed = np.dot(X[optimIdxs_valid, :], W)
                     x_train_transformed = np.dot(X[optimIdxs_train, :], W)
                     
@@ -188,7 +184,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                                                 x_train_transformed, 
                                                                 norm = norm)
                     
-                    # Predict testing set
+                    # Predict validation set
                     _, Ci = knnmodel.predict(neighbor_idxs,
                                              Survival_train=Survival[optimIdxs_train], 
                                              Censored_train=Censored[optimIdxs_train], 
@@ -221,50 +217,38 @@ def get_cv_accuracy(dpath, site, dtype, description,
             graphParams['ALPHA'] = ALPHA_OPTIM
             graphParams['LAMBDA'] = LAMBDA_OPTIM
 
-            # Learn PCA matrix on optimization set and apply to all
-            coeff, _, _ = princomp(X[optimIdxs, :], numpc=NUMPC)
-            M = (X-np.mean(X.T,axis=1)).T
-            X = np.dot(coeff.T,M)
+            if USE_PCA:
+                print("Learning final PCA matrix.")
+                # Learn PCA matrix on full optimization set and apply to all
+                coeff, _, _ = princomp(X[optimIdxs, :], numpc=NUMPC)
+                M = (X-np.mean(X.T,axis=1)).T
+                X = np.dot(coeff.T,M)
             
-            #w = ncamodel.train(features = X[optimIdxs, :],\
-            #                   survival = Survival[optimIdxs],\
-            #                   censored = Censored[optimIdxs],\
-            #                   COMPUT_GRAPH_PARAMS = graphParams,\
-            #                   **nca_train_params)
+            # Learn NCA matrix
             W = ncamodel.train(features = X[optimIdxs, :],\
                                survival = Survival[optimIdxs],\
                                censored = Censored[optimIdxs],\
                                COMPUT_GRAPH_PARAMS = graphParams,\
                                **nca_train_params)
-            #W = np.zeros((len(w), len(w)))
-            #np.fill_diagonal(W, w) 
             
             # Transform features according to learned nca model
             X = np.dot(X, W)
             
             print("\nGetting accuracy.")        
-            
-            # Get bagged post-NCA accuracy
-            #================================================
-            
-            # sort X by absolute feature weights
-            #sort_idxs = np.flip(np.abs(w).argsort(), axis=0)
-            #X = X[:, sort_idxs]
-            #
-            #ci, _, _ = knnmodel.post_nca_cv_accuracy(\
-            #        X, Survival, Censored,
-            #        splitIdxs=splitIdxs,
-            #        outer_fold=outer_fold,
-            #        k_tune_params=k_tune_params,
-            #        n_feats_kcv_params=n_feats_kcv_params,
-            #        bagging_params=bagging_params)
-            
             # just get accuracy
             ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, \
                                          splitIdxs, outer_fold=outer_fold,\
                                          k_tune_params=k_tune_params)
         
         else:
+            
+            if USE_PCA:
+                print("Learning PCA matrix.")
+                # Learn PCA matrix on optimization set and apply to all
+                coeff, _, _ = princomp(X[optimIdxs, :], numpc=NUMPC)
+                M = (X-np.mean(X.T,axis=1)).T
+                X = np.dot(coeff.T,M)
+            
             # just get accuracy
             ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, \
                                          splitIdxs, outer_fold=outer_fold,\
@@ -278,7 +262,6 @@ def get_cv_accuracy(dpath, site, dtype, description,
     print("25th percentile = {}".format(np.percentile(CIs, 25)))
     print("50th percentile = {}".format(np.percentile(CIs, 50)))
     print("75th percentile = {}".format(np.percentile(CIs, 75)))
-    
     
     # Save results
     print("\nSaving final results.")
@@ -297,7 +280,7 @@ if __name__ == '__main__':
     
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH_BASE = projectPath + "Results/3_26Sep2017/Gene/"
+    RESULTPATH_BASE = projectPath + "Results/4_26Sep2017/"
     
     # dataset and description
     sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
@@ -328,6 +311,8 @@ if __name__ == '__main__':
     nca_train_params = \
             {'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
+            'BATCH_SIZE': 400,
+            'MAX_ITIR': 40,
             }
     
     n_feats_kcv_params = \
@@ -347,6 +332,8 @@ if __name__ == '__main__':
             {'K': 50,
              'VALID_RATIO': 0.5,
              }
+
+    NUMPC = 300 # no of principle components
     
     # Now run experiment
     #=================================================================
@@ -374,16 +361,11 @@ if __name__ == '__main__':
             for dtype in dtypes:
                 for site in sites:
                     
-                    if dtype == "Gene":
-                        nca_train_params['BATCH_SIZE'] = 30
-                        nca_train_params['MAX_ITIR'] = 5
-                    else:
-                        nca_train_params['BATCH_SIZE'] = 400
-                        nca_train_params['MAX_ITIR'] = 25
-                    
                     if (site == "MM") and (dtype == "Integ"):
                         continue
-                    
+
+                    if dtype == "Gene":
+                        USE_PCA = True
                     
                     description = site +"_"+ dtype +"_"
                     dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \
@@ -391,8 +373,6 @@ if __name__ == '__main__':
                     
                     # create output directory
                     os.system('mkdir ' + RESULTPATH + description)
-                    
-                    raise Exception("On purpose.")
                     
                     # get cv accuracy
                     get_cv_accuracy(dpath=dpath, site=site, dtype=dtype,
@@ -405,5 +385,7 @@ if __name__ == '__main__':
                                     nca_train_params=nca_train_params,
                                     n_feats_kcv_params=n_feats_kcv_params,
                                     bagging_params=bagging_params,
-                                    elastic_net_params=elastic_net_params)
+                                    elastic_net_params=elastic_net_params,
+                                    USE_PCA=USE_PCA,
+                                    NUMPC=NUMPC)
                     

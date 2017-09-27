@@ -389,10 +389,11 @@ if __name__ == '__main__':
                     if (site == "MM") and (dtype == "Integ"):
                         continue
             
-                    if dtype == "Gene":
-                        USE_PCA = True
-                    else:
-                        USE_PCA = False
+                    USE_PCA = True
+                    #if dtype == "Gene":
+                    #    USE_PCA = True
+                    #else:
+                    #    USE_PCA = False
                     
                     description = site +"_"+ dtype +"_"
                     dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \

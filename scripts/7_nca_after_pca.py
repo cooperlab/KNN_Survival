@@ -30,6 +30,12 @@ def princomp(A,numpc=0):
     # computing eigenvalues and eigenvectors of covariance matrix
     M = (A-np.mean(A.T,axis=1)).T # subtract the mean (along columns)
     [latent,coeff] = np.linalg.eig(np.cov(M))
+    
+    # keep real component
+    # (complex component is just zero or numerical error)    
+    latent = np.real(latent)
+    coeff = np.real(coeff)
+    
     p = np.size(coeff,axis=1)
     idx = np.argsort(latent) # sorting the eigenvalues
     idx = idx[::-1]       # in ascending order
@@ -38,7 +44,7 @@ def princomp(A,numpc=0):
     latent = latent[idx] # sorting eigenvalues
     if numpc < p and numpc >= 0:
         coeff = coeff[:,range(numpc)] # cutting some PCs if needed
-    score = np.dot(coeff.T,M) # projection of the data in the new space
+    score = np.dot(coeff.T,M).T # projection of the data in the new space
     
     return coeff,score,latent
 
@@ -149,14 +155,14 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             x_train = X[optimIdxs_train, :]
             x_valid = X[optimIdxs_valid, :]
-            
+                    
             if USE_PCA:
                 print("\nLearning PCA matrix for prototyping.")
                 # Learn PCA matrix on training set and apply to all
                 coeff, x_train, _ = princomp(x_train, numpc=NUMPC)
                 M = (x_valid-np.mean(x_valid.T,axis=1)).T
-                x_valid = np.dot(coeff.T,M)
-
+                x_valid = np.dot(coeff.T,M).T
+    
             cis = []
             
             for ALPHA in ALPHAS:
@@ -176,8 +182,8 @@ def get_cv_accuracy(dpath, site, dtype, description,
                     ncamodel.reset_TrainHistory()
                     
                     # transform
-                    x_valid_transformed = np.dot(X[optimIdxs_valid, :], W)
-                    x_train_transformed = np.dot(X[optimIdxs_train, :], W)
+                    x_valid_transformed = np.dot(x_valid, W)
+                    x_train_transformed = np.dot(x_train, W)
                     
                     # get neighbor indices    
                     neighbor_idxs = knnmodel._get_neighbor_idxs(x_valid_transformed, 
@@ -216,13 +222,13 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             graphParams['ALPHA'] = ALPHA_OPTIM
             graphParams['LAMBDA'] = LAMBDA_OPTIM
-
+    
             if USE_PCA:
                 print("Learning final PCA matrix.")
                 # Learn PCA matrix on full optimization set and apply to all
                 coeff, _, _ = princomp(X[optimIdxs, :], numpc=NUMPC)
                 M = (X-np.mean(X.T,axis=1)).T
-                X = np.dot(coeff.T,M)
+                X = np.dot(coeff.T,M).T
             
             # Learn NCA matrix
             W = ncamodel.train(features = X[optimIdxs, :],\
@@ -236,10 +242,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             print("\nGetting accuracy.")        
             # just get accuracy
-            ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, \
-                                         splitIdxs, outer_fold=outer_fold,\
-                                         k_tune_params=k_tune_params)
-        
+            ci, _ = knnmodel.cv_accuracy(X, Survival, Censored,
+                                         splitIdxs, outer_fold=outer_fold,
+                                         k_tune_params=k_tune_params) 
         else:
             
             if USE_PCA:
@@ -247,7 +252,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
                 # Learn PCA matrix on optimization set and apply to all
                 coeff, _, _ = princomp(X[optimIdxs, :], numpc=NUMPC)
                 M = (X-np.mean(X.T,axis=1)).T
-                X = np.dot(coeff.T,M)
+                X = np.dot(coeff.T,M).T
             
             # just get accuracy
             ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, \
@@ -284,7 +289,7 @@ if __name__ == '__main__':
     
     # dataset and description
     sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
-    dtypes = ["Gene", ] #"Integ"]
+    dtypes = ["Gene", "Integ"]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
@@ -315,24 +320,11 @@ if __name__ == '__main__':
             'MAX_ITIR': 40,
             }
     
-    n_feats_kcv_params = \
-            {'kcv': 4,
-             'shuffles': 2,
-             'n_feats_max': 150,
-             'norm': norm,
-             }
-    
-    bagging_params = \
-            {'min_n_feats': 20,
-             'n_subspaces': 100,
-             'norm': norm,
-             }
-    
     elastic_net_params = \
             {'K': 50,
              'VALID_RATIO': 0.5,
              }
-
+    
     NUMPC = 300 # no of principle components
     
     # Now run experiment
@@ -344,8 +336,6 @@ if __name__ == '__main__':
             # pass params to dicts
             k_tune_params['Method'] = Method
             knn_params['Method'] = Method
-            n_feats_kcv_params['Method'] = Method
-            bagging_params['Method'] = Method
             
             # Itirate through datasets
             
@@ -363,9 +353,11 @@ if __name__ == '__main__':
                     
                     if (site == "MM") and (dtype == "Integ"):
                         continue
-
+            
                     if dtype == "Gene":
                         USE_PCA = True
+                    else:
+                        USE_PCA = False
                     
                     description = site +"_"+ dtype +"_"
                     dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \
@@ -383,9 +375,12 @@ if __name__ == '__main__':
                                     USE_NCA=USE_NCA,
                                     graphParams=graphParams,
                                     nca_train_params=nca_train_params,
-                                    n_feats_kcv_params=n_feats_kcv_params,
-                                    bagging_params=bagging_params,
                                     elastic_net_params=elastic_net_params,
                                     USE_PCA=USE_PCA,
                                     NUMPC=NUMPC)
-                    
+                                        
+
+#%%
+#%%
+#%%
+

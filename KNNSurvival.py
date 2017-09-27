@@ -429,15 +429,15 @@ class SurvivalKNN(object):
     #==========================================================================
 
     def post_nca_bagging(self, X_test, X_train,
-                          Survival_train,
-                          Censored_train,
-                          Survival_test=None,
-                          Censored_test=None,
-                          min_n_feats=10,
-                          n_subspaces=20,
-                          K=30,
-                          Method="cumulative-time",
-                          norm=2):
+                         Survival_train,
+                         Censored_train,
+                         Survival_test=None,
+                         Censored_test=None,
+                         min_n_feats=10,
+                         n_subspaces=20,
+                         K=30,
+                         Method="cumulative-time",
+                         norm=2):
 
         """
         Get accuracy using bagged subspaces KNN approach
@@ -758,9 +758,11 @@ class SurvivalKNN(object):
     # model accuracy
     #============================================================================== 
 
-    def cv_accuracy(self, X, Survival, Censored, \
-                    splitIdxs, outer_fold, \
-                    k_tune_params):
+    def cv_accuracy(self, X, Survival, Censored, 
+                    splitIdxs, outer_fold, 
+                    k_tune_params,
+                    USE_BAGGING=False,
+                    bagging_params={}):
 
         """
         Find model accuracy using KCV (after ptimizing K)
@@ -804,17 +806,30 @@ class SurvivalKNN(object):
             Censored_train = Censored[idxs_train]
             Survival_test = Survival[idxs_test]
             Censored_test = Censored[idxs_test]
-        
-            # Get neighbor indices    
-            neighbor_idxs = self._get_neighbor_idxs(X_test, X_train, norm = norm)
-        
-            # Predict testing set
-            _, Ci = self.predict(neighbor_idxs,
-                                 Survival_train, Censored_train, 
-                                 Survival_test = Survival_test, 
-                                 Censored_test = Censored_test, 
-                                 K = K_optim, 
-                                 Method = Method)
+            
+            if USE_BAGGING:
+                # predict with bagging
+                _, Ci = self.predict_with_bagging(\
+                                     X_test, X_train,
+                                     Survival_train,
+                                     Censored_train,
+                                     Survival_test=Survival_test,
+                                     Censored_test=Censored_test,
+                                     K=K_optim,
+                                     Method=Method,
+                                     norm=norm,
+                                     **bagging_params)
+            else:
+                # Get neighbor indices    
+                neighbor_idxs = self._get_neighbor_idxs(X_test, X_train, norm = norm)
+            
+                # Predict testing set
+                _, Ci = self.predict(neighbor_idxs,
+                                     Survival_train, Censored_train, 
+                                     Survival_test = Survival_test, 
+                                     Censored_test = Censored_test, 
+                                     K = K_optim, 
+                                     Method = Method)
             
             CIs[fold] = Ci
                

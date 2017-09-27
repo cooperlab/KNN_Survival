@@ -30,10 +30,10 @@ def get_cv_accuracy(dpath, site, dtype, description,
                     USE_NCA=False,
                     graphParams={},
                     nca_train_params={},
-                    n_feats_kcv_params={},
-                    bagging_params={},
                     elastic_net_params={},
-                    USE_PCA=False):
+                    USE_PCA=False,
+                    USE_BAGGING=False,
+                    bagging_params={}):
     
     """
     Get KNN cross validation accuracy with or without PCA and NCA
@@ -284,7 +284,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
         print("\nGetting accuracy.") 
         ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, 
                                      splitIdxs, outer_fold=outer_fold,
-                                     k_tune_params=k_tune_params)
+                                     k_tune_params=k_tune_params,
+                                     USE_BAGGING=USE_BAGGING,
+                                     bagging_params=bagging_params)
         # record result
         CIs[:, outer_fold] = ci
     
@@ -333,6 +335,12 @@ if __name__ == '__main__':
     
     knn_params = {'norm': norm,
                   }
+    
+    USE_BAGGING = True
+    
+    bagging_params = {'n_bags': 50,
+                      'feats_per_bag': None
+                      }
     
     # NCA params  ---------------------------------------------------
     
@@ -403,7 +411,9 @@ if __name__ == '__main__':
                                     graphParams=graphParams,
                                     nca_train_params=nca_train_params,
                                     elastic_net_params=elastic_net_params,
-                                    USE_PCA=USE_PCA)
+                                    USE_PCA=USE_PCA,
+                                    USE_BAGGING=USE_BAGGING,
+                                    bagging_params=bagging_params)
                                         
 
 #%%

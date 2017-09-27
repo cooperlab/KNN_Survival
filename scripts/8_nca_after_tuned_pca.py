@@ -64,7 +64,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
         
         cis = []
         
-        for numpc in range(4, feats_train.shape[1], 4):
+        numpc_max = np.min([feats_train.shape[1], 200])
+        
+        for numpc in range(4, numpc_max, 4):
             feats_train_new = feats_train[:, 0:numpc]
             feats_valid_new = feats_valid[:, 0:numpc]
             # get neighbor indices    

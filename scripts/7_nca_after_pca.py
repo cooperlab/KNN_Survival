@@ -14,40 +14,10 @@ sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 import _pickle
 from scipy.io import loadmat
 import numpy as np
+from sklearn.decomposition import PCA
 
 import NCA_model_experimental as nca
 import KNNSurvival as knn
-
-#%%
-def princomp(A,numpc=0):
-    
-    """
-    principle components analysis
-    source: https://glowingpython.blogspot.it/2011/07/ ...
-            pca-and-image-compression-with-numpy.html
-    """
-    
-    # computing eigenvalues and eigenvectors of covariance matrix
-    M = (A-np.mean(A.T,axis=1)).T # subtract the mean (along columns)
-    [latent,coeff] = np.linalg.eig(np.cov(M))
-    
-    # keep real component
-    # (complex component is just zero or numerical error)    
-    latent = np.real(latent)
-    coeff = np.real(coeff)
-    
-    p = np.size(coeff,axis=1)
-    idx = np.argsort(latent) # sorting the eigenvalues
-    idx = idx[::-1]       # in ascending order
-    # sorting eigenvectors according to the sorted eigenvalues
-    coeff = coeff[:,idx]
-    latent = latent[idx] # sorting eigenvalues
-    if numpc < p and numpc >= 0:
-        coeff = coeff[:,range(numpc)] # cutting some PCs if needed
-    score = np.dot(coeff.T,M).T # projection of the data in the new space
-    
-    return coeff,score,latent
-
 
 #%%
 def get_cv_accuracy(dpath, site, dtype, description,
@@ -157,11 +127,10 @@ def get_cv_accuracy(dpath, site, dtype, description,
             x_valid = X[optimIdxs_valid, :]
                     
             if USE_PCA:
-                print("\nLearning PCA matrix for prototyping.")
-                # Learn PCA matrix on training set and apply to all
-                coeff, x_train, _ = princomp(x_train, numpc=NUMPC)
-                M = (x_valid-np.mean(x_valid.T,axis=1)).T
-                x_valid = np.dot(coeff.T,M).T
+                print("\nLearning PCA matrix for prototyping.")            
+                pca = PCA(n_components=NUMPC)
+                x_train = pca.fit_transform(x_train)
+                x_valid = pca.transform(x_valid)
     
             cis = []
             
@@ -225,10 +194,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
     
             if USE_PCA:
                 print("Learning final PCA matrix.")
-                # Learn PCA matrix on full optimization set and apply to all
-                coeff, _, _ = princomp(X[optimIdxs, :], numpc=NUMPC)
-                M = (X-np.mean(X.T,axis=1)).T
-                X = np.dot(coeff.T,M).T
+                pca = PCA(n_components=NUMPC)
+                pca.fit(X[optimIdxs, :])
+                X = pca.transform(X)
             
             # Learn NCA matrix
             W = ncamodel.train(features = X[optimIdxs, :],\
@@ -249,10 +217,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             if USE_PCA:
                 print("Learning PCA matrix.")
-                # Learn PCA matrix on optimization set and apply to all
-                coeff, _, _ = princomp(X[optimIdxs, :], numpc=NUMPC)
-                M = (X-np.mean(X.T,axis=1)).T
-                X = np.dot(coeff.T,M).T
+                pca = PCA(n_components=NUMPC)
+                pca.fit(X[optimIdxs, :])
+                X = pca.transform(X)
             
             # just get accuracy
             ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, \
@@ -288,7 +255,7 @@ if __name__ == '__main__':
     RESULTPATH_BASE = projectPath + "Results/4_26Sep2017/"
     
     # dataset and description
-    sites = ["BRCA", "GBMLGG", "KIPAN", "MM"]
+    sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
     dtypes = ["Gene", "Integ"]
     
     norm = 2

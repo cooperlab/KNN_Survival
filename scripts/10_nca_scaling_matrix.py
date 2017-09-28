@@ -16,7 +16,7 @@ from scipy.io import loadmat
 import numpy as np
 from sklearn.decomposition import PCA
 
-import NCA_model_experimental as nca
+import NCA_model as nca
 import KNNSurvival as knn
 
 #%% ===========================================================================
@@ -219,11 +219,14 @@ def get_cv_accuracy(dpath, site, dtype, description,
                     graphParams['ALPHA'] = ALPHA
                     graphParams['LAMBDA'] = LAMBDA
                     
-                    W = ncamodel.train(features = x_train,
+                    w = ncamodel.train(features = x_train,
                                        survival = Survival[optimIdxs_train],
                                        censored = Censored[optimIdxs_train],
                                        COMPUT_GRAPH_PARAMS = graphParams,
                                        **nca_train_params)
+                    W = np.zeros([len(w), len(w)])
+                    np.fill_diagonal(W, w)
+                    
                     ncamodel.reset_TrainHistory()
                     
                     # transform
@@ -268,11 +271,13 @@ def get_cv_accuracy(dpath, site, dtype, description,
             graphParams['LAMBDA'] = LAMBDA_OPTIM
     
             # Learn NCA matrix
-            W = ncamodel.train(features = X[optimIdxs, :],
+            w = ncamodel.train(features = X[optimIdxs, :],
                                survival = Survival[optimIdxs],
                                censored = Censored[optimIdxs],
                                COMPUT_GRAPH_PARAMS = graphParams,
                                **nca_train_params)
+            W = np.zeros([len(w), len(w)])
+            np.fill_diagonal(W, w)
             
             # Transform features according to learned nca model
             X = np.dot(X, W)
@@ -316,11 +321,11 @@ if __name__ == '__main__':
     
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH_BASE = projectPath + "Results/5_27Sep2017/"
+    RESULTPATH_BASE = projectPath + "Results/6_28Sep2017/"
     
     # dataset and description
     sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
-    dtypes = ["Gene", "Integ"]
+    dtypes = ["Integ", "Gene"]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
@@ -367,7 +372,7 @@ if __name__ == '__main__':
     
     for USE_NCA in [True, False]:
         for Method in Methods:
-            for USE_PCA in [True, False]:
+            for USE_PCA in [False, True]:
             
                 # pass params to dicts
                 k_tune_params['Method'] = Method
@@ -390,9 +395,21 @@ if __name__ == '__main__':
                         
                         if (site == "MM") and (dtype == "Integ"):
                             continue
-                
-                        if (dtype == "Gene") and (not USE_PCA):
+                            
+                        if (USE_PCA and (not USE_NCA)):
                             continue
+                        
+                        if ((not USE_PCA) and (not USE_NCA)):
+                            continue
+                        
+                        if (dtype == "Gene") and (not USE_PCA):
+                            graphParams['LEARN_RATE'] = 0.05
+                            nca_train_params['BATCH_SIZE'] = 30
+                            nca_train_params['MAX_ITIR'] = 8
+                        else:
+                            graphParams['LEARN_RATE'] = 0.01
+                            nca_train_params['BATCH_SIZE'] = 400
+                            nca_train_params['MAX_ITIR'] = 25
 
                         description = site +"_"+ dtype +"_"
                         dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \

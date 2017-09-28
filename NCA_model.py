@@ -27,8 +27,8 @@ import tensorflow as tf
 #from matplotlib import cm
 #import matplotlib.pylab as plt
 
-import logging
-import datetime
+#import logging
+#import datetime
 
 import ProjectUtils as pUtils
 import SurvivalUtils as sUtils
@@ -115,10 +115,10 @@ class SurvivalNCA(object):
             # Configure logger - will not work with iPython
             #==================================================================
             
-            timestamp = str(datetime.datetime.today()).replace(' ','_')
-            logging.basicConfig(filename = self.LOGPATH + timestamp + "_RunLogs.log", 
-                                level = logging.INFO,
-                                format = '%(levelname)s:%(message)s')
+            #timestamp = str(datetime.datetime.today()).replace(' ','_')
+            #logging.basicConfig(filename = self.LOGPATH + timestamp + "_RunLogs.log", 
+            #                    level = logging.INFO,
+            #                    format = '%(levelname)s:%(message)s')
                                 
             
     #%%===========================================================================
@@ -133,7 +133,7 @@ class SurvivalNCA(object):
         
         """save relevant attributes as ModelAttributes.pkl"""
         
-        pUtils.Log_and_print("Saving relevant attributes ...")
+        #pUtils.Log_and_print("Saving relevant attributes ...")
 
         attribs = self.getModelInfo()
                 
@@ -199,7 +199,7 @@ class SurvivalNCA(object):
         #self.Costs_batchLevel_valid = []
         self.Costs_epochLevel_train = []
         self.Costs_epochLevel_valid = []
-        self.save()
+        #self.save()
         
     #==========================================================================    
     
@@ -265,13 +265,13 @@ class SurvivalNCA(object):
         survival and censored - (N,) np array
         """
         
-        pUtils.Log_and_print("Training survival NCA model.")
+        #pUtils.Log_and_print("Training survival NCA model.")
         
         
         # Initial preprocessing and sanity checks
         #====================================================================== 
         
-        pUtils.Log_and_print("Initial preprocessing.")
+        #pUtils.Log_and_print("Initial preprocessing.")
         
         assert len(features.shape) == 2
         assert len(survival.shape) == 1
@@ -312,8 +312,9 @@ class SurvivalNCA(object):
         
         # Begin session
         #======================================================================  
-
-        pUtils.Log_and_print("Running TF session.")
+        
+        print("Running TF session.")
+        #pUtils.Log_and_print("Running TF session.")
 
         with tf.Session() as sess:
             
@@ -326,9 +327,9 @@ class SurvivalNCA(object):
             
             if "checkpoint" in os.listdir(self.WEIGHTPATH):
                 # load existing weights 
-                pUtils.Log_and_print("Restoring saved model ...")                
+                #pUtils.Log_and_print("Restoring saved model ...")                
                 saver.restore(sess, self.WEIGHTPATH + self.description + ".ckpt")
-                pUtils.Log_and_print("Model restored.")                
+                #pUtils.Log_and_print("Model restored.")                
                 
             else:                
                 # start a new model
@@ -348,10 +349,10 @@ class SurvivalNCA(object):
                 """Saves model weights using tensorflow saver"""
             
                 # save weights                        
-                pUtils.Log_and_print("\nSaving TF model weights...")
-                save_path = saver.save(sess, \
-                                self.WEIGHTPATH + self.description + ".ckpt")
-                pUtils.Log_and_print("Model saved in file: %s" % save_path)
+                #pUtils.Log_and_print("\nSaving TF model weights...")
+                #save_path = saver.save(sess, \
+                #                self.WEIGHTPATH + self.description + ".ckpt")
+                #pUtils.Log_and_print("Model saved in file: %s" % save_path)
             
                 # save attributes
                 self.save()
@@ -382,6 +383,10 @@ class SurvivalNCA(object):
             
             try: 
                 itir = 0
+                
+                print("\n\tepoch\tbatch\tcost")
+                print("\t-----------------------")
+                
                 while itir < MAX_ITIR:
                     
                     #pUtils.Log_and_print("\n\tTraining epoch {}\n".format(self.EPOCHS_RUN))
@@ -441,6 +446,7 @@ class SurvivalNCA(object):
                         #self.Costs_batchLevel_train.append(cost)                  
                         cost_tot += cost                        
                         
+                        print("\t{}\t{}\t{}".format(self.EPOCHS_RUN, batchidx, round(cost[0], 3)))
                         #pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
                         #     format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
                      
@@ -473,8 +479,8 @@ class SurvivalNCA(object):
                             #self.Costs_batchLevel_valid.append(cost)
                             cost_tot_valid += cost
                             
-                            pUtils.Log_and_print("\t\tValidation: Batch {} of {}, cost = {}".\
-                                 format(batchidx, len(batchIdxs_valid)-1, round(cost[0], 3)))
+                            #pUtils.Log_and_print("\t\tValidation: Batch {} of {}, cost = {}".\
+                            #     format(batchidx, len(batchIdxs_valid)-1, round(cost[0], 3)))
 
                     # Update and save                     
                     #==========================================================
@@ -485,7 +491,6 @@ class SurvivalNCA(object):
                     if USE_VALID:
                         self.Costs_epochLevel_valid.append(cost_tot_valid)  
                    
-
                     # periodically save model
                     #if (self.EPOCHS_RUN % MODEL_SAVE_STEP) == 0:
                     #    _saveTFmodel() 
@@ -502,8 +507,8 @@ class SurvivalNCA(object):
             #_saveTFmodel()
             _monitorProgress()
 
-            pUtils.Log_and_print("\nFinished training model.")
-            pUtils.Log_and_print("Obtaining final results.")
+            #pUtils.Log_and_print("Finished training model.")
+            #pUtils.Log_and_print("Obtaining final results.")
             
             # save learned weights
             w = sess.run(graph.w, feed_dict = feed_dict)

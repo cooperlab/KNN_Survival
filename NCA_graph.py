@@ -17,7 +17,7 @@ conditionalAppend(cwd)
 
 import tensorflow as tf
 
-import ProjectUtils as pUtils
+#import ProjectUtils as pUtils
 
 #%%============================================================================
 # Computational graph class
@@ -48,7 +48,8 @@ class comput_graph(object):
         
         """
         
-        pUtils.Log_and_print("Building computational graph for survival NCA.")        
+        print("Building computational graph for survival NCA.")
+        #pUtils.Log_and_print("Building computational graph for survival NCA.")        
         
         # set up instace attributes
         self.dim_input = dim_input
@@ -61,19 +62,19 @@ class comput_graph(object):
         # clear lurking tensors
         tf.reset_default_graph()
         
-        pUtils.Log_and_print("Adding placeholders.")
+        #pUtils.Log_and_print("Adding placeholders.")
         self.add_placeholders()
         
-        pUtils.Log_and_print("Adding linear feature transform.")
+        #pUtils.Log_and_print("Adding linear feature transform.")
         self.add_linear_transform()
             
-        pUtils.Log_and_print("Adding regularized weighted log likelihood.")
+        #pUtils.Log_and_print("Adding regularized weighted log likelihood.")
         self.add_cost()
         
-        pUtils.Log_and_print("Adding optimizer.")
+        #pUtils.Log_and_print("Adding optimizer.")
         self.add_optimizer()
         
-        pUtils.Log_and_print("\nFinished building graph.")
+        #pUtils.Log_and_print("Finished building graph.")
 
 
     #%%========================================================================
@@ -151,6 +152,7 @@ class comput_graph(object):
             # every patient and all others -> [n_samples, n_samples]
             #normAX = tf.norm(normAX, axis=0)
             normAX = tf.reduce_sum(normAX ** 2, axis=2)
+            #normAX = tf.sqrt(tf.reduce_sum(normAX ** 2, axis=2))
             
             # Calculate Pij, the probability that j will be chosen 
             # as i's neighbor, for all i's. Pij has shape

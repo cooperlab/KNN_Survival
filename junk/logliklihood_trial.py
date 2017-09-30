@@ -134,6 +134,7 @@ def tensorflow_version_of_cost(output, O, at_risk):
     # cost is negative log likelihood
     cost = - tf.reduce_sum(times)
     
+    # run session to fetch cost
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())    
         c = cost.eval()

@@ -213,7 +213,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
             for ALPHA in ALPHAS:
                 for LAMBDA in LAMBDAS:
                     
-                    if ((LAMBDA == 0) and (ALPHA > ALPHA.min())):
+                    if ((LAMBDA == 0) and (ALPHA > ALPHAS.min())):
                         continue
             
                     graphParams['ALPHA'] = ALPHA
@@ -325,7 +325,7 @@ if __name__ == '__main__':
     
     # dataset and description
     sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
-    dtypes = ["Integ", "Gene"]
+    dtypes = ["Gene", "Integ"]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
@@ -403,11 +403,9 @@ if __name__ == '__main__':
                             continue
                         
                         if (dtype == "Gene") and (not USE_PCA):
-                            graphParams['LEARN_RATE'] = 0.05
                             nca_train_params['BATCH_SIZE'] = 30
                             nca_train_params['MAX_ITIR'] = 8
                         else:
-                            graphParams['LEARN_RATE'] = 0.01
                             nca_train_params['BATCH_SIZE'] = 400
                             nca_train_params['MAX_ITIR'] = 25
 

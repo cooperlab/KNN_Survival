@@ -65,7 +65,6 @@ class SurvivalNCA(object):
     # default graph params
     default_graphParams = {'ALPHA': 0.5,
                            'LAMBDA': 0,
-                           'KAPPA': 1.0,
                            'OPTIM': 'GD',
                            'LEARN_RATE': 0.01}
     userspecified_graphParams = ['dim_input',]

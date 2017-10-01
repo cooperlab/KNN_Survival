@@ -146,6 +146,8 @@ class comput_graph(object):
                 normAX = self.X_transformed[None, :, :] - \
                          self.X_transformed[:, None, :]
                 normAX = tf.reduce_sum(normAX ** 2, axis=2)
+                #normAX = tf.sqrt(tf.reduce_sum(normAX ** 2, axis=2))
+                #normAX = tf.reduce_sum(tf.abs(normAX), axis=2)
             
             else:
                 # find distance along batches of features and cumsum
@@ -175,10 +177,10 @@ class comput_graph(object):
                     normAX = normAX + norm_thisFeatureSet
                 
             # Calculate Pij, the probability that j will be chosen 
-            # as i's neighbor, for all i's. Pij has shape
+            # as i's closest neighbor, for all i's. Pij has shape
             # [n_samples, n_samples] and ** is NOT symmetrical **.
             # Because the data is normalized using softmax, values
-            # add to 1 in rows, that is i (central patients) are
+            # add to 1 in rows. That is, i (central patients) are
             # represented in rows
             denomSum = tf.reduce_sum(tf.exp(-normAX), axis=0)
             epsilon = 1e-50

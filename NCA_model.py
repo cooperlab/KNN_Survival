@@ -106,6 +106,7 @@ class SurvivalNCA(object):
             #self.Costs_batchLevel_valid = []
             self.BATCHES_RUN = 0
             self.EPOCHS_RUN = 0
+            self.T_MAX = 4000
             
             # Create output dirs
             #==================================================================
@@ -284,25 +285,12 @@ class SurvivalNCA(object):
             assert (survival_valid is not None)
             assert (censored_valid is not None)
         
-        #
-        # Z-scoring survival (for numerical stability with optimizer)
-        #
-        
-        # Combine training and validation (for comparability)
-        survival_all = survival[:, None]
-        if USE_VALID:
-            survival_all = np.concatenate((survival_all, 
-                                           survival_valid[:, None]), axis=0)
-
-        # z-score combined
-        survival_all = (survival_all - np.mean(survival_all)) / np.std(survival_all)
-
-        # separate out
-        survival = survival_all[0:len(survival), 0]
+        # normalize (for numeric stability)
+        epsilon = 1e-10
+        survival = (survival / self.T_MAX) + epsilon
         if USE_VALID:        
-            survival_valid = survival_all[len(survival):, 0]
-              
-
+            survival_valid =  (survival_valid / self.T_MAX) + epsilon
+        
         # Define computational graph
         #======================================================================        
         

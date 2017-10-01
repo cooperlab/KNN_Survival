@@ -260,6 +260,8 @@ def get_cv_accuracy(dpath, site, dtype, description,
             # Bayesian optimization of NCA hyperparameters
             #------------------------------------------------------------------
             
+            print("\nBayesian Optimization of NCA hyperparameters.\n")            
+            
             # instantiate NCA model
             ncamodel = nca.SurvivalNCA(RESULTPATH_NCA, 
                                        description = description, 
@@ -311,7 +313,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
             bo_lims = {
                 'ALPHA': (0, 1),
                 'LAMBDA': (0, 1),
-                'SIGMA': (0.2, 10)
+                'SIGMA': (0.2, 15)
             }
             
             # initial points to explore
@@ -323,7 +325,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             bo = bayesopt(run_nca, bo_lims)
             bo.explore(bo_expl)
-            bo.maximize(init_points = 2, n_iter = 15)
+            bo.maximize(init_points = 2, n_iter = 20)
             Optim_params = bo.res['max']['max_params']
             
             ALPHA_OPTIM = Optim_params['ALPHA']

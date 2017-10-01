@@ -50,9 +50,6 @@ class comput_graph(object):
         print("Building computational graph for survival NCA.")
         #pUtils.Log_and_print("Building computational graph for survival NCA.")    
         
-        if per_split_feats >= dim_input:
-            per_split_feats = int(dim_input / 2)
-        
         # set up instace attributes
         self.dim_input = dim_input
         self.ALPHA = ALPHA
@@ -89,6 +86,7 @@ class comput_graph(object):
         
         with tf.variable_scope("Inputs"):
         
+            #with tf.device('/cpu:0'):
             self.X_input = tf.placeholder("float", [None, self.dim_input], name='X_input')
             
             self.T = tf.placeholder("float", [None], name='T')
@@ -123,7 +121,8 @@ class comput_graph(object):
             self.W = tf.diag(self.w)
             #self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_input], 
             #                initializer= tf.contrib.layers.xavier_initializer())
-                        
+            
+            #with tf.device('/cpu:0'):
             #self.X_transformed = tf.add(tf.matmul(self.X_input, self.W), self.B) 
             self.X_transformed = tf.matmul(self.X_input, self.W)
     
@@ -141,30 +140,39 @@ class comput_graph(object):
         
         with tf.name_scope("getting_Pij"):
             
-            n_splits = int(self.dim_input / self.per_split_feats)
-            n_divisible = n_splits * self.per_split_feats
-            X_split = tf.split(self.X_transformed[:,0:n_divisible], n_splits, axis=1)
-            X_split.append(self.X_transformed[:,n_divisible:])
+            if self.per_split_feats >= self.dim_input:
+
+                # find distance along all features in one go
+                normAX = self.X_transformed[None, :, :] - \
+                         self.X_transformed[:, None, :]
+                normAX = tf.reduce_sum(normAX ** 2, axis=2)
             
-            # get norm along first feature set
-            print("\tsplit 0")
-            normAX = X_split[0][None, :, :] - X_split[0][:, None, :]
-            normAX = tf.reduce_sum(normAX ** 2, axis=2)
-             
-            for split in range(1, len(X_split)): 
-                
-                print("\tsplit {}".format(split))
-             
-                # Expand dims of AX to [n_samples, n_samples, n_features], where
-                # each "channel" in the third dimension is the difference between
-                # one sample and all other samples along one feature
-                norm_thisFeatureSet = X_split[split][None, :, :] - \
-                                      X_split[split][:, None, :]
-                
-                norm_thisFeatureSet = tf.reduce_sum(norm_thisFeatureSet ** 2, axis=2)
-                
-                # add to existing cumulative sum    
-                normAX = normAX + norm_thisFeatureSet
+            else:
+                # find distance along batches of features and cumsum
+                n_splits = int(self.dim_input / self.per_split_feats)
+                n_divisible = n_splits * self.per_split_feats
+                X_split = tf.split(self.X_transformed[:,0:n_divisible], n_splits, axis=1)
+                X_split.append(self.X_transformed[:,n_divisible:])
+    
+                # get norm along first feature set
+                print("\tsplit 0")
+                normAX = X_split[0][None, :, :] - X_split[0][:, None, :]
+                normAX = tf.reduce_sum(normAX ** 2, axis=2)
+                 
+                for split in range(1, len(X_split)): 
+                    
+                    print("\tsplit {}".format(split))
+                 
+                    # Expand dims of AX to [n_samples, n_samples, n_features], where
+                    # each "channel" in the third dimension is the difference between
+                    # one sample and all other samples along one feature
+                    norm_thisFeatureSet = X_split[split][None, :, :] - \
+                                          X_split[split][:, None, :]
+                    
+                    norm_thisFeatureSet = tf.reduce_sum(norm_thisFeatureSet ** 2, axis=2)
+                    
+                    # add to existing cumulative sum    
+                    normAX = normAX + norm_thisFeatureSet
                 
             # Calculate Pij, the probability that j will be chosen 
             # as i's neighbor, for all i's. Pij has shape
@@ -241,13 +249,13 @@ class comput_graph(object):
             with tf.name_scope("Elastic_net"):
                 
                 # Lasso-like penalty
-                L1penalty = self.LAMBDA * tf.reduce_sum(tf.abs(W))
+                L1penalty = tf.reduce_sum(tf.abs(W))
                 
                 # Compute the L2 penalty (ridge-like)
-                L2penalty = self.LAMBDA * tf.reduce_sum(W ** 2)
+                L2penalty = tf.reduce_sum(W ** 2)
                     
                 # Combine L1 and L2 penalty terms
-                P = 0.5 * (self.ALPHA * L1penalty + (1 - self.ALPHA) * L2penalty)
+                P = self.LAMBDA * (self.ALPHA * L1penalty + 0.5 * (1 - self.ALPHA) * L2penalty)
             
             return P
         

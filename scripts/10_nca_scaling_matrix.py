@@ -102,13 +102,10 @@ def get_cv_accuracy(dpath, site, dtype, description,
     
     print("Loading data.")
     
-    Data = loadmat(dpath)
-    
-    Features = Data[dtype + '_X']
-    
-    N = Features.shape[0]
-    Survival = Data['Survival'].reshape([N,])
-    Censored = Data['Censored'].reshape([N,])
+    #Data = loadmat(dpath)
+    #Features = Data[dtype + '_X'] 
+    #N = Features.shape[0]
+
     
     with open(dpath.split('.mat')[0] + '_splitIdxs.pkl','rb') as f:
         splitIdxs = _pickle.load(f)
@@ -148,10 +145,15 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
         print("\nOuter fold {} of {}\n".format(outer_fold, n_outer_folds-1))
         
-        # isolate features
-        # Note, this is done since they will
-        # be modified locally in each outer loop
-        X = Features.copy()
+        # Note, this is done for each outer loop
+        # since they will be modified locally in each outer loop
+        print("Loading data ...")
+        Data = loadmat(dpath)
+        X = Data[dtype + '_X'].copy()
+        N = X.shape[0]
+        Survival = Data['Survival'].reshape([N,])
+        Censored = Data['Censored'].reshape([N,])
+        Data = None
         
         # Isolate optimization set (and divide into training and validation)
         optimIdxs = splitIdxs['idx_optim'][outer_fold]
@@ -325,7 +327,7 @@ if __name__ == '__main__':
     
     # dataset and description
     sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
-    dtypes = ["Gene", "Integ"]
+    dtypes = ["Integ", ] #"Integ", ]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
@@ -402,12 +404,12 @@ if __name__ == '__main__':
                         if ((not USE_PCA) and (not USE_NCA)):
                             continue
                         
-                        #if (dtype == "Gene") and (not USE_PCA):
-                        #    nca_train_params['BATCH_SIZE'] = 30
-                        #    nca_train_params['MAX_ITIR'] = 8
-                        #else:
-                        #    nca_train_params['BATCH_SIZE'] = 400
-                        #    nca_train_params['MAX_ITIR'] = 25
+                        if (dtype == "Gene") and (not USE_PCA):
+                            nca_train_params['BATCH_SIZE'] = 100
+                            nca_train_params['MAX_ITIR'] = 8
+                        else:
+                            nca_train_params['BATCH_SIZE'] = 400
+                            nca_train_params['MAX_ITIR'] = 25
 
                         description = site +"_"+ dtype +"_"
                         dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \

@@ -8,8 +8,8 @@ Created on Mon Sep 25 15:38:22 2017
 
 import os
 import sys
-sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
-#sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
+#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
 import _pickle
 from scipy.io import loadmat
@@ -319,13 +319,13 @@ if __name__ == '__main__':
     
     # paths ----------------------------------------------------------
     
-    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
     RESULTPATH_BASE = projectPath + "Results/7_30Sep2017/"
     
     # dataset and description
-    sites = ["GBMLGG", ]#"BRCA", "KIPAN", "MM"]
-    dtypes = ["Integ",]# "Gene"]
+    sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
+    dtypes = ["Gene", "Integ"]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
@@ -350,8 +350,7 @@ if __name__ == '__main__':
     # NCA params  ---------------------------------------------------
     
     graphParams = \
-            {'KAPPA': 1.0,
-            'OPTIM': 'GD',
+            {'OPTIM': 'GD',
             'LEARN_RATE': 0.01,
             'per_split_feats': 500,
             }

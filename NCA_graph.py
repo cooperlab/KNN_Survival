@@ -32,7 +32,6 @@ class comput_graph(object):
     def __init__(self, dim_input, 
                  ALPHA = 0.5,
                  LAMBDA = 1.0,
-                 KAPPA = 1.0,
                  OPTIM = 'Adam',
                  LEARN_RATE = 0.01,
                  per_split_feats = 300):
@@ -45,7 +44,6 @@ class comput_graph(object):
         dim_input - no of features
         ALPHA - weighing of L1 penalty (vs L2)
         LAMBDA - weighting of the values of the penalties
-        KAPPA - controls emphasis on near neighbors
         
         """
         
@@ -59,7 +57,6 @@ class comput_graph(object):
         self.dim_input = dim_input
         self.ALPHA = ALPHA
         self.LAMBDA = LAMBDA
-        self.KAPPA = KAPPA
         self.OPTIM = OPTIM
         self.LEARN_RATE = LEARN_RATE
         self.per_split_feats = per_split_feats
@@ -208,7 +205,6 @@ class comput_graph(object):
             Pij_thisPatient = self.Pij[Idx, self.At_Risk[Idx]:tf.size(self.T)-1]
             
             # exponentiate and weigh Pred_AtRisk
-            Pij_thisPatient = tf.pow(Pij_thisPatient, self.KAPPA)
             Pred_atRisk = tf.multiply(tf.exp(Pred_atRisk), Pij_thisPatient)
             
             # Get log partial sum of prediction for those at risk

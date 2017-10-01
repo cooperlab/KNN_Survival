@@ -32,6 +32,7 @@ class comput_graph(object):
     def __init__(self, dim_input, 
                  ALPHA = 0.5,
                  LAMBDA = 1.0,
+                 SIGMA = 1.0,
                  OPTIM = 'Adam',
                  LEARN_RATE = 0.01,
                  per_split_feats = 300):
@@ -54,6 +55,7 @@ class comput_graph(object):
         self.dim_input = dim_input
         self.ALPHA = ALPHA
         self.LAMBDA = LAMBDA
+        self.SIGMA = SIGMA
         self.OPTIM = OPTIM
         self.LEARN_RATE = LEARN_RATE
         self.per_split_feats = per_split_feats
@@ -146,8 +148,6 @@ class comput_graph(object):
                 normAX = self.X_transformed[None, :, :] - \
                          self.X_transformed[:, None, :]
                 normAX = tf.reduce_sum(normAX ** 2, axis=2)
-                #normAX = tf.sqrt(tf.reduce_sum(normAX ** 2, axis=2))
-                #normAX = tf.reduce_sum(tf.abs(normAX), axis=2)
             
             else:
                 # find distance along batches of features and cumsum
@@ -182,11 +182,15 @@ class comput_graph(object):
             # Because the data is normalized using softmax, values
             # add to 1 in rows. That is, i (central patients) are
             # represented in rows
-            denomSum = tf.reduce_sum(tf.exp(-normAX), axis=0)
+            
+            def kernel_function(z):
+                return tf.exp(-z * self.SIGMA)
+
+            denomSum = tf.reduce_sum(kernel_function(normAX), axis=0)
             epsilon = 1e-50
             denomSum = denomSum + epsilon            
             
-            self.Pij = tf.exp(-normAX) / denomSum[:, None]            
+            self.Pij = kernel_function(normAX) / denomSum[:, None]
     
 
     #%%========================================================================

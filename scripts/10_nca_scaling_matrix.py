@@ -408,6 +408,7 @@ if __name__ == '__main__':
     graphParams = \
             {'OPTIM': 'GD',
             'LEARN_RATE': 0.01,
+            'SIGMA': 1.0,
             'per_split_feats': 500,
             }
     

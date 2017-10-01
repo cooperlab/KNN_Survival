@@ -14,7 +14,7 @@ sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 import _pickle
 from scipy.io import loadmat
 import numpy as np
-from sklearn.decomposition import PCA
+from sklearn.decomposition import SparsePCA as PCA
 
 import NCA_model as nca
 import KNNSurvival as knn

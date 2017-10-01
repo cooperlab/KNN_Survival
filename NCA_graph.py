@@ -48,7 +48,7 @@ class comput_graph(object):
         
         """
         
-        print("Building computational graph for survival NCA.")
+        #print("Building computational graph for survival NCA.")
         #pUtils.Log_and_print("Building computational graph for survival NCA.")    
         
         # set up instace attributes

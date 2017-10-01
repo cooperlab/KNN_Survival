@@ -15,9 +15,11 @@ import _pickle
 from scipy.io import loadmat
 import numpy as np
 from sklearn.decomposition import PCA
+from bayes_opt import BayesianOptimization as bayesopt
 
 import NCA_model as nca
 import KNNSurvival as knn
+from pandas import DataFrame as df
 
 #%% ===========================================================================
 # Combining results
@@ -46,16 +48,16 @@ def combine_results(resultpath_base, n_folds=42):
     for site in ["GBMLGG", "BRCA", "KIPAN", "MM"]:
         for dtype in ["Integ", "Gene"]:
             for method in ["cumulative-time", "non-cumulative"]:
-                for PCA in ["False", "True"]:
-                    for NCA in ["False", "True"]:
+                for USE_PCA in ["False", "True"]:
+                    for USE_NCA in ["False", "True"]:
                         
                         try:
                             
-                            resultpath = resultpath_base + method + "_" + NCA + "NCA_" + PCA + "PCA/" + \
+                            resultpath = resultpath_base + method + "_" + USE_NCA + "NCA_" + USE_PCA + "PCA/" + \
                                          site + "_" + dtype + "_/" + site + "_" + dtype + "_testing_Ci.txt"
                             
                             ci = np.loadtxt(resultpath, delimiter='\t').reshape([n_folds,])
-                            ci_merge = [method, PCA, NCA, site, dtype]
+                            ci_merge = [method, USE_PCA, USE_NCA, site, dtype]
                             ci_merge.extend(ci)
                             ci_merge.extend([np.median(ci), np.mean(ci), \
                                              np.percentile(ci, 25), np.percentile(ci, 75), \
@@ -64,7 +66,7 @@ def combine_results(resultpath_base, n_folds=42):
                             
                             CIs[CIs.shape[1]] = ci_merge
                             
-                            print("{}\t{}\t{}\t{}\t{}".format(site, dtype, method, PCA, NCA))
+                            print("{}\t{}\t{}\t{}\t{}".format(site, dtype, method, USE_PCA, USE_NCA))
                         
                         except FileNotFoundError:
                             pass
@@ -253,71 +255,85 @@ def get_cv_accuracy(dpath, site, dtype, description,
         
         if USE_NCA:
             
+            
+            #%% ---------------------------------------------------------------
+            # Bayesian optimization of NCA hyperparameters
+            #------------------------------------------------------------------
+            
             # instantiate NCA model
             ncamodel = nca.SurvivalNCA(RESULTPATH_NCA, 
                                        description = description, 
                                        LOADPATH = LOADPATH)
-            #                          
-            # Finding optimal values for ALPHA and LAMBDA (regularization)
-            #
             
-            ALPHAS = np.arange(0, 1.1, 0.2)
-            LAMBDAS = np.arange(0, 1.1, 0.2)
-    
-            cis = []
-            
-            for ALPHA in ALPHAS:
-                for LAMBDA in LAMBDAS:
-                    
-                    if ((LAMBDA == 0) and (ALPHA > ALPHAS.min())):
-                        continue
-            
-                    graphParams['ALPHA'] = ALPHA
-                    graphParams['LAMBDA'] = LAMBDA
-                    
-                    w = ncamodel.train(features = x_train,
+            def run_nca(ALPHA, LAMBDA, SIGMA):
+                
+                """
+                Wrapper to run NCA and fetch validation accuracy using
+                specified tunable hyperparameters                
+                """
+                
+                graphParams['ALPHA'] = ALPHA
+                graphParams['LAMBDA'] = LAMBDA
+                graphParams['SIGMA'] = SIGMA
+                
+                w = ncamodel.train(features = x_train,
                                        survival = Survival[optimIdxs_train],
                                        censored = Censored[optimIdxs_train],
                                        COMPUT_GRAPH_PARAMS = graphParams,
                                        **nca_train_params)
-                    W = np.zeros([len(w), len(w)])
-                    np.fill_diagonal(W, w)
-                    
-                    ncamodel.reset_TrainHistory()
-                    
-                    # transform
-                    x_valid_transformed = np.dot(x_valid, W)
-                    x_train_transformed = np.dot(x_train, W)
-                    
-                    # get neighbor indices    
-                    neighbor_idxs = knnmodel._get_neighbor_idxs(x_valid_transformed, 
-                                                                x_train_transformed, 
-                                                                norm = norm)
-                    
-                    # Predict validation set
-                    _, Ci = knnmodel.predict(neighbor_idxs,
-                                             Survival_train=Survival[optimIdxs_train], 
-                                             Censored_train=Censored[optimIdxs_train], 
-                                             Survival_test = Survival[optimIdxs_valid], 
-                                             Censored_test = Censored[optimIdxs_valid], 
-                                             K = elastic_net_params['K'], 
-                                             Method = Method)
-                    
-                    cis.append([ALPHA, LAMBDA, Ci])
-                    
-                    print("\n----------------------")
-                    print("ALPHA\tLAMBDA\tCi")
-                    print("{}\t{}\t{}".format(ALPHA, LAMBDA, round(Ci, 3)))
-                    print("----------------------\n")
+                                       
+                W = np.zeros([len(w), len(w)])
+                np.fill_diagonal(W, w)
+                
+                ncamodel.reset_TrainHistory()
+                
+                # transform
+                x_valid_transformed = np.dot(x_valid, W)
+                x_train_transformed = np.dot(x_train, W)
+                
+                # get neighbor indices    
+                neighbor_idxs = knnmodel._get_neighbor_idxs(x_valid_transformed, 
+                                                            x_train_transformed, 
+                                                            norm = norm)
+                
+                # Predict validation set
+                _, Ci = knnmodel.predict(neighbor_idxs,
+                                         Survival_train=Survival[optimIdxs_train], 
+                                         Censored_train=Censored[optimIdxs_train], 
+                                         Survival_test = Survival[optimIdxs_valid], 
+                                         Censored_test = Censored[optimIdxs_valid], 
+                                         K = elastic_net_params['K'], 
+                                         Method = Method)
+
+                return Ci
+                
+            # limits of interval to explore
+            bo_lims = {
+                'ALPHA': (0, 1),
+                'LAMBDA': (0, 1),
+                'SIGMA': (0.2, 10)
+            }
             
-            cis = np.array(cis)
-            optimal = cis[:,2].argmax()
-            ALPHA_OPTIM = cis[optimal, 0]
-            LAMBDA_OPTIM = cis[optimal, 1]
+            # initial points to explore
+            bo_expl = {
+                'ALPHA': [0, 0, 1, 0, 0],
+                'LAMBDA': [0, 1, 0, 0, 0],
+                'SIGMA': [1, 1, 1, 5, 0.5],
+            }
             
-            print("\nOptimal Alpha, Lambda = {}, {}".format(ALPHA_OPTIM, LAMBDA_OPTIM))
+            bo = bayesopt(run_nca, bo_lims)
+            bo.explore(bo_expl)
+            bo.maximize(init_points = 2, n_iter = 15)
+            Optim_params = bo.res['max']['max_params']
             
-            #           
+            ALPHA_OPTIM = Optim_params['ALPHA']
+            LAMBDA_OPTIM = Optim_params['LAMBDA']
+            SIGMA_OPTIM = Optim_params['SIGMA']
+
+            print("Optimal:\tALPHA\tLAMBDA\tSIGMA")
+            print("\t{}\t{}\t{}".format(ALPHA_OPTIM, LAMBDA_OPTIM, SIGMA_OPTIM))
+
+            #%%           
             # Learn final NCA matrix on optimization set
             #
             
@@ -325,6 +341,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             graphParams['ALPHA'] = ALPHA_OPTIM
             graphParams['LAMBDA'] = LAMBDA_OPTIM
+            graphParams['SIGMA'] = SIGMA_OPTIM
     
             # Learn NCA matrix
             w = ncamodel.train(features = X[optimIdxs, :],
@@ -408,7 +425,6 @@ if __name__ == '__main__':
     graphParams = \
             {'OPTIM': 'GD',
             'LEARN_RATE': 0.01,
-            'SIGMA': 1.0,
             'per_split_feats': 500,
             }
     

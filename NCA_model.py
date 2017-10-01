@@ -302,7 +302,7 @@ class SurvivalNCA(object):
         # Begin session
         #======================================================================  
         
-        print("Running TF session.")
+        #print("Running TF session.")
         #pUtils.Log_and_print("Running TF session.")
 
         with tf.Session() as sess:
@@ -375,8 +375,8 @@ class SurvivalNCA(object):
             try: 
                 itir = 0
                 
-                print("\n\tepoch\tbatch\tcost")
-                print("\t-----------------------")
+                #print("\n\tepoch\tbatch\tcost")
+                #print("\t-----------------------")
                 
                 while itir < MAX_ITIR:
                     
@@ -437,7 +437,7 @@ class SurvivalNCA(object):
                         #self.Costs_batchLevel_train.append(cost)                  
                         cost_tot += cost                        
                         
-                        print("\t{}\t{}\t{}".format(self.EPOCHS_RUN, batchidx, round(cost[0], 3)))
+                        #print("\t{}\t{}\t{}".format(self.EPOCHS_RUN, batchidx, round(cost[0], 3)))
                         #pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
                         #     format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
                      
@@ -592,7 +592,7 @@ class SurvivalNCA(object):
         # Saving instead of plotting to avoid
         # Xdisplay issues when using screen
         #
-        print("Saving " + title)
+        #print("Saving " + title)
         with open(savename.split('.')[0] + '.txt', 'wb') as f:
             np.savetxt(f, arr, fmt='%s', delimiter='\t')
 

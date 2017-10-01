@@ -374,7 +374,7 @@ if __name__ == '__main__':
     
     for USE_NCA in [True, False]:
         for Method in Methods:
-            for USE_PCA in [False, True]:
+            for USE_PCA in [True, False]:
             
                 # pass params to dicts
                 k_tune_params['Method'] = Method

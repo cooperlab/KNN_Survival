@@ -8,8 +8,8 @@ Created on Mon Sep 25 15:38:22 2017
 
 import os
 import sys
-#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
-sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
+sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+#sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
 import _pickle
 from scipy.io import loadmat
@@ -319,13 +319,13 @@ if __name__ == '__main__':
     
     # paths ----------------------------------------------------------
     
-    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH_BASE = projectPath + "Results/6_28Sep2017/"
+    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    RESULTPATH_BASE = projectPath + "Results/7_30Sep2017/"
     
     # dataset and description
-    sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
-    dtypes = ["Gene", "Integ"]
+    sites = ["GBMLGG", ]#"BRCA", "KIPAN", "MM"]
+    dtypes = ["Integ",]# "Gene"]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
@@ -353,13 +353,14 @@ if __name__ == '__main__':
             {'KAPPA': 1.0,
             'OPTIM': 'GD',
             'LEARN_RATE': 0.01,
+            'per_split_feats': 500,
             }
     
     nca_train_params = \
             {'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
             'BATCH_SIZE': 400,
-            'MAX_ITIR': 40,
+            'MAX_ITIR': 25,
             }
     
     elastic_net_params = \
@@ -402,12 +403,12 @@ if __name__ == '__main__':
                         if ((not USE_PCA) and (not USE_NCA)):
                             continue
                         
-                        if (dtype == "Gene") and (not USE_PCA):
-                            nca_train_params['BATCH_SIZE'] = 30
-                            nca_train_params['MAX_ITIR'] = 8
-                        else:
-                            nca_train_params['BATCH_SIZE'] = 400
-                            nca_train_params['MAX_ITIR'] = 25
+                        #if (dtype == "Gene") and (not USE_PCA):
+                        #    nca_train_params['BATCH_SIZE'] = 30
+                        #    nca_train_params['MAX_ITIR'] = 8
+                        #else:
+                        #    nca_train_params['BATCH_SIZE'] = 400
+                        #    nca_train_params['MAX_ITIR'] = 25
 
                         description = site +"_"+ dtype +"_"
                         dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \

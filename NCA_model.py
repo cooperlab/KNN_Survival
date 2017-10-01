@@ -28,11 +28,12 @@ import tensorflow as tf
 #import matplotlib.pylab as plt
 
 #import logging
-#import datetime
+import datetime
 
 import ProjectUtils as pUtils
 import SurvivalUtils as sUtils
 import DataManagement as dm
+
 import NCA_graph as cgraph
 
 #raise(Exception)
@@ -371,11 +372,13 @@ class SurvivalNCA(object):
                 if USE_VALID:
                     cs_valid = np.array(self.Costs_epochLevel_valid)
                 
+                timestamp = str(datetime.datetime.today()).replace(' ','_')
+                timestamp.replace(":", '_')
                 self._plotMonitor(arr= cs, arr2= cs_valid,
                              title= "cost vs. epoch", 
                              xlab= "epoch", ylab= "cost", 
                              savename= self.RESULTPATH + "plots/" +
-                              self.description + "cost.svg")
+                              self.description + "cost_" + timestamp + ".svg")
 
     
             # Begin epochs

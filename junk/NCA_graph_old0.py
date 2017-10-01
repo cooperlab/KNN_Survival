@@ -6,14 +6,14 @@ Created on Sat Sep  2 12:57:55 2017
 @author: mohamed
 """
 
-#import os
-#import sys
-#def conditionalAppend(Dir):
-#    """ Append dir to sys path"""
-#    if Dir not in sys.path:
-#        sys.path.append(Dir)
-#cwd = os.getcwd()
-#conditionalAppend(cwd)
+import os
+import sys
+def conditionalAppend(Dir):
+    """ Append dir to sys path"""
+    if Dir not in sys.path:
+        sys.path.append(Dir)
+cwd = os.getcwd()
+conditionalAppend(cwd)
 
 import tensorflow as tf
 
@@ -34,8 +34,7 @@ class comput_graph(object):
                  LAMBDA = 1.0,
                  KAPPA = 1.0,
                  OPTIM = 'Adam',
-                 LEARN_RATE = 0.01,
-                 per_split_feats = 300):
+                 LEARN_RATE = 0.01):
         
         """
         Instantiate a computational graph for survival NCA.
@@ -50,9 +49,7 @@ class comput_graph(object):
         """
         
         print("Building computational graph for survival NCA.")
-        #pUtils.Log_and_print("Building computational graph for survival NCA.")    
-        
-        assert per_split_feats < dim_input
+        #pUtils.Log_and_print("Building computational graph for survival NCA.")        
         
         # set up instace attributes
         self.dim_input = dim_input
@@ -61,7 +58,6 @@ class comput_graph(object):
         self.KAPPA = KAPPA
         self.OPTIM = OPTIM
         self.LEARN_RATE = LEARN_RATE
-        self.per_split_feats = per_split_feats
         
         # clear lurking tensors
         tf.reset_default_graph()
@@ -138,33 +134,26 @@ class comput_graph(object):
         """ 
         Calculate Pij, the probability that j will be chosen 
         as i's neighbor, for all i's
-        Inspired by: https://github.com/RolT/NCA-python
         """        
         
         with tf.name_scope("getting_Pij"):
             
-            n_splits = int(self.dim_input / self.per_split_feats)
-            n_divisible = n_splits * self.per_split_feats
-            X_split = tf.split(self.X_transformed[:,0:n_divisible], n_splits, axis=1)
-            X_split.append(self.X_transformed[:,n_divisible:])
+            #
+            # Inspired by: https://github.com/RolT/NCA-python
+            #
             
-            # get norm along first feature set
-            normAX = X_split[0][None, :, :] - X_split[0][:, None, :]
+            # Expand dims of AX to [n_samples, n_samples, n_features], where
+            # each "channel" in the third dimension is the difference between
+            # one sample and all other samples along one feature
+            normAX = self.X_transformed[None, :, :] - \
+                     self.X_transformed[:, None, :]
+            
+            # Now get the euclidian distance between
+            # every patient and all others -> [n_samples, n_samples]
+            #normAX = tf.norm(normAX, axis=0)
             normAX = tf.reduce_sum(normAX ** 2, axis=2)
-             
-            for split in range(1, len(X_split)): 
-             
-                # Expand dims of AX to [n_samples, n_samples, n_features], where
-                # each "channel" in the third dimension is the difference between
-                # one sample and all other samples along one feature
-                norm_thisFeatureSet = X_split[split][None, :, :] - \
-                                      X_split[split][:, None, :]
-                
-                norm_thisFeatureSet = tf.reduce_sum(norm_thisFeatureSet ** 2, axis=2)
-                
-                # add to existing cumulative sum    
-                normAX = normAX + norm_thisFeatureSet
-                
+            #normAX = tf.sqrt(tf.reduce_sum(normAX ** 2, axis=2))
+            
             # Calculate Pij, the probability that j will be chosen 
             # as i's neighbor, for all i's. Pij has shape
             # [n_samples, n_samples] and ** is NOT symmetrical **.
@@ -172,10 +161,10 @@ class comput_graph(object):
             # add to 1 in rows, that is i (central patients) are
             # represented in rows
             denomSum = tf.reduce_sum(tf.exp(-normAX), axis=0)
-            epsilon = 1e-50
+            epsilon = 1e-10
             denomSum = denomSum + epsilon            
             
-            self.Pij = tf.exp(-normAX) / denomSum[:, None]            
+            self.Pij = tf.exp(-normAX) / denomSum[:, None]
     
 
     #%%========================================================================

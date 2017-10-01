@@ -28,7 +28,8 @@ T, O, at_risk, X_input = sUtils.calc_at_risk(T, 1-C, X_input)
 # Add to graph (for demo)
 tf.reset_default_graph()
 X_input = tf.Variable(X_input)
-O = tf.Variable(O, dtype='float64')
+T = tf.Variable(T, dtype='float32')
+O = tf.Variable(O, dtype='float32')
 at_risk = tf.Variable(at_risk)
 
 # for now, let's assume we already NCA_transformed X

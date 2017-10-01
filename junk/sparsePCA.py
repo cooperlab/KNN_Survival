@@ -6,22 +6,22 @@ Created on Sun Oct  1 01:18:42 2017
 """
 
 import sys
-sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
-#sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
+#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
 from scipy.io import loadmat
 import numpy as np
-from sklearn.decomposition import SparsePCA as PCA
+from sklearn.decomposition import PCA #SparsePCA as PCA
 
 #%%
 
-projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-#projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+#projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+projectPath = "/home/mtageld/Desktop/KNN_Survival/"
 RESULTPATH_BASE = projectPath + "Results/6_28Sep2017/"
 
 # dataset and description
 site = "GBMLGG"
-dtype = "Integ"
+dtype = "Gene"
 description = site +"_"+ dtype +"_"
 dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \
         site +"_"+ dtype+"_Preprocessed.mat"
@@ -34,6 +34,7 @@ Censored = Data['Censored'].reshape([N,])
 Data = None
 
 #%%
-pca = PCA()
+print("fitting sparse PCA matrix")
+pca = PCA(n_components=10)
 pca.fit(X)
 comp = pca.components_

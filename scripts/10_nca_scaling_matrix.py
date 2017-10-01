@@ -326,8 +326,8 @@ if __name__ == '__main__':
     RESULTPATH_BASE = projectPath + "Results/6_28Sep2017/"
     
     # dataset and description
-    sites = ["GBMLGG", ] #"BRCA", "KIPAN", "MM"]
-    dtypes = ["Integ", ] #"Integ", ]
+    sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
+    dtypes = ["Gene", "Integ"]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
@@ -403,13 +403,16 @@ if __name__ == '__main__':
                         
                         if ((not USE_PCA) and (not USE_NCA)):
                             continue
+
+                        if ((dtype == "Gene") and (not USE_PCA)):
+                            continue
                         
-                        if (dtype == "Gene") and (not USE_PCA):
-                            nca_train_params['BATCH_SIZE'] = 100
-                            nca_train_params['MAX_ITIR'] = 8
-                        else:
-                            nca_train_params['BATCH_SIZE'] = 400
-                            nca_train_params['MAX_ITIR'] = 25
+                        #if (dtype == "Gene") and (not USE_PCA):
+                        #    nca_train_params['BATCH_SIZE'] = 100
+                        #    nca_train_params['MAX_ITIR'] = 8
+                        #else:
+                        #    nca_train_params['BATCH_SIZE'] = 400
+                        #    nca_train_params['MAX_ITIR'] = 25
 
                         description = site +"_"+ dtype +"_"
                         dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \

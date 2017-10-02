@@ -8,8 +8,8 @@ Created on Mon Sep 25 15:38:22 2017
 
 import os
 import sys
-sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
-#sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
+#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
 import _pickle
 from scipy.io import loadmat
@@ -39,8 +39,6 @@ def combine_results(resultpath_base, n_folds=30):
     idxNames.extend(['median', 'mean', '25%ile', '75%ile', 'stdev'])
     
     CIs = df(index=idxNames)
-    
-    #%%
     
     print("\nsite\tdtype\tmethod\tPCA\tNCA")
     print("-------------------------------")
@@ -82,13 +80,11 @@ def combine_results(resultpath_base, n_folds=30):
 def get_cv_accuracy(dpath, site, dtype, description,
                     RESULTPATH,
                     k_tune_params={},
-                    knn_params={},
                     USE_NCA=False,
                     graphParams={},
                     nca_train_params={},
                     elastic_net_params={},
                     USE_PCA=False,
-                    USE_BAGGING=False,
                     bagging_params={}):
     
     """
@@ -128,7 +124,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
             # get neighbor indices    
             neighbor_idxs = knnmodel._get_neighbor_idxs(feats_valid_new, 
                                                         feats_train_new, 
-                                                        norm = norm)
+                                                        norm = k_tune_params['norm'])
             # Predict validation set
             _, Ci = knnmodel.predict(neighbor_idxs,
                                      Survival_train=T_train, 
@@ -136,7 +132,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                      Survival_test =T_valid, 
                                      Censored_test =C_valid, 
                                      K=elastic_net_params['K'], 
-                                     Method = Method)
+                                     Method = k_tune_params['Method'])
             
             cis.append([numpc, Ci])
             print("\t{}\t{}".format(numpc, Ci))
@@ -311,7 +307,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             bo = bayesopt(run_nca, bo_lims)
             bo.explore(bo_expl)
-            bo.maximize(init_points = 2, n_iter = 2)
+            bo.maximize(init_points = 2, n_iter = 15)
             Optim_params = bo.res['max']['max_params']
             
             ALPHA_OPTIM = Optim_params['ALPHA']
@@ -323,9 +319,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
             print("\tALPHA\tLAMBDA\tSIGMA")
             print("\t{}\t{}\t{}".format(ALPHA_OPTIM, LAMBDA_OPTIM, SIGMA_OPTIM))
 
-            #%%           
-            # Learn final NCA matrix on combined training/validation sets
-            #
+            #%%----------------------------------------------------------------
+            # Learn final NCA matrix
+            #------------------------------------------------------------------
             
             print("\nLearning final NCA matrix\n")
             
@@ -334,13 +330,11 @@ def get_cv_accuracy(dpath, site, dtype, description,
             graphParams['SIGMA'] = SIGMA_OPTIM
     
             # Learn NCA matrix
-            combined_idxs = splitIdxs['train'][fold] + splitIdxs['valid'][fold]
-            
-            w = ncamodel.train(features = np.concatenate((x_train, x_valid), axis=0),
-                               survival = Survival[combined_idxs],
-                               censored = Censored[combined_idxs],
+            w = ncamodel.train(features = x_train,
+                               survival = Survival[splitIdxs['train'][fold]],
+                               censored = Censored[splitIdxs['train'][fold]],
                                COMPUT_GRAPH_PARAMS = graphParams,
-                               **nca_train_params)
+                               **nca_train_params)    
             W = np.zeros([len(w), len(w)])
             np.fill_diagonal(W, w)
             
@@ -350,17 +344,60 @@ def get_cv_accuracy(dpath, site, dtype, description,
             x_test = np.dot(x_test, W)
             
         #%% ===================================================================    
-        # Now get accuracy
+        # Tune K
+        #======================================================================
+                                         
+        # Get neighbor indices    
+        neighbor_idxs = knnmodel._get_neighbor_idxs(\
+                            x_valid, x_train, 
+                            norm = k_tune_params['norm'])
+    
+        print("\tK \t Ci")
+        
+        CIs_k = np.zeros([len(k_tune_params['Ks'])])
+        for kidx, K in enumerate(k_tune_params['Ks']):
+        
+            # Predict validation set
+            _, Ci = knnmodel.predict(\
+                                 neighbor_idxs=neighbor_idxs,
+                                 Survival_train=Survival[splitIdxs['train'][fold]],
+                                 Censored_train=Censored[splitIdxs['train'][fold]],
+                                 Survival_test=Survival[splitIdxs['valid'][fold]],
+                                 Censored_test=Censored[splitIdxs['valid'][fold]],
+                                 K=K,
+                                 Method=k_tune_params['Method'])
+        
+            CIs_k[kidx] = Ci
+        
+            print("\t{} \t {}".format(K, round(Ci, 3)))
+            
+        K_optim = k_tune_params['Ks'][np.argmax(CIs_k)]
+        print("\nK_optim = {}".format(K_optim))
+           
+        #%% ===================================================================    
+        # Get final accuracy
         #======================================================================
         
         print("\nGetting accuracy.") 
-        ci, _ = knnmodel.cv_accuracy(X, Survival, Censored, 
-                                     splitIdxs, outer_fold=outer_fold,
-                                     k_tune_params=k_tune_params,
-                                     USE_BAGGING=USE_BAGGING,
-                                     bagging_params=bagging_params)
+        
+        # combined training and validation sets
+        combinedIdxs = splitIdxs['train'][fold] + splitIdxs['valid'][fold]
+        
+        _, ci = knnmodel.predict_with_bagging(\
+                    X_test=x_test,
+                    X_train=np.concatenate((x_train, x_valid), axis=0),
+                    Survival_train=Survival[combinedIdxs],
+                    Censored_train=Censored[combinedIdxs],
+                    Survival_test=Survival[splitIdxs['test'][fold]],
+                    Censored_test=Censored[splitIdxs['test'][fold]],
+                    **bagging_params,
+                    K=K_optim,
+                    Method=k_tune_params['Method'],
+                    norm=k_tune_params['norm'])        
+        
         # record result
-        CIs[:, outer_fold] = ci
+        CIs[fold] = ci        
+        print("Ci = {}".format(round(ci, 3)))
     
     #%%    
     print("\nAccuracy")
@@ -386,29 +423,22 @@ if __name__ == '__main__':
     
     # paths ----------------------------------------------------------
     
-    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
     RESULTPATH_BASE = projectPath + "Results/6_28Sep2017/"
     
     # dataset and description
-    sites = ["GBMLGG", ] #"BRCA", "KIPAN", "MM"]
-    dtypes = ["Integ", ] #"Integ"]
+    sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
+    dtypes = ["Gene", "Integ"]
     
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
     
     # KNN params ----------------------------------------------------
     
-    k_tune_params = {'kcv': 4,
-                     'shuffles': 3,
-                     'Ks': list(np.arange(10, 160, 10)),
+    k_tune_params = {'Ks': list(np.arange(10, 160, 10)),
                      'norm': norm,
                     }
-    
-    knn_params = {'norm': norm,
-                  }
-    
-    USE_BAGGING = True
     
     bagging_params = {'n_bags': 50,
                       'feats_per_bag': None
@@ -443,7 +473,6 @@ if __name__ == '__main__':
             
                 # pass params to dicts
                 k_tune_params['Method'] = Method
-                knn_params['Method'] = Method
                 
                 # Itirate through datasets
                 
@@ -486,20 +515,18 @@ if __name__ == '__main__':
                         # create output directory
                         os.system('mkdir ' + RESULTPATH + description)
                         
-                        raise Exception("on purpose.")
+                        #raise Exception("on purpose.")
                         
                         # get cv accuracy
                         get_cv_accuracy(dpath=dpath, site=site, dtype=dtype,
                                         description=description,
                                         RESULTPATH=RESULTPATH + description + '/',
                                         k_tune_params=k_tune_params,
-                                        knn_params=knn_params,
                                         USE_NCA=USE_NCA,
                                         graphParams=graphParams,
                                         nca_train_params=nca_train_params,
                                         elastic_net_params=elastic_net_params,
                                         USE_PCA=USE_PCA,
-                                        USE_BAGGING=USE_BAGGING,
                                         bagging_params=bagging_params)
                                             
 

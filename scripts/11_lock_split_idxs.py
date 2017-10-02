@@ -8,8 +8,8 @@ Created on Sat Sep 16 2017
 
 #import os
 import sys
-sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
-#sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
+#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
 import _pickle
 from scipy.io import loadmat, savemat
@@ -75,14 +75,17 @@ def Preprocess_and_split(projectPath, site, dtype, \
 if __name__ == '__main__':
 
     
-    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
     
-    sites = ["GBMLGG",] # "BRCA", "KIPAN", "MM"]
-    dtypes = ["Integ", ] # "Gene"]
+    sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
+    dtypes = ["Integ", "Gene"]
     
     for site in sites:
         for dtype in dtypes:
+
+            if ((site == "MM") and (dtype == "Integ")):
+                continue
 
             print("site: {}, dtype: {}".format(site, dtype))
 

@@ -6,7 +6,7 @@ Created on Sat Sep 16 2017
 @author: mohamed
 """
 
-import os
+#import os
 import sys
 #sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
 sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
@@ -30,22 +30,16 @@ def Preprocess_and_split(projectPath, site, dtype, \
     #====================================================
     
     dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ site +"_"+ dtype+".mat"
-    description = site + "_"+ dtype+"_"
+    #description = site + "_"+ dtype+"_"
     
     # Load data
     Data = loadmat(dpath)
     
     # process features - remove zero-variance
-    if dtype == "Integ":
-        Data['Integ_X'] = np.float32(Data['Integ_X'])
-        fvars = np.std(Data['Integ_X'], 0)
-        keep = fvars > 0
-        Data['Integ_X'] = Data['Integ_X'][:, keep]
-    else:
-        Data['Gene_X'] = np.float32(Data['Gene_X'])
-        fvars = np.std(Data['Gene_X'], 0)
-        keep = fvars > 0
-        Data['Gene_X'] = Data['Gene_X'][:, keep]
+    Data[dtype + '_X'] = np.float32(Data[dtype + '_X'])
+    fvars = np.std(Data[dtype + '_X'], 0)
+    keep = fvars > 0
+    Data[dtype + '_X'] = Data[dtype + '_X'][:, keep]
     
     # process outcomes
     if np.min(Data['Survival']) < 0:
@@ -85,8 +79,8 @@ if __name__ == '__main__':
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
     
-    sites = ['MM', ] #["GBMLGG", "BRCA", "KIPAN", "LUSC"]
-    dtypes = ['Gene', ] #["Integ", "Gene"]
+    sites = ['MM', "GBMLGG", "BRCA", "KIPAN"]
+    dtypes = ['Gene', "Integ"]
     
     K_OPTIM = 2
     K = 3

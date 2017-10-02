@@ -9,6 +9,81 @@ Tools for managing data
 
 import numpy as np
 
+#%%============================================================================
+# Get cross validation indices
+#==============================================================================
+
+def get_cv_idxs(idxs, kcv, n_shuffles):
+
+    """Get K-fold cross validation indices"""
+
+    #
+    # indices of cross validation for each fold
+    #
+
+    N_cv = len(idxs)
+                   
+    fold_bounds = np.arange(0, N_cv, int(N_cv / kcv))
+    fold_bounds = list(fold_bounds[0:kcv])
+    fold_bounds.append(N_cv-1)
+    
+    fold_bounds = np.int64(fold_bounds)
+    
+    fold_cv_test = list(np.zeros(kcv * n_shuffles))
+    fold_cv_train = list(np.zeros(kcv * n_shuffles))
+    
+    
+    # Doing all the shufling first since for some reason
+    # np shuffle does not work insider the next loop!
+    idx_shuffles = list(np.zeros(n_shuffles))
+    for shuff in range(n_shuffles):
+        np.random.shuffle(idxs)
+        idx_shuffles[shuff] = idxs.copy()
+
+    #    
+    # K-fold cross-validation with shuffles
+    #
+    for S in range(n_shuffles):
+        
+        ThisIdxList = idx_shuffles[S]
+        
+        # Cycle through folds and get indices
+        for k in(range(kcv)):
+            fold_cv_test[S * kcv + k] = \
+                list(ThisIdxList[fold_bounds[k] : fold_bounds[k+1]])
+            fold_cv_train[S * kcv + k] = \
+                [j for j in ThisIdxList if j not in fold_cv_test[S * kcv + k]]
+
+    return fold_cv_train, fold_cv_test
+
+
+#%%============================================================================
+#  Cross validation with shuffling, including a validation set
+#==============================================================================
+
+def cv_with_shuffling(N, kcv=5, n_shuffles=6,
+                      valid_ratio=0.25):
+                              
+    """
+    Gets cross validation indices with shuffles. The result
+    is three non-overlapping set indices for training, validation
+    and testing.
+    """
+
+    idxs = np.arange(N)
+    np.random.shuffle(idxs)
+    train, test = get_cv_idxs(idxs=idxs, kcv=kcv, n_shuffles=n_shuffles)
+    
+    lim = int(valid_ratio * len(train[0]))
+    valid = [j[0:lim] for j in train]
+    train = [j[lim:] for j in train]
+    
+    splitIdxs = {'test': test,
+                 'train': train,
+                 'valid': valid,
+                 }
+    
+    return splitIdxs
 
 #%%============================================================================
 #  Getting split indices (unbalanced)
@@ -37,51 +112,7 @@ def getSplitIdxs(N, OFFSET = 0,
     Idxs = {}
     
     idx_all = np.arange(N) + OFFSET
-    np.random.shuffle(idx_all)
-    
-    def get_cv_idxs(idxs, kcv, n_shuffles):
-    
-        """Get K-fold cross validation indices"""
-    
-        #
-        # indices of cross validation for each fold
-        #
-    
-        N_cv = len(idxs)
-                       
-        fold_bounds = np.arange(0, N_cv, int(N_cv / kcv))
-        fold_bounds = list(fold_bounds[0:kcv])
-        fold_bounds.append(N_cv-1)
-        
-        fold_bounds = np.int64(fold_bounds)
-        
-        fold_cv_test = list(np.zeros(kcv * n_shuffles))
-        fold_cv_train = list(np.zeros(kcv * n_shuffles))
-        
-        
-        # Doing all the shufling first since for some reason
-        # np shuffle does not work insider the next loop!
-        idx_shuffles = list(np.zeros(n_shuffles))
-        for shuff in range(n_shuffles):
-            np.random.shuffle(idxs)
-            idx_shuffles[shuff] = idxs.copy()
-    
-        #    
-        # K-fold cross-validation with shuffles
-        #
-        for S in range(n_shuffles):
-            
-            ThisIdxList = idx_shuffles[S]
-            
-            # Cycle through folds and get indices
-            for k in(range(kcv)):
-                fold_cv_test[S * kcv + k] = \
-                    list(ThisIdxList[fold_bounds[k] : fold_bounds[k+1]])
-                fold_cv_train[S * kcv + k] = \
-                    [j for j in ThisIdxList if j not in fold_cv_test[S * kcv + k]]
-    
-        return fold_cv_train, fold_cv_test
-    
+    np.random.shuffle(idx_all)    
     
     # Get assignment into optimization and other
     if USE_OPTIM:
@@ -214,17 +245,17 @@ def get_balanced_batches(categories, BATCH_SIZE):
 
 if __name__ == '__main__':
     
-    # Load data
-    N = 500
-    OFFSET = 0
-    K = 3
-    SHUFFLES = 10
-    USE_OPTIM = False
-    K_OPTIM = 2
-    BATCH_SIZE = 50
-
-    # method inputs
-    censored = np.random.binomial(1, 0.2, N)
+#    # Load data
+    N = 1000
+#    OFFSET = 0
+#    K = 3
+#    SHUFFLES = 10
+#    USE_OPTIM = False
+#    K_OPTIM = 2
+#    BATCH_SIZE = 50
+#
+#    # method inputs
+#    censored = np.random.binomial(1, 0.2, N)
     
     # get split indices
     #Idxs = getSplitIdxs(N, OFFSET = OFFSET, 
@@ -233,10 +264,14 @@ if __name__ == '__main__':
     #                    K_OPTIM = K_OPTIM)
 
     # get balances idxs
-    Idxs = get_balanced_SplitIdxs(censored, 
-                                  K = K, SHUFFLES = SHUFFLES,
-                                  USE_OPTIM = USE_OPTIM, K_OPTIM = K_OPTIM)
+    #Idxs = get_balanced_SplitIdxs(censored, 
+    #                              K = K, SHUFFLES = SHUFFLES,
+    #                              USE_OPTIM = USE_OPTIM, K_OPTIM = K_OPTIM)
 
     # get balanced batches
-    censored_thisFold = censored[Idxs['fold_cv_train'][0][0]]
-    batchIdxs = get_balanced_batches(censored_thisFold, BATCH_SIZE)
+    #censored_thisFold = censored[Idxs['fold_cv_train'][0][0]]
+    #batchIdxs = get_balanced_batches(censored_thisFold, BATCH_SIZE)
+    
+    #%%    
+    
+    splitIdxs = cv_with_shuffling(N)

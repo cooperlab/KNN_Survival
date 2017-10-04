@@ -67,7 +67,10 @@ class SurvivalNCA(object):
                            'LAMBDA': 0,
                            'SIGMA': 1.0,
                            'OPTIM': 'GD',
-                           'LEARN_RATE': 0.01}
+                           'LEARN_RATE': 0.01,
+                           'per_split_feats': 500,
+                           'ROTATE': False,
+                           }
     userspecified_graphParams = ['dim_input',]
     
     
@@ -502,11 +505,11 @@ class SurvivalNCA(object):
             #pUtils.Log_and_print("Obtaining final results.")
             
             # save learned weights
-            w = sess.run(graph.w, feed_dict = feed_dict)
-            #np.save(self.RESULTPATH + 'model/' + self.description + \
-            #        'featWeights.npy', w)
+            W = sess.run(graph.W, feed_dict = feed_dict)
+            np.save(self.RESULTPATH + 'model/' + self.description + \
+                    'featWeights.npy', W)
             
-        return w
+        return W
 
                         
     #%%============================================================================

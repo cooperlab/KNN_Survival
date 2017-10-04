@@ -33,9 +33,10 @@ class comput_graph(object):
                  ALPHA = 0.5,
                  LAMBDA = 1.0,
                  SIGMA = 1.0,
-                 OPTIM = 'Adam',
+                 OPTIM = 'GD',
                  LEARN_RATE = 0.01,
-                 per_split_feats = 300):
+                 per_split_feats = 500,
+                 ROTATE = False):
         
         """
         Instantiate a computational graph for survival NCA.
@@ -45,7 +46,15 @@ class comput_graph(object):
         dim_input - no of features
         ALPHA - weighing of L1 penalty (vs L2)
         LAMBDA - weighting of the values of the penalties
-        
+        SIGMA - controls emphasis on nearest neighbors 
+        OPTIM - type of optimizer
+        LEARN_RATE - learning rate
+        per_split_feats - if this number is smaller than the total
+                          no of features, it controld how many features at
+                          a time to consider whan calculating Pij. The smaller
+                          the more likely the matrix is to fit into memory, 
+                          with no effect on the end result
+        ROTATE - when this is true, A is not limited to a scaling matrix
         """
         
         #print("Building computational graph for survival NCA.")
@@ -59,6 +68,7 @@ class comput_graph(object):
         self.OPTIM = OPTIM
         self.LEARN_RATE = LEARN_RATE
         self.per_split_feats = per_split_feats
+        self.ROTATE = ROTATE
         
         # clear lurking tensors
         tf.reset_default_graph()
@@ -88,7 +98,6 @@ class comput_graph(object):
         
         with tf.variable_scope("Inputs"):
         
-            #with tf.device('/cpu:0'):
             self.X_input = tf.placeholder("float", [None, self.dim_input], name='X_input')
             
             self.T = tf.placeholder("float", [None], name='T')
@@ -113,19 +122,17 @@ class comput_graph(object):
         
         with tf.variable_scope("linear_transform"):
             
-            # feature scales/weights
-            self.w = tf.get_variable("weights", shape=[self.dim_input], 
-                            initializer= tf.contrib.layers.xavier_initializer())
-            #self.B = tf.get_variable("biases", shape=[self.dim_input], 
-            #                initializer= tf.contrib.layers.xavier_initializer())
             
-            # diagonalize and matmul
-            self.W = tf.diag(self.w)
-            #self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_input], 
-            #                initializer= tf.contrib.layers.xavier_initializer())
+            if self.ROTATE:
+                self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_input], 
+                                initializer= tf.contrib.layers.xavier_initializer())
+            else:
+                # feature scales/weights
+                self.w = tf.get_variable("weights", shape=[self.dim_input], 
+                                initializer= tf.contrib.layers.xavier_initializer())
+                # diagonalize and matmul
+                self.W = tf.diag(self.w)
             
-            #with tf.device('/cpu:0'):
-            #self.X_transformed = tf.add(tf.matmul(self.X_input, self.W), self.B) 
             self.X_transformed = tf.matmul(self.X_input, self.W)
     
     #%%========================================================================

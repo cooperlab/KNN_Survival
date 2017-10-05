@@ -1,17 +1,69 @@
-# ~/usr/r/R-3.1.2/bin/Rscript --max-ppsize=400000
-#
+---
+title: "RSF tuning"
+output: html_notebook
+---
 
-#shuffle = 1
-fileDir = '/home/syouse3/git/survivalnet/data/'
-cat(fileDir)
-
+```{r}
 library(randomForestSRC)
 library(prodlim)
 library(pec)
 library(survival)
+library(R.matlab)
+library(rPython)
 
+# Define base paths
+basePath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+#basePath = "/home/mtageld/Desktop/KNN_Survival/"
+```
 
+```{r}
+# Reading the mat files
+site = "GBMLGG"
+dtype = "Integ"
 
+# Data
+dataPath = paste(basePath, 'Data/SingleCancerDatasets/', site, '/', site, '_', dtype, '_Preprocessed.mat', sep="")
+Data = readMat(dataPath)
+
+# split indices
+```
+
+```{r}
+
+n = length(Data$Survival)
+
+```
+
+```{python}
+import numpy as np
+
+basePath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+site = "GBMLGG"
+dtype = "Integ"
+dataPath = basePath + 'Data/SingleCancerDatasets/' + site + '/' + site + '_' + dtype + '_Preprocessed.mat'
+splitIdxPath = dataPath.split('.mat')[0] + '_splitIdxs.pkl'
+
+splitIdxs = np.load(splitIdxPath)
+
+print(splitIdxs)
+
+python.get()
+```
+
+```{r}
+pyScript = paste(basePath, "/Codes/junk/rsf_python.py", sep="")
+system(paste('python3 ', pyScript, Sep=""))
+```
+
+```{r}
+Sys.setenv(PATH = paste("/home/mohamed/anaconda3/bin/python", Sys.getenv("PATH"),sep=":"))
+system("python --version")
+```
+```{r}
+python.exec("import numpy as np")
+```
+
+```{r}
 runRSF = function(fileDir, shuffle) {
 
   type = "Gene"
@@ -94,6 +146,6 @@ runRSF = function(fileDir, shuffle) {
   #cat("\nall data is stored to: ", resultAllFile, "\n")
 }
 
-for (i in 1:20){
-  runRSF(fileDir = fileDir, shuffle = i)
-}
+
+```
+

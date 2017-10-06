@@ -263,6 +263,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
                 W = ncamodel.train(features = x_train,
                                    survival = Survival[splitIdxs['train'][fold]],
                                    censored = Censored[splitIdxs['train'][fold]],
+                                   features_valid = x_valid,
+                                   survival_valid = Survival[splitIdxs['valid'][fold]],
+                                   censored_valid = Censored[splitIdxs['valid'][fold]],
                                    COMPUT_GRAPH_PARAMS = graphParams,
                                    **nca_train_params)
                 

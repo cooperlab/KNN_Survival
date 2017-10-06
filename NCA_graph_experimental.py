@@ -99,12 +99,7 @@ class comput_graph(object):
         with tf.variable_scope("Inputs"):
         
             self.X_input = tf.placeholder("float", [None, self.dim_input], name='X_input')
-            self.O = tf.placeholder("float", [None], name='O')
-            self.At_Risk = tf.placeholder("float", [None], name='At_Risk')
-            
-            # type conversions
-            self.O = tf.cast(self.O, tf.int32)
-            self.At_Risk = tf.cast(self.At_Risk, tf.int32)
+            self.Pij_mask = tf.placeholder("float", [None, None], name='Pij_mask')
             
                  
     #%%========================================================================
@@ -210,31 +205,6 @@ class comput_graph(object):
         # Get Pij, probability j will be i's neighbor
         self._get_Pij()
         
-        def _add_to_cumSum(Idx, cumsum):
-        
-            """Add patient to log partial likelihood sum """
-            
-            # Get Pij of at-risk cases from this patient's perspective
-            Pij_thisPatient = self.Pij[Idx, self.At_Risk[Idx]:tf.size(self.O)-1]
-            
-            # Get sum
-            Pij_thisPatient = tf.reduce_sum(Pij_thisPatient)
-            cumsum = tf.add(cumsum, Pij_thisPatient)
-            
-            return cumsum
-    
-        def _add_if_observed(Idx, cumsum):
-        
-            """ Add to cumsum if current patient'd death time is observed """
-            
-            with tf.name_scope("add_if_observed"):
-                cumsum = tf.cond(tf.equal(self.O[Idx], 1), 
-                                lambda: _add_to_cumSum(Idx, cumsum),
-                                lambda: tf.cast(cumsum, tf.float32))                                    
-    
-                Idx = tf.cast(tf.add(Idx, 1), tf.int32)
-            
-            return Idx, cumsum
             
         def _penalty(W):
     
@@ -258,17 +228,14 @@ class comput_graph(object):
         
         
         with tf.variable_scope("loss"):
-    
-            cumSum = tf.cast(tf.Variable([0.0]), tf.float32)
-            Idx = tf.cast(tf.Variable(0), tf.int32)
             
-            # Go through all uncensored cases and add to cumulative sum
-            c = lambda Idx, cumSum: tf.less(Idx, tf.cast(tf.size(self.O)-1, tf.int32))
-            b = lambda Idx, cumSum: _add_if_observed(Idx, cumSum)
-            Idx, cumSum = tf.while_loop(c, b, [Idx, cumSum])
+            # Restrict Pij to observed and at-risk cases
+            self.Pij = tf.multiply(self.Pij, self.Pij_mask)
             
-            # Add elastic-net penalty
-            self.cost = cumSum + _penalty(self.W)
+            # cost the sum of Pij of at-risk cases over
+            # all observed cases
+            self.cost = tf.reduce_sum(self.Pij) + _penalty(self.W)
+
 
     #%%========================================================================
     #  Optimizer

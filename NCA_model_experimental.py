@@ -356,14 +356,14 @@ class SurvivalNCA(object):
             def _monitorProgress():
 
                 """Monitor cost"""
+                pass
+                #cs = np.array(self.Costs_epochLevel_train)
+                #epoch_no = np.arange(len(cs))
+                #cs = np.concatenate((epoch_no[:, None], cs), axis=1)
                 
-                cs = np.array(self.Costs_epochLevel_train)
-                epoch_no = np.arange(len(cs))
-                cs = np.concatenate((epoch_no[:, None], cs), axis=1)
-                
-                cs_valid = None
-                if USE_VALID:
-                    cs_valid = np.array(self.Costs_epochLevel_valid)
+                #cs_valid = None
+                #if USE_VALID:
+                #    cs_valid = np.array(self.Costs_epochLevel_valid)
                 
                 #timestamp = str(datetime.datetime.today()).replace(' ','_')
                 #timestamp.replace(":", '_')
@@ -380,8 +380,8 @@ class SurvivalNCA(object):
             try: 
                 itir = 0
                 
-                #print("\n\tepoch\tbatch\tcost")
-                #print("\t-----------------------")
+                print("\n\tepoch\tbatch\tcost\tCi_train\tCi_valid")
+                print("\t-----------------------------------------")
                 
                 knnmodel = knn.SurvivalKNN(self.RESULTPATH, description=self.description)
                 
@@ -391,30 +391,26 @@ class SurvivalNCA(object):
                     
                     itir += 1
                     cost_tot = 0
-                    #cost_tot_valid = 0
-                    
-                    # Shuffle so that training batches differ every epoch
-                    #==========================================================
-                    #
-                    #idxs = np.arange(features.shape[0]);
-                    #np.random.shuffle(idxs)
-                    #features = features[idxs, :]
-                    #survival = survival[idxs]
-                    #censored  = censored[idxs]
             
                     # Divide into balanced batches
                     #==========================================================
-                      
+                    
+                    n = censored.shape[0]
+                    
                     # Get balanced batches (if relevant)
-                    if BATCH_SIZE < censored.shape[0]:
+                    if BATCH_SIZE < n:
+                        # Shuffle so that training batches differ every epoch
+                        idxs = np.arange(features.shape[0]);
+                        np.random.shuffle(idxs)
+                        features = features[idxs, :]
+                        survival = survival[idxs]
+                        censored  = censored[idxs]
+                        # stochastic mini-batch GD
                         batchIdxs = dm.get_balanced_batches(censored, BATCH_SIZE = BATCH_SIZE)
                     else:
-                        batchIdxs = [np.arange(censored.shape[0])]
-                        
-                    #if USE_VALID:
-                    #    batchIdxs_valid = \
-                    #        dm.get_balanced_batches(censored_valid, BATCH_SIZE = BATCH_SIZE)  
-                            
+                        # Global GD
+                        batchIdxs = [np.arange(n)]
+                                      
                     # Run over training set
                     #==========================================================
                             
@@ -425,40 +421,60 @@ class SurvivalNCA(object):
                             sUtils.calc_at_risk(survival[batch], 
                                                 1-censored[batch],
                                                 features[batch, :])
+                                                
+                        # Get at-risk mask (to be multiplied by Pij)
+                        Pij_mask = np.zeros((n, n))
+                        for idx in range(n):
+                            # only observed cases
+                            if o_batch[idx] == 1:
+                                # only at-risk cases
+                                Pij_mask[idx, at_risk_batch[idx]:] = 1
                         
                         # run optimizer and fetch cost
                         
                         feed_dict = {graph.X_input: x_batch,
-                                     graph.O: o_batch,
-                                     graph.At_Risk: at_risk_batch,
+                                     graph.Pij_mask: Pij_mask,
                                      }  
-                                     
-                        #_, cost = sess.run([graph.optimizer, graph.cost], \
-                        #                    feed_dict = feed_dict)
-                        
-                        
-                        #======================================================                                     
-                                     
+                                          
                         _, cost, W = sess.run([graph.optimizer, graph.cost, graph.W], \
                                             feed_dict = feed_dict)
 
                         # transform
-                        x_train_transformed = np.dot(x_batch, W)                                            
+                        x_train_transformed = np.dot(x_batch, W)
+                        if USE_VALID:
+                            x_valid_transformed = np.dot(features_valid, W)
                 
-                        # Get Ci for training set
+                        #
+                        # Get Ci for training/validation set
+                        #
+                
                         # get neighbor indices    
-                        neighbor_idxs = knnmodel._get_neighbor_idxs(x_train_transformed, 
-                                                                    x_train_transformed, 
-                                                                    norm = 2)
+                        neighbor_idxs_train = \
+                            knnmodel._get_neighbor_idxs(x_train_transformed, 
+                                                        x_train_transformed, 
+                                                        norm = 2)
+                        if USE_VALID:
+                            neighbor_idxs_valid = \
+                                knnmodel._get_neighbor_idxs(x_valid_transformed, 
+                                                            x_train_transformed, 
+                                                            norm = 2)
                         
-                        # Predict validation set
-                        _, Ci = knnmodel.predict(neighbor_idxs,
-                                                 Survival_train=t_batch, 
-                                                 Censored_train=1-o_batch, 
-                                                 Survival_test=t_batch, 
-                                                 Censored_test=1-o_batch, 
-                                                 K = 30, 
-                                                 Method = "cumulative-time")
+                        # Predict training/validation set
+                        _, Ci_train = knnmodel.predict(neighbor_idxs_train,
+                                                       Survival_train=t_batch, 
+                                                       Censored_train=1-o_batch, 
+                                                       Survival_test=t_batch, 
+                                                       Censored_test=1-o_batch, 
+                                                       K = 30, 
+                                                       Method = "cumulative-time")
+                        if USE_VALID:
+                            _, Ci_valid = knnmodel.predict(neighbor_idxs_valid,
+                                                       Survival_train=t_batch, 
+                                                       Censored_train=1-o_batch, 
+                                                       Survival_test=survival_valid, 
+                                                       Censored_test=censored_valid, 
+                                                       K = 30, 
+                                                       Method = "cumulative-time")
                                                  
                         #======================================================
                         
@@ -469,41 +485,16 @@ class SurvivalNCA(object):
                         #self.Costs_batchLevel_train.append(cost)                  
                         cost_tot += cost                        
                         
-                        print("\t{}\t{}\t{}\t{}".format(self.EPOCHS_RUN, batchidx, round(cost[0], 3), round(Ci, 3)))
+                        print("\t{}\t{}\t{}\t{}\t{}".format(\
+                            self.EPOCHS_RUN,
+                            batchidx, 
+                            round(cost, 3), 
+                            round(Ci_train, 3),
+                            round(Ci_valid, 3)))
+
                         #pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
                         #     format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
                      
-
-#                    # Run over validation set
-#                    #==========================================================
-#                    if USE_VALID:        
-#                        for batchidx, batch in enumerate(batchIdxs_valid):
-#                            
-#                            # Getting at-risk groups
-#                            t_batch, o_batch, at_risk_batch, x_batch = \
-#                                sUtils.calc_at_risk(survival[batch], 
-#                                                    1-censored[batch],
-#                                                    features[batch, :])
-#                            
-#                            # fetch cost
-#                            
-#                            feed_dict = {graph.X_input: x_batch,
-#                                         graph.T: t_batch,
-#                                         graph.O: o_batch,
-#                                         graph.At_Risk: at_risk_batch,
-#                                         }  
-#                                         
-#                            cost = sess.run(graph.cost, feed_dict = feed_dict)
-#    
-#                            # normalize cost for sample size
-#                            cost = cost / len(batch)
-#                            
-#                            # record/append cost
-#                            #self.Costs_batchLevel_valid.append(cost)
-#                            cost_tot_valid += cost
-#                            
-#                            #pUtils.Log_and_print("\t\tValidation: Batch {} of {}, cost = {}".\
-#                            #     format(batchidx, len(batchIdxs_valid)-1, round(cost[0], 3)))
 
                     # Update and save                     
                     #==========================================================
@@ -511,8 +502,6 @@ class SurvivalNCA(object):
                     # update epochs and append costs                     
                     self.EPOCHS_RUN += 1
                     self.Costs_epochLevel_train.append(cost_tot)
-#                    if USE_VALID:
-#                        self.Costs_epochLevel_valid.append(cost_tot_valid)  
                    
                     # periodically save model
                     #if (self.EPOCHS_RUN % MODEL_SAVE_STEP) == 0:

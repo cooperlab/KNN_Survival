@@ -455,7 +455,7 @@ if __name__ == '__main__':
             {'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
             'BATCH_SIZE': 400,
-            'MAX_ITIR': 25,
+            'MAX_ITIR': 50,
             }
     
     elastic_net_params = \

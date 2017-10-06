@@ -264,7 +264,8 @@ class SurvivalNCA(object):
             BATCH_SIZE = 20,
             PLOT_STEP = 10,
             MODEL_SAVE_STEP = 10,
-            MAX_ITIR = 100):
+            MAX_ITIR = 100,
+            MODEL_BUFFER = 4):
                 
         """
         train a survivalNCA model
@@ -300,7 +301,8 @@ class SurvivalNCA(object):
         # Define computational graph
         #======================================================================        
         
-        COMPUT_GRAPH_PARAMS['dim_input'] = features.shape[1]
+        D = features.shape[1]
+        COMPUT_GRAPH_PARAMS['dim_input'] = D
         graph = self._build_computational_graph(COMPUT_GRAPH_PARAMS)
         
         
@@ -380,10 +382,17 @@ class SurvivalNCA(object):
             try: 
                 itir = 0
                 
-                print("\n\tepoch\tbatch\tcost\tCi_train\tCi_valid")
-                print("\t-----------------------------------------")
+                print("\n\tepoch\tcost\tCi_train\tCi_valid")
+                print("\t----------------------------------------------")
                 
                 knnmodel = knn.SurvivalKNN(self.RESULTPATH, description=self.description)
+                
+                # Initialize weights buffer 
+                # (keep a snapshot of model for early stopping)
+                # each "channel" in 3rd dim is one snapshot of the model
+                if USE_VALID:
+                    Ws = np.zeros((D, D, MODEL_BUFFER))
+                    Cis = []
                 
                 while itir < MAX_ITIR:
                     
@@ -406,7 +415,8 @@ class SurvivalNCA(object):
                         survival = survival[idxs]
                         censored  = censored[idxs]
                         # stochastic mini-batch GD
-                        batchIdxs = dm.get_balanced_batches(censored, BATCH_SIZE = BATCH_SIZE)
+                        batchIdxs = dm.get_balanced_batches(censored, 
+                                                            BATCH_SIZE=BATCH_SIZE)
                     else:
                         # Global GD
                         batchIdxs = [np.arange(n)]
@@ -431,71 +441,86 @@ class SurvivalNCA(object):
                                 Pij_mask[idx, at_risk_batch[idx]:] = 1
                         
                         # run optimizer and fetch cost
-                        
                         feed_dict = {graph.X_input: x_batch,
                                      graph.Pij_mask: Pij_mask,
                                      }  
-                                          
-                        _, cost, W = sess.run([graph.optimizer, graph.cost, graph.W], \
-                                            feed_dict = feed_dict)
-
-                        # transform
-                        x_train_transformed = np.dot(x_batch, W)
-                        if USE_VALID:
-                            x_valid_transformed = np.dot(features_valid, W)
-                
-                        #
-                        # Get Ci for training/validation set
-                        #
-                
-                        # get neighbor indices    
-                        neighbor_idxs_train = \
-                            knnmodel._get_neighbor_idxs(x_train_transformed, 
-                                                        x_train_transformed, 
-                                                        norm = 2)
-                        if USE_VALID:
-                            neighbor_idxs_valid = \
-                                knnmodel._get_neighbor_idxs(x_valid_transformed, 
-                                                            x_train_transformed, 
-                                                            norm = 2)
-                        
-                        # Predict training/validation set
-                        _, Ci_train = knnmodel.predict(neighbor_idxs_train,
-                                                       Survival_train=t_batch, 
-                                                       Censored_train=1-o_batch, 
-                                                       Survival_test=t_batch, 
-                                                       Censored_test=1-o_batch, 
-                                                       K = 30, 
-                                                       Method = "cumulative-time")
-                        if USE_VALID:
-                            _, Ci_valid = knnmodel.predict(neighbor_idxs_valid,
-                                                       Survival_train=t_batch, 
-                                                       Censored_train=1-o_batch, 
-                                                       Survival_test=survival_valid, 
-                                                       Censored_test=censored_valid, 
-                                                       K = 30, 
-                                                       Method = "cumulative-time")
+                        _, cost, W = sess.run([graph.optimizer, 
+                                               graph.cost, 
+                                               graph.W], \
+                                               feed_dict = feed_dict)
                                                  
-                        #======================================================
-                        
                         # normalize cost for sample size
                         cost = cost / len(batch)
                         
                         # record/append cost
                         #self.Costs_batchLevel_train.append(cost)                  
                         cost_tot += cost                        
-                        
-                        print("\t{}\t{}\t{}\t{}\t{}".format(\
-                            self.EPOCHS_RUN,
-                            batchidx, 
-                            round(cost, 3), 
-                            round(Ci_train, 3),
-                            round(Ci_valid, 3)))
 
                         #pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
                         #     format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
-                     
+                    
+                    
+                    # Get Ci for training/validation set
+                    #==========================================================
+            
+                    # transform
+                    x_train_transformed = np.dot(x_batch, W)
+                    if USE_VALID:
+                        x_valid_transformed = np.dot(features_valid, W)
+            
+                    # get neighbor indices    
+                    neighbor_idxs_train = \
+                        knnmodel._get_neighbor_idxs(x_train_transformed, 
+                                                    x_train_transformed, 
+                                                    norm = 2)
+                    if USE_VALID:
+                        neighbor_idxs_valid = \
+                            knnmodel._get_neighbor_idxs(x_valid_transformed, 
+                                                        x_train_transformed, 
+                                                        norm = 2)
+                    
+                    # Predict training/validation set
+                    _, Ci_train = knnmodel.predict(neighbor_idxs_train,
+                                                   Survival_train=t_batch, 
+                                                   Censored_train=1-o_batch, 
+                                                   Survival_test=t_batch, 
+                                                   Censored_test=1-o_batch, 
+                                                   K = 30, 
+                                                   Method = "cumulative-time")
+                    if USE_VALID:
+                        _, Ci_valid = knnmodel.predict(neighbor_idxs_valid,
+                                                   Survival_train=t_batch, 
+                                                   Censored_train=1-o_batch, 
+                                                   Survival_test=survival_valid, 
+                                                   Censored_test=censored_valid, 
+                                                   K = 30, 
+                                                   Method = "cumulative-time")
 
+                    print("\t{}\t{}\t{}\t{}".format(\
+                            self.EPOCHS_RUN,
+                            round(cost_tot, 3), 
+                            round(Ci_train, 3),
+                            round(Ci_valid, 3)))                                                   
+                                                   
+                    # Early stopping
+                    #==========================================================
+
+                    if USE_VALID:                                                   
+                        # Save snapshot                        
+                        Ws[:, :, itir % MODEL_BUFFER] = W 
+                        Cis.append(Ci_valid)
+                        
+                        # Stop when overfitting starts to occur
+                        if len(Cis) > (2 * MODEL_BUFFER):
+                            ci_new = np.mean(Cis[-MODEL_BUFFER:])
+                            ci_old = np.mean(Cis[-2*MODEL_BUFFER:-MODEL_BUFFER])        
+                    
+                            if ci_new < ci_old:
+                                snapshot_idx = (itir - MODEL_BUFFER) % MODEL_BUFFER
+                                W = Ws[:, :, snapshot_idx]
+                                break
+                    
+                    
                     # Update and save                     
                     #==========================================================
                     
@@ -523,7 +548,7 @@ class SurvivalNCA(object):
             #pUtils.Log_and_print("Obtaining final results.")
             
             # save learned weights
-            W = sess.run(graph.W, feed_dict = feed_dict)
+            #W = sess.run(graph.W, feed_dict = feed_dict)
             np.save(self.RESULTPATH + 'model/' + self.description + \
                     'featWeights.npy', W)
             

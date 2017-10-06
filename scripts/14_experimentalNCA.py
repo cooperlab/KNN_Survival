@@ -17,7 +17,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 from bayes_opt import BayesianOptimization as bayesopt
 
-import NCA_model_experimental as nca
+import NCA_model as nca
 import KNNSurvival as knn
 from pandas import DataFrame as df
 

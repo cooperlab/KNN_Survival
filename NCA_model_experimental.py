@@ -292,10 +292,10 @@ class SurvivalNCA(object):
             assert (censored_valid is not None)
         
         # normalize (for numeric stability)
-        epsilon = 1e-10
-        survival = (survival / self.T_MAX) + epsilon
-        if USE_VALID:        
-            survival_valid =  (survival_valid / self.T_MAX) + epsilon
+        #epsilon = 1e-10
+        #survival = (survival / self.T_MAX) + epsilon
+        #if USE_VALID:        
+        #    survival_valid =  (survival_valid / self.T_MAX) + epsilon
         
         # Define computational graph
         #======================================================================        

@@ -36,6 +36,7 @@ import DataManagement as dm
 
 #import NCA_graph as cgraph
 import NCA_graph_experimental as cgraph
+import KNNSurvival as knn
 
 #raise(Exception)
 
@@ -382,22 +383,24 @@ class SurvivalNCA(object):
                 #print("\n\tepoch\tbatch\tcost")
                 #print("\t-----------------------")
                 
+                knnmodel = knn.SurvivalKNN(self.RESULTPATH, description=self.description)
+                
                 while itir < MAX_ITIR:
                     
                     #pUtils.Log_and_print("\n\tTraining epoch {}\n".format(self.EPOCHS_RUN))
                     
                     itir += 1
                     cost_tot = 0
-                    cost_tot_valid = 0
+                    #cost_tot_valid = 0
                     
                     # Shuffle so that training batches differ every epoch
                     #==========================================================
-                    
-                    idxs = np.arange(features.shape[0]);
-                    np.random.shuffle(idxs)
-                    features = features[idxs, :]
-                    survival = survival[idxs]
-                    censored  = censored[idxs]
+                    #
+                    #idxs = np.arange(features.shape[0]);
+                    #np.random.shuffle(idxs)
+                    #features = features[idxs, :]
+                    #survival = survival[idxs]
+                    #censored  = censored[idxs]
             
                     # Divide into balanced batches
                     #==========================================================
@@ -408,9 +411,9 @@ class SurvivalNCA(object):
                     else:
                         batchIdxs = [np.arange(censored.shape[0])]
                         
-                    if USE_VALID:
-                        batchIdxs_valid = \
-                            dm.get_balanced_batches(censored_valid, BATCH_SIZE = BATCH_SIZE)  
+                    #if USE_VALID:
+                    #    batchIdxs_valid = \
+                    #        dm.get_balanced_batches(censored_valid, BATCH_SIZE = BATCH_SIZE)  
                             
                     # Run over training set
                     #==========================================================
@@ -426,13 +429,38 @@ class SurvivalNCA(object):
                         # run optimizer and fetch cost
                         
                         feed_dict = {graph.X_input: x_batch,
-                                     graph.T: t_batch,
                                      graph.O: o_batch,
                                      graph.At_Risk: at_risk_batch,
                                      }  
                                      
-                        _, cost = sess.run([graph.optimizer, graph.cost], \
+                        #_, cost = sess.run([graph.optimizer, graph.cost], \
+                        #                    feed_dict = feed_dict)
+                        
+                        
+                        #======================================================                                     
+                                     
+                        _, cost, W = sess.run([graph.optimizer, graph.cost, graph.W], \
                                             feed_dict = feed_dict)
+
+                        # transform
+                        x_train_transformed = np.dot(x_batch, W)                                            
+                
+                        # Get Ci for training set
+                        # get neighbor indices    
+                        neighbor_idxs = knnmodel._get_neighbor_idxs(x_train_transformed, 
+                                                                    x_train_transformed, 
+                                                                    norm = 2)
+                        
+                        # Predict validation set
+                        _, Ci = knnmodel.predict(neighbor_idxs,
+                                                 Survival_train=t_batch, 
+                                                 Censored_train=1-o_batch, 
+                                                 Survival_test=t_batch, 
+                                                 Censored_test=1-o_batch, 
+                                                 K = 30, 
+                                                 Method = "cumulative-time")
+                                                 
+                        #======================================================
                         
                         # normalize cost for sample size
                         cost = cost / len(batch)
@@ -441,41 +469,41 @@ class SurvivalNCA(object):
                         #self.Costs_batchLevel_train.append(cost)                  
                         cost_tot += cost                        
                         
-                        print("\t{}\t{}\t{}".format(self.EPOCHS_RUN, batchidx, round(cost[0], 3)))
+                        print("\t{}\t{}\t{}\t{}".format(self.EPOCHS_RUN, batchidx, round(cost[0], 3), round(Ci, 3)))
                         #pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
                         #     format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
                      
 
-                    # Run over validation set
-                    #==========================================================
-                    if USE_VALID:        
-                        for batchidx, batch in enumerate(batchIdxs_valid):
-                            
-                            # Getting at-risk groups
-                            t_batch, o_batch, at_risk_batch, x_batch = \
-                                sUtils.calc_at_risk(survival[batch], 
-                                                    1-censored[batch],
-                                                    features[batch, :])
-                            
-                            # fetch cost
-                            
-                            feed_dict = {graph.X_input: x_batch,
-                                         graph.T: t_batch,
-                                         graph.O: o_batch,
-                                         graph.At_Risk: at_risk_batch,
-                                         }  
-                                         
-                            cost = sess.run(graph.cost, feed_dict = feed_dict)
-    
-                            # normalize cost for sample size
-                            cost = cost / len(batch)
-                            
-                            # record/append cost
-                            #self.Costs_batchLevel_valid.append(cost)
-                            cost_tot_valid += cost
-                            
-                            #pUtils.Log_and_print("\t\tValidation: Batch {} of {}, cost = {}".\
-                            #     format(batchidx, len(batchIdxs_valid)-1, round(cost[0], 3)))
+#                    # Run over validation set
+#                    #==========================================================
+#                    if USE_VALID:        
+#                        for batchidx, batch in enumerate(batchIdxs_valid):
+#                            
+#                            # Getting at-risk groups
+#                            t_batch, o_batch, at_risk_batch, x_batch = \
+#                                sUtils.calc_at_risk(survival[batch], 
+#                                                    1-censored[batch],
+#                                                    features[batch, :])
+#                            
+#                            # fetch cost
+#                            
+#                            feed_dict = {graph.X_input: x_batch,
+#                                         graph.T: t_batch,
+#                                         graph.O: o_batch,
+#                                         graph.At_Risk: at_risk_batch,
+#                                         }  
+#                                         
+#                            cost = sess.run(graph.cost, feed_dict = feed_dict)
+#    
+#                            # normalize cost for sample size
+#                            cost = cost / len(batch)
+#                            
+#                            # record/append cost
+#                            #self.Costs_batchLevel_valid.append(cost)
+#                            cost_tot_valid += cost
+#                            
+#                            #pUtils.Log_and_print("\t\tValidation: Batch {} of {}, cost = {}".\
+#                            #     format(batchidx, len(batchIdxs_valid)-1, round(cost[0], 3)))
 
                     # Update and save                     
                     #==========================================================
@@ -483,8 +511,8 @@ class SurvivalNCA(object):
                     # update epochs and append costs                     
                     self.EPOCHS_RUN += 1
                     self.Costs_epochLevel_train.append(cost_tot)
-                    if USE_VALID:
-                        self.Costs_epochLevel_valid.append(cost_tot_valid)  
+#                    if USE_VALID:
+#                        self.Costs_epochLevel_valid.append(cost_tot_valid)  
                    
                     # periodically save model
                     #if (self.EPOCHS_RUN % MODEL_SAVE_STEP) == 0:

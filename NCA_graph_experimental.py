@@ -99,13 +99,10 @@ class comput_graph(object):
         with tf.variable_scope("Inputs"):
         
             self.X_input = tf.placeholder("float", [None, self.dim_input], name='X_input')
-            
-            self.T = tf.placeholder("float", [None], name='T')
             self.O = tf.placeholder("float", [None], name='O')
             self.At_Risk = tf.placeholder("float", [None], name='At_Risk')
             
             # type conversions
-            self.T = tf.cast(self.T, tf.float32)
             self.O = tf.cast(self.O, tf.int32)
             self.At_Risk = tf.cast(self.At_Risk, tf.int32)
             
@@ -218,7 +215,7 @@ class comput_graph(object):
             """Add patient to log partial likelihood sum """
             
             # Get Pij of at-risk cases from this patient's perspective
-            Pij_thisPatient = self.Pij[Idx, self.At_Risk[Idx]:tf.size(self.T)-1]
+            Pij_thisPatient = self.Pij[Idx, self.At_Risk[Idx]:tf.size(self.O)-1]
             
             # Get sum
             Pij_thisPatient = tf.reduce_sum(Pij_thisPatient)
@@ -266,7 +263,7 @@ class comput_graph(object):
             Idx = tf.cast(tf.Variable(0), tf.int32)
             
             # Go through all uncensored cases and add to cumulative sum
-            c = lambda Idx, cumSum: tf.less(Idx, tf.cast(tf.size(self.T)-1, tf.int32))
+            c = lambda Idx, cumSum: tf.less(Idx, tf.cast(tf.size(self.O)-1, tf.int32))
             b = lambda Idx, cumSum: _add_if_observed(Idx, cumSum)
             Idx, cumSum = tf.while_loop(c, b, [Idx, cumSum])
             

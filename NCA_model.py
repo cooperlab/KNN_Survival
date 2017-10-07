@@ -25,10 +25,10 @@ import numpy as np
 import tensorflow as tf
 #from scipy.io import loadmat, savemat
 #from matplotlib import cm
-#import matplotlib.pylab as plt
+import matplotlib.pylab as plt
 
 #import logging
-#import datetime
+import datetime
 
 import ProjectUtils as pUtils
 import SurvivalUtils as sUtils
@@ -107,12 +107,10 @@ class SurvivalNCA(object):
             
             # new model inital attributes
             self.Costs_epochLevel_train = []
-            self.Costs_epochLevel_valid = []
-            #self.Costs_batchLevel_train = []
-            #self.Costs_batchLevel_valid = []
+            self.CIs_train = []
+            self.CIs_valid = []
             self.BATCHES_RUN = 0
             self.EPOCHS_RUN = 0
-            self.T_MAX = 4000
             
             # Create output dirs
             #==================================================================
@@ -163,9 +161,8 @@ class SurvivalNCA(object):
         self.RESULTPATH = attribs['RESULTPATH']
         self.description = attribs['description']
         self.Costs_epochLevel_train = attribs['Costs_epochLevel_train']
-        self.Costs_epochLevel_valid = attribs['Costs_epochLevel_valid']
-        #self.Costs_batchLevel_train = attribs['Costs_batchLevel_train']
-        #self.Costs_batchLevel_valid = attribs['Costs_batchLevel_valid']
+        self.CIs_train = attribs['CIs_train']
+        self.CIs_valid = attribs['CIs_valid']        
         self.BATCHES_RUN = attribs['BATCHES_RUN']
         self.EPOCHS_RUN = attribs['EPOCHS_RUN']
         self.COMPUT_GRAPH_PARAMS = attribs['COMPUT_GRAPH_PARAMS']
@@ -182,9 +179,8 @@ class SurvivalNCA(object):
             'RESULTPATH' : self.RESULTPATH,
             'description' : self.description,
             'Costs_epochLevel_train': self.Costs_epochLevel_train,
-            'Costs_epochLevel_valid': self.Costs_epochLevel_valid,
-            #'Costs_batchLevel_train': self.Costs_batchLevel_train,
-            #'Costs_batchLevel_valid': self.Costs_batchLevel_valid,
+            'CIs_train': self.CIs_train,
+            'CIs_valid': self.CIs_valid,
             'BATCHES_RUN': self.BATCHES_RUN,
             'EPOCHS_RUN': self.EPOCHS_RUN,
             'COMPUT_GRAPH_PARAMS': self.COMPUT_GRAPH_PARAMS,
@@ -202,10 +198,9 @@ class SurvivalNCA(object):
         
         self.EPOCHS_RUN = 0
         self.BATCHES_RUN = 0    
-        #self.Costs_batchLevel_train = []            
-        #self.Costs_batchLevel_valid = []
         self.Costs_epochLevel_train = []
-        self.Costs_epochLevel_valid = []
+        self.CIs_train = []
+        self.CIs_valid = []
         #self.save()
         
     #==========================================================================    
@@ -292,12 +287,6 @@ class SurvivalNCA(object):
             assert (survival_valid is not None)
             assert (censored_valid is not None)
         
-        # normalize (for numeric stability)
-        #epsilon = 1e-10
-        #survival = (survival / self.T_MAX) + epsilon
-        #if USE_VALID:        
-        #    survival_valid =  (survival_valid / self.T_MAX) + epsilon
-        
         # Define computational graph
         #======================================================================        
         
@@ -355,25 +344,59 @@ class SurvivalNCA(object):
              
             
             # monitor
-            def _monitorProgress():
+            def _monitorProgress(PLOT=True):
 
-                """Monitor cost"""
-                pass
-                #cs = np.array(self.Costs_epochLevel_train)
-                #epoch_no = np.arange(len(cs))
-                #cs = np.concatenate((epoch_no[:, None], cs), axis=1)
+                """
+                Monitor cost - save txt and plots cost
+                """
                 
-                #cs_valid = None
-                #if USE_VALID:
-                #    cs_valid = np.array(self.Costs_epochLevel_valid)
+                # find min epochs to display in case of keyboard interrupt
+                max_epoch = np.min([len(self.Costs_epochLevel_train),
+                                    len(self.CIs_train),
+                                    len(self.CIs_valid)])
                 
-                #timestamp = str(datetime.datetime.today()).replace(' ','_')
-                #timestamp.replace(":", '_')
-                #self._plotMonitor(arr= cs, arr2= cs_valid,
-                #             title= "cost vs. epoch", 
-                #             xlab= "epoch", ylab= "cost", 
-                #             savename= self.RESULTPATH + "plots/" +
-                #              self.description + "cost_" + timestamp + ".svg")
+                # concatenate costs
+                costs = np.array(self.Costs_epochLevel_train[0:max_epoch])
+                cis_train = np.array(self.CIs_train[0:max_epoch])
+                if USE_VALID:
+                    cis_valid = np.array(self.CIs_valid[0:max_epoch])
+                else:
+                    cis_valid = None
+                
+                epoch_no = np.arange(max_epoch)
+                costs = np.concatenate((epoch_no[:, None], costs), axis=1)
+                cis_train = np.concatenate((epoch_no[:, None], cis_train), axis=1)
+                
+                # Get unique datetime identifier
+                timestamp = str(datetime.datetime.today()).replace(' ','_')
+                timestamp.replace(":", '_')
+                
+                # Saving raw numbers for later reference
+                savename= self.RESULTPATH + "plots/" + self.description + "cost_" + timestamp
+                
+                with open(savename + '_costs.txt', 'wb') as f:
+                    np.savetxt(f, costs, fmt='%s', delimiter='\t')
+
+                with open(savename + '_cis_train.txt', 'wb') as f:
+                    np.savetxt(f, cis_train, fmt='%s', delimiter='\t')
+
+                if USE_VALID:
+                    with open(savename + '_cis_valid.txt', 'wb') as f:
+                        np.savetxt(f, cis_valid, fmt='%s', delimiter='\t')
+                
+                #
+                # Note, plotting would not work when running
+                # this using screen (Xdisplay is not supported)
+                #
+                if PLOT:
+                    self._plotMonitor(arr= cis_train,
+                                      title= "Cost vs. epoch", 
+                                      xlab= "epoch", ylab= "Cost", 
+                                      savename= savename + ".svg")
+                    self._plotMonitor(arr= cis_train, arr2= cis_valid,
+                                      title= "C-index vs. epoch", 
+                                      xlab= "epoch", ylab= "C-index", 
+                                      savename= savename + ".svg")
 
     
             # Begin epochs
@@ -495,7 +518,8 @@ class SurvivalNCA(object):
                                                    Censored_test=censored_valid, 
                                                    K = 30, 
                                                    Method = "cumulative-time")
-
+                    if not USE_VALID:
+                        Ci_valid = 0
                     print("\t{}\t{}\t{}\t{}".format(\
                             self.EPOCHS_RUN,
                             round(cost_tot, 3), 
@@ -527,6 +551,8 @@ class SurvivalNCA(object):
                     # update epochs and append costs                     
                     self.EPOCHS_RUN += 1
                     self.Costs_epochLevel_train.append(cost_tot)
+                    self.CIs_train.append(Ci_train)
+                    self.CIs_valid.append(Ci_valid)
                    
                     # periodically save model
                     #if (self.EPOCHS_RUN % MODEL_SAVE_STEP) == 0:
@@ -621,26 +647,18 @@ class SurvivalNCA(object):
                             
         """ plots cost/other metric to monitor progress """
         
-        #print("Plotting " + title)
-        #
-        #fig, ax = plt.subplots() 
-        #ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
-        #if arr2 is not None:
-        #    ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
-        #plt.title(title, fontsize =16, fontweight ='bold')
-        #plt.xlabel(xlab)
-        #plt.ylabel(ylab) 
-        #plt.tight_layout()
-        #plt.savefig(savename)
-        #plt.close()
+        print("Plotting " + title)
         
-        #
-        # Saving instead of plotting to avoid
-        # Xdisplay issues when using screen
-        #
-        #print("Saving " + title)
-        with open(savename.split('.')[0] + '.txt', 'wb') as f:
-            np.savetxt(f, arr, fmt='%s', delimiter='\t')
+        fig, ax = plt.subplots() 
+        ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+        if arr2 is not None:
+            ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
+        plt.title(title, fontsize =16, fontweight ='bold')
+        plt.xlabel(xlab)
+        plt.ylabel(ylab) 
+        plt.tight_layout()
+        plt.savefig(savename)
+        plt.close()
 
     #==========================================================================    
         

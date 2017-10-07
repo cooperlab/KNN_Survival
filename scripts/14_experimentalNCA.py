@@ -83,9 +83,11 @@ def get_cv_accuracy(dpath, site, dtype, description,
                     USE_NCA=False,
                     graphParams={},
                     nca_train_params={},
-                    elastic_net_params={},
                     USE_PCA=False,
-                    bagging_params={}):
+                    bagging_params={},
+                    bo_lims={},
+                    bo_expl={},
+                    bo_params={}):
     
     """
     Get KNN cross validation accuracy with or without PCA and NCA
@@ -96,6 +98,21 @@ def get_cv_accuracy(dpath, site, dtype, description,
     with open(RESULTPATH + description + \
                       'params_all.pkl','wb') as f:
         _pickle.dump(params_all, f)
+    
+    # result directory structure
+    RESULTPATH_NCA = RESULTPATH + "nca/"
+    RESULTPATH_KNN = RESULTPATH + "knn/"
+    LOADPATH = None
+    os.system('mkdir ' + RESULTPATH_NCA)
+    os.system('mkdir ' + RESULTPATH_KNN)
+    
+    # Instantiate a KNN survival model.
+    knnmodel = knn.SurvivalKNN(RESULTPATH_KNN, description=description) 
+    # instantiate NCA model    
+    if USE_NCA:
+        ncamodel = nca.SurvivalNCA(RESULTPATH_NCA, 
+                                   description = description, 
+                                   LOADPATH = LOADPATH)
     
     #%% =======================================================================
     # Define relevant methods
@@ -131,7 +148,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                      Censored_train=C_train, 
                                      Survival_test =T_valid, 
                                      Censored_test =C_valid, 
-                                     K=elastic_net_params['K'], 
+                                     K=k_tune_params['K_init'], 
                                      Method = k_tune_params['Method'])
             
             cis.append([numpc, Ci])
@@ -158,35 +175,18 @@ def get_cv_accuracy(dpath, site, dtype, description,
     N = Features.shape[0]
     Survival = Data['Survival'].reshape([N,])
     Censored = Data['Censored'].reshape([N,])
+    fnames = Data[dtype + '_Symbs']
     Data = None
 
     
     with open(dpath.split('.mat')[0] + '_splitIdxs.pkl','rb') as f:
         splitIdxs = _pickle.load(f)
     
-    #
-    # result structure
-    #
-    
-    RESULTPATH_NCA = RESULTPATH + "nca/"
-    RESULTPATH_KNN = RESULTPATH + "knn/"
-    LOADPATH = None
-    
-    os.system('mkdir ' + RESULTPATH_NCA)
-    os.system('mkdir ' + RESULTPATH_KNN)
-    
     # Go through folds, optimize and get accuracy
     #==========================================================================
     
-    # Instantiate a KNN survival model.
-    knnmodel = knn.SurvivalKNN(RESULTPATH_KNN, description=description)
-    
-    #
     # initialize
-    #
-    
     n_folds = len(splitIdxs['train'])
-    
     CIs = np.zeros([n_folds])
     
     #
@@ -244,11 +244,6 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             print("\nBayesian Optimization of NCA hyperparameters.\n")            
             
-            # instantiate NCA model
-            ncamodel = nca.SurvivalNCA(RESULTPATH_NCA, 
-                                       description = description, 
-                                       LOADPATH = LOADPATH)
-            
             nca_train_params['MONITOR'] = False
             
             def run_nca(ALPHA, LAMBDA, SIGMA):
@@ -280,7 +275,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
                 # get neighbor indices    
                 neighbor_idxs = knnmodel._get_neighbor_idxs(x_valid_transformed, 
                                                             x_train_transformed, 
-                                                            norm = norm)
+                                                            norm = nca_train_params['norm'])
                 
                 # Predict validation set
                 _, Ci = knnmodel.predict(neighbor_idxs,
@@ -288,30 +283,22 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                          Censored_train=Censored[splitIdxs['train'][fold]], 
                                          Survival_test = Survival[splitIdxs['valid'][fold]], 
                                          Censored_test = Censored[splitIdxs['valid'][fold]], 
-                                         K = elastic_net_params['K'], 
-                                         Method = Method)
+                                         K = nca_train_params['K'], 
+                                         Method = nca_train_params['Method'])
 
                 return Ci
-                
-            # limits of interval to explore
-            bo_lims = {
-                'ALPHA': (0, 1),
-                'LAMBDA': (0, 1),
-                'SIGMA': (0.2, 15)
-            }
             
-            # initial points to explore
-            bo_expl = {
-                'ALPHA': [0, 0, 1, 0, 0],
-                'LAMBDA': [0, 1, 0, 0, 0],
-                'SIGMA': [1, 1, 1, 5, 0.5],
-            }
+            #
+            # Run core bayesopt model
+            #
             
             bo = bayesopt(run_nca, bo_lims)
             bo.explore(bo_expl)
-            bo.maximize(init_points = 2, n_iter = 15)
+            bo.maximize(init_points = bo_params['init_points'], 
+                        n_iter = bo_params['n_itir'])
+                        
+            # fetch optimal params
             Optim_params = bo.res['max']['max_params']
-            
             ALPHA_OPTIM = Optim_params['ALPHA']
             LAMBDA_OPTIM = Optim_params['LAMBDA']
             SIGMA_OPTIM = Optim_params['SIGMA']
@@ -342,6 +329,11 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                censored_valid = Censored[splitIdxs['valid'][fold]],
                                COMPUT_GRAPH_PARAMS = graphParams,
                                **nca_train_params)    
+                               
+            # Ranks features
+            if not USE_PCA:
+                ncamodel.rankFeats(W, fnames, rank_type="weights", 
+                                   PLOT=nca_train_params['PLOT'])
             
             # Transform features according to learned nca model
             x_train = np.dot(x_train, W)
@@ -433,17 +425,19 @@ if __name__ == '__main__':
     RESULTPATH_BASE = projectPath + "Results/8_5Oct2017/"
     
     # dataset and description
-    sites = ["GBMLGG", ] #"BRCA", "KIPAN", "MM"]
+    sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
     dtypes = ["Integ", ] #"Gene"]
     
+    K_init = 35
     norm = 2
     Methods = ['cumulative-time', 'non-cumulative']
     
     # KNN params ----------------------------------------------------
     
-    k_tune_params = {'Ks': list(np.arange(10, 160, 10)),
+    k_tune_params = {'K_init': K_init,
+                     'Ks': list(np.arange(10, 160, 10)),
                      'norm': norm,
-                    }
+                     }
     
     bagging_params = {'n_bags': 50,
                       'feats_per_bag': None
@@ -465,13 +459,29 @@ if __name__ == '__main__':
             'MAX_ITIR': 50,
             'MODEL_BUFFER': 4,
             'EARLY_STOPPING': True,
-            'PLOT': True,
+            'PLOT': False,
+            'K': K_init,
+            'norm': norm,
             }
+             
+    # Bayesopt params  ---------------------------------------------------
+             
+    # limits of interval to explore
+    bo_lims = {'ALPHA': (0, 1),
+               'LAMBDA': (0, 1),
+               'SIGMA': (0.2, 15)
+               }
     
-    elastic_net_params = \
-            {'K': 50,
-             'VALID_RATIO': 0.5,
-             }
+    # initial points to explore
+    bo_expl = {'ALPHA': [0, ], #0, 1, 0, 0],
+               'LAMBDA': [0, ], #1, 0, 0, 0],
+               'SIGMA': [1,], # 1, 1, 5, 0.5],
+               }
+    
+    # other bayesopt params
+    bo_params = {'init_points': 2,
+                 'n_itir': 1, #5,
+                 }
         
     # Now run experiment
     #=================================================================
@@ -482,6 +492,7 @@ if __name__ == '__main__':
             
                 # pass params to dicts
                 k_tune_params['Method'] = Method
+                nca_train_params['Method'] = Method
                 
                 # Itirate through datasets
                 
@@ -534,13 +545,14 @@ if __name__ == '__main__':
                                         USE_NCA=USE_NCA,
                                         graphParams=graphParams,
                                         nca_train_params=nca_train_params,
-                                        elastic_net_params=elastic_net_params,
                                         USE_PCA=USE_PCA,
-                                        bagging_params=bagging_params)
+                                        bagging_params=bagging_params,
+                                        bo_lims=bo_lims,
+                                        bo_expl=bo_expl,
+                                        bo_params=bo_params)
                                             
 
-                        
-    # Combine results 
+    # Combine results from all experiments
     #=================================================================
     
     combine_results(RESULTPATH_BASE)

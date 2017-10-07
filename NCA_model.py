@@ -218,6 +218,15 @@ class SurvivalNCA(object):
         pUtils.makeSubdir(self.RESULTPATH + 'model/', 'weights')
         pUtils.makeSubdir(self.RESULTPATH + 'model/', 'logs')
         
+    #==========================================================================    
+    
+    def _update_timestamp(self):
+        
+        """ Update time stamp """
+        
+        timestamp = str(datetime.datetime.today()).replace(' ','_')
+        self.timestamp = timestamp.replace(":", '_')
+        
     
     #%%============================================================================
     # build computational graph
@@ -263,7 +272,10 @@ class SurvivalNCA(object):
             MODEL_BUFFER = 4,
             EARLY_STOPPING = False,
             MONITOR=True,
-            PLOT=True):
+            PLOT=True,
+            K=35,
+            Method='cumulative-time',
+            norm=2):
                 
         """
         train a survivalNCA model
@@ -355,58 +367,50 @@ class SurvivalNCA(object):
                 """
                 Monitor cost - save txt and plots cost
                 """
+                # find min epochs to display in case of keyboard interrupt
+                max_epoch = np.min([len(self.Costs_epochLevel_train),
+                                    len(self.CIs_train),
+                                    len(self.CIs_valid)])
                 
-                if MONITOR:
-                    
-                    # find min epochs to display in case of keyboard interrupt
-                    max_epoch = np.min([len(self.Costs_epochLevel_train),
-                                        len(self.CIs_train),
-                                        len(self.CIs_valid)])
-                    
-                    # concatenate costs
-                    costs = np.array(self.Costs_epochLevel_train[0:max_epoch])
-                    cis_train = np.array(self.CIs_train[0:max_epoch])
-                    if USE_VALID:
-                        cis_valid = np.array(self.CIs_valid[0:max_epoch])
-                    else:
-                        cis_valid = None
-                    
-                    epoch_no = np.arange(max_epoch)
-                    costs = np.concatenate((epoch_no[:, None], costs[:, None]), axis=1)
-                    cis_train = np.concatenate((epoch_no[:, None], cis_train[:, None]), axis=1)
-                    
-                    # Get unique datetime identifier
-                    timestamp = str(datetime.datetime.today()).replace(' ','_')
-                    timestamp = timestamp.replace(":", '_')
-                    
-                    # Saving raw numbers for later reference
-                    savename= self.RESULTPATH + "plots/" + self.description + timestamp
-                    
-                    with open(savename + '_costs.txt', 'wb') as f:
-                        np.savetxt(f, costs, fmt='%s', delimiter='\t')
-    
-                    with open(savename + '_cis_train.txt', 'wb') as f:
-                        np.savetxt(f, cis_train, fmt='%s', delimiter='\t')
-    
-                    if USE_VALID:
-                        with open(savename + '_cis_valid.txt', 'wb') as f:
-                            np.savetxt(f, cis_valid, fmt='%s', delimiter='\t')
-                    
-                    #
-                    # Note, plotting would not work when running
-                    # this using screen (Xdisplay is not supported)
-                    #
-                    if PLOT:
-                        self._plotMonitor(arr= costs,
-                                          title= "Cost vs. epoch", 
-                                          xlab= "epoch", ylab= "Cost", 
-                                          savename= savename + "_costs.svg")
-                        self._plotMonitor(arr= cis_train, arr2= cis_valid,
-                                          title= "C-index vs. epoch", 
-                                          xlab= "epoch", ylab= "C-index", 
-                                          savename= savename + "_Ci.svg",
-                                          snapshot_idx=snapshot_idx)
+                # concatenate costs
+                costs = np.array(self.Costs_epochLevel_train[0:max_epoch])
+                cis_train = np.array(self.CIs_train[0:max_epoch])
+                if USE_VALID:
+                    cis_valid = np.array(self.CIs_valid[0:max_epoch])
+                else:
+                    cis_valid = None
+                
+                epoch_no = np.arange(max_epoch)
+                costs = np.concatenate((epoch_no[:, None], costs[:, None]), axis=1)
+                cis_train = np.concatenate((epoch_no[:, None], cis_train[:, None]), axis=1)
+                
+                # Saving raw numbers for later reference
+                savename= self.RESULTPATH + "plots/" + self.description + self.timestamp
+                
+                with open(savename + '_costs.txt', 'wb') as f:
+                    np.savetxt(f, costs, fmt='%s', delimiter='\t')
 
+                with open(savename + '_cis_train.txt', 'wb') as f:
+                    np.savetxt(f, cis_train, fmt='%s', delimiter='\t')
+
+                if USE_VALID:
+                    with open(savename + '_cis_valid.txt', 'wb') as f:
+                        np.savetxt(f, cis_valid, fmt='%s', delimiter='\t')
+                
+                #
+                # Note, plotting would not work when running
+                # this using screen (Xdisplay is not supported)
+                #
+                if PLOT:
+                    self._plotMonitor(arr= costs,
+                                      title= "Cost vs. epoch", 
+                                      xlab= "epoch", ylab= "Cost", 
+                                      savename= savename + "_costs.svg")
+                    self._plotMonitor(arr= cis_train, arr2= cis_valid,
+                                      title= "C-index vs. epoch", 
+                                      xlab= "epoch", ylab= "C-index", 
+                                      savename= savename + "_Ci.svg",
+                                      snapshot_idx=snapshot_idx)
     
             # Begin epochs
             #==================================================================
@@ -433,6 +437,7 @@ class SurvivalNCA(object):
                     
                     itir += 1
                     cost_tot = 0
+                    self._update_timestamp()
             
                     # Divide into balanced batches
                     #==========================================================
@@ -505,12 +510,12 @@ class SurvivalNCA(object):
                     neighbor_idxs_train = \
                         knnmodel._get_neighbor_idxs(x_train_transformed, 
                                                     x_train_transformed, 
-                                                    norm = 2)
+                                                    norm=norm)
                     if USE_VALID:
                         neighbor_idxs_valid = \
                             knnmodel._get_neighbor_idxs(x_valid_transformed, 
                                                         x_train_transformed, 
-                                                        norm = 2)
+                                                        norm=norm)
                     
                     # Predict training/validation set
                     _, Ci_train = knnmodel.predict(neighbor_idxs_train,
@@ -518,16 +523,16 @@ class SurvivalNCA(object):
                                                    Censored_train=1-o_batch, 
                                                    Survival_test=t_batch, 
                                                    Censored_test=1-o_batch, 
-                                                   K = 30, 
-                                                   Method = "cumulative-time")
+                                                   K=K, 
+                                                   Method=Method)
                     if USE_VALID:
                         _, Ci_valid = knnmodel.predict(neighbor_idxs_valid,
                                                    Survival_train=t_batch, 
                                                    Censored_train=1-o_batch, 
                                                    Survival_test=survival_valid, 
                                                    Censored_test=censored_valid, 
-                                                   K = 30, 
-                                                   Method = "cumulative-time")
+                                                   K=K, 
+                                                   Method=Method)
                     if not USE_VALID:
                         Ci_valid = 0
                         
@@ -552,15 +557,15 @@ class SurvivalNCA(object):
                     #    _saveTFmodel() 
                     
                     # periodically monitor progress
-                    if (self.EPOCHS_RUN % PLOT_STEP == 0) and \
-                        (self.EPOCHS_RUN > 0):
-                        _monitorProgress() 
+                    if MONITOR:
+                        if (self.EPOCHS_RUN % PLOT_STEP == 0) and \
+                            (self.EPOCHS_RUN > 0):
+                            _monitorProgress() 
                         
                     # Early stopping
                     #==========================================================
 
                     if EARLY_STOPPING:
-      
                         # Save snapshot                        
                         Ws[:, :, itir % MODEL_BUFFER] = W 
                         Cis.append(Ci_valid)
@@ -577,24 +582,24 @@ class SurvivalNCA(object):
                     
             except KeyboardInterrupt:
                 pass
-                
-            # save final model and plot costs
-            #_saveTFmodel()
             
-            if EARLY_STOPPING:
-                snapshot = itir - MODEL_BUFFER
-            else:
-                snapshot = None
-                
-            _monitorProgress(snapshot_idx=snapshot)
-
             #pUtils.Log_and_print("Finished training model.")
-            #pUtils.Log_and_print("Obtaining final results.")
+            #pUtils.Log_and_print("Obtaining final results.")            
             
-            # save learned weights
-            #W = sess.run(graph.W, feed_dict = feed_dict)
-            np.save(self.RESULTPATH + 'model/' + self.description + \
-                    'featWeights.npy', W)
+            if MONITOR:
+                # save final model
+                #_saveTFmodel()
+                
+                # plot costs
+                if EARLY_STOPPING:
+                    snapshot = itir - MODEL_BUFFER
+                else:
+                    snapshot = None    
+                _monitorProgress(snapshot_idx=snapshot)
+                
+                # save learned weights
+                np.save(self.RESULTPATH + 'model/' + self.description + \
+                        self.timestamp + 'NCA_matrix.npy', W)
             
         return W
 
@@ -604,7 +609,7 @@ class SurvivalNCA(object):
     #==============================================================================
 
         
-    def rankFeats(self, X, fnames, rank_type = "weights"):
+    def rankFeats(self, w, fnames, X=None, rank_type = "weights", PLOT=True):
         
         """ ranks features by feature weights or variance after transform"""
         
@@ -612,12 +617,13 @@ class SurvivalNCA(object):
     
         fidx = np.arange(self.D).reshape(self.D, 1)        
         
-        w = np.load(self.RESULTPATH + 'model/' + self.description + 'featWeights.npy')        
+        w = np.diag(w)
         
         if rank_type == 'weights':
             # rank by feature weight
             ranking_metric = w[:, None]
         elif rank_type == 'stdev':
+            assert X is not None
             # rank by variance after transform
             W = np.zeros([self.D, self.D])
             np.fill_diagonal(W, w)
@@ -627,15 +633,17 @@ class SurvivalNCA(object):
         ranking_metric = np.concatenate((fidx, ranking_metric), 1)      
     
         # Plot feature weights/variance
-        if self.D <= 500:
-            n_plot = ranking_metric.shape[0]
-        else:
-            n_plot = 500
-        self._plotMonitor(ranking_metric[0:n_plot,:], 
-                          "feature " + rank_type, 
-                          "feature_index", rank_type, 
-                          self.RESULTPATH + "plots/" + self.description + 
-                          "feat_" + rank_type+"_.svg")
+        if PLOT:        
+            if self.D <= 500:
+                n_plot = ranking_metric.shape[0]
+            else:
+                n_plot = 500
+            self._plotMonitor(ranking_metric[0:n_plot,:], 
+                              "feature " + rank_type, 
+                              "feature_index", rank_type, 
+                              self.RESULTPATH + "plots/" + \
+                              self.description + self.timestamp + \
+                              "feat_" + rank_type+"_.svg")
         
         # rank features
         
@@ -651,8 +659,8 @@ class SurvivalNCA(object):
         
         # save results
         
-        savename = self.RESULTPATH + "ranks/" + self.description +\
-                    rank_type + "_ranked.txt"
+        savename = self.RESULTPATH + "ranks/" + self.description + self.timestamp + \
+                    "_" + rank_type + "_ranked.txt"
         with open(savename,'wb') as f:
             np.savetxt(f,fnames_ranked,fmt='%s', delimiter='\t')
 

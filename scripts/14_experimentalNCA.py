@@ -8,8 +8,8 @@ Created on Mon Sep 25 15:38:22 2017
 
 import os
 import sys
-sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
-#sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
+#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
 import _pickle
 from scipy.io import loadmat
@@ -420,8 +420,8 @@ if __name__ == '__main__':
     
     # paths ----------------------------------------------------------
     
-    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
     RESULTPATH_BASE = projectPath + "Results/8_5Oct2017/"
     
     # dataset and description
@@ -473,14 +473,14 @@ if __name__ == '__main__':
                }
     
     # initial points to explore
-    bo_expl = {'ALPHA': [0, ], #0, 1, 0, 0],
-               'LAMBDA': [0, ], #1, 0, 0, 0],
-               'SIGMA': [1,], # 1, 1, 5, 0.5],
+    bo_expl = {'ALPHA': [0, 0, 1, 0, 0],
+               'LAMBDA': [0, 1, 0, 0, 0],
+               'SIGMA': [1, 1, 1, 5, 0.5],
                }
     
     # other bayesopt params
     bo_params = {'init_points': 2,
-                 'n_itir': 1, #5,
+                 'n_itir': 15,
                  }
         
     # Now run experiment

@@ -608,7 +608,6 @@ class SurvivalNCA(object):
     # Rank features
     #==============================================================================
 
-        
     def rankFeats(self, w, fnames, X=None, rank_type = "weights", PLOT=True):
         
         """ ranks features by feature weights or variance after transform"""
@@ -664,7 +663,7 @@ class SurvivalNCA(object):
         with open(savename,'wb') as f:
             np.savetxt(f,fnames_ranked,fmt='%s', delimiter='\t')
 
-    
+
     #%%============================================================================
     # Visualization methods
     #==============================================================================

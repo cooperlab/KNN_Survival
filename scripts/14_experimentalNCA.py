@@ -249,6 +249,8 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                        description = description, 
                                        LOADPATH = LOADPATH)
             
+            nca_train_params['MONITOR'] = False
+            
             def run_nca(ALPHA, LAMBDA, SIGMA):
                 
                 """
@@ -325,6 +327,8 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             print("\nLearning final NCA matrix\n")
             
+            nca_train_params['MONITOR'] = True
+            
             graphParams['ALPHA'] = ALPHA_OPTIM
             graphParams['LAMBDA'] = LAMBDA_OPTIM
             graphParams['SIGMA'] = SIGMA_OPTIM
@@ -333,6 +337,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
             W = ncamodel.train(features = x_train,
                                survival = Survival[splitIdxs['train'][fold]],
                                censored = Censored[splitIdxs['train'][fold]],
+                               features_valid = x_valid,
+                               survival_valid = Survival[splitIdxs['valid'][fold]],
+                               censored_valid = Censored[splitIdxs['valid'][fold]],
                                COMPUT_GRAPH_PARAMS = graphParams,
                                **nca_train_params)    
             
@@ -456,6 +463,9 @@ if __name__ == '__main__':
             'MODEL_SAVE_STEP': 200,
             'BATCH_SIZE': 400,
             'MAX_ITIR': 50,
+            'MODEL_BUFFER': 4,
+            'EARLY_STOPPING': True,
+            'PLOT': True,
             }
     
     elastic_net_params = \

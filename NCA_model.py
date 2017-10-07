@@ -260,7 +260,10 @@ class SurvivalNCA(object):
             PLOT_STEP = 10,
             MODEL_SAVE_STEP = 10,
             MAX_ITIR = 100,
-            MODEL_BUFFER = 4):
+            MODEL_BUFFER = 4,
+            EARLY_STOPPING = False,
+            MONITOR=True,
+            PLOT=True):
                 
         """
         train a survivalNCA model
@@ -286,6 +289,9 @@ class SurvivalNCA(object):
             assert (features_valid.shape[1] == features.shape[1])
             assert (survival_valid is not None)
             assert (censored_valid is not None)
+            
+        if EARLY_STOPPING:
+            assert USE_VALID
         
         # Define computational graph
         #======================================================================        
@@ -344,59 +350,62 @@ class SurvivalNCA(object):
              
             
             # monitor
-            def _monitorProgress(PLOT=True):
+            def _monitorProgress(snapshot_idx=None):
 
                 """
                 Monitor cost - save txt and plots cost
                 """
                 
-                # find min epochs to display in case of keyboard interrupt
-                max_epoch = np.min([len(self.Costs_epochLevel_train),
-                                    len(self.CIs_train),
-                                    len(self.CIs_valid)])
-                
-                # concatenate costs
-                costs = np.array(self.Costs_epochLevel_train[0:max_epoch])
-                cis_train = np.array(self.CIs_train[0:max_epoch])
-                if USE_VALID:
-                    cis_valid = np.array(self.CIs_valid[0:max_epoch])
-                else:
-                    cis_valid = None
-                
-                epoch_no = np.arange(max_epoch)
-                costs = np.concatenate((epoch_no[:, None], costs), axis=1)
-                cis_train = np.concatenate((epoch_no[:, None], cis_train), axis=1)
-                
-                # Get unique datetime identifier
-                timestamp = str(datetime.datetime.today()).replace(' ','_')
-                timestamp.replace(":", '_')
-                
-                # Saving raw numbers for later reference
-                savename= self.RESULTPATH + "plots/" + self.description + "cost_" + timestamp
-                
-                with open(savename + '_costs.txt', 'wb') as f:
-                    np.savetxt(f, costs, fmt='%s', delimiter='\t')
-
-                with open(savename + '_cis_train.txt', 'wb') as f:
-                    np.savetxt(f, cis_train, fmt='%s', delimiter='\t')
-
-                if USE_VALID:
-                    with open(savename + '_cis_valid.txt', 'wb') as f:
-                        np.savetxt(f, cis_valid, fmt='%s', delimiter='\t')
-                
-                #
-                # Note, plotting would not work when running
-                # this using screen (Xdisplay is not supported)
-                #
-                if PLOT:
-                    self._plotMonitor(arr= cis_train,
-                                      title= "Cost vs. epoch", 
-                                      xlab= "epoch", ylab= "Cost", 
-                                      savename= savename + ".svg")
-                    self._plotMonitor(arr= cis_train, arr2= cis_valid,
-                                      title= "C-index vs. epoch", 
-                                      xlab= "epoch", ylab= "C-index", 
-                                      savename= savename + ".svg")
+                if MONITOR:
+                    
+                    # find min epochs to display in case of keyboard interrupt
+                    max_epoch = np.min([len(self.Costs_epochLevel_train),
+                                        len(self.CIs_train),
+                                        len(self.CIs_valid)])
+                    
+                    # concatenate costs
+                    costs = np.array(self.Costs_epochLevel_train[0:max_epoch])
+                    cis_train = np.array(self.CIs_train[0:max_epoch])
+                    if USE_VALID:
+                        cis_valid = np.array(self.CIs_valid[0:max_epoch])
+                    else:
+                        cis_valid = None
+                    
+                    epoch_no = np.arange(max_epoch)
+                    costs = np.concatenate((epoch_no[:, None], costs[:, None]), axis=1)
+                    cis_train = np.concatenate((epoch_no[:, None], cis_train[:, None]), axis=1)
+                    
+                    # Get unique datetime identifier
+                    timestamp = str(datetime.datetime.today()).replace(' ','_')
+                    timestamp = timestamp.replace(":", '_')
+                    
+                    # Saving raw numbers for later reference
+                    savename= self.RESULTPATH + "plots/" + self.description + timestamp
+                    
+                    with open(savename + '_costs.txt', 'wb') as f:
+                        np.savetxt(f, costs, fmt='%s', delimiter='\t')
+    
+                    with open(savename + '_cis_train.txt', 'wb') as f:
+                        np.savetxt(f, cis_train, fmt='%s', delimiter='\t')
+    
+                    if USE_VALID:
+                        with open(savename + '_cis_valid.txt', 'wb') as f:
+                            np.savetxt(f, cis_valid, fmt='%s', delimiter='\t')
+                    
+                    #
+                    # Note, plotting would not work when running
+                    # this using screen (Xdisplay is not supported)
+                    #
+                    if PLOT:
+                        self._plotMonitor(arr= costs,
+                                          title= "Cost vs. epoch", 
+                                          xlab= "epoch", ylab= "Cost", 
+                                          savename= savename + "_costs.svg")
+                        self._plotMonitor(arr= cis_train, arr2= cis_valid,
+                                          title= "C-index vs. epoch", 
+                                          xlab= "epoch", ylab= "C-index", 
+                                          savename= savename + "_Ci.svg",
+                                          snapshot_idx=snapshot_idx)
 
     
             # Begin epochs
@@ -405,8 +414,9 @@ class SurvivalNCA(object):
             try: 
                 itir = 0
                 
-                print("\n\tepoch\tcost\tCi_train\tCi_valid")
-                print("\t----------------------------------------------")
+                if MONITOR:
+                    print("\n\tepoch\tcost\tCi_train\tCi_valid")
+                    print("\t----------------------------------------------")
                 
                 knnmodel = knn.SurvivalKNN(self.RESULTPATH, description=self.description)
                 
@@ -520,30 +530,13 @@ class SurvivalNCA(object):
                                                    Method = "cumulative-time")
                     if not USE_VALID:
                         Ci_valid = 0
-                    print("\t{}\t{}\t{}\t{}".format(\
-                            self.EPOCHS_RUN,
-                            round(cost_tot, 3), 
-                            round(Ci_train, 3),
-                            round(Ci_valid, 3)))                                                   
-                                                   
-                    # Early stopping
-                    #==========================================================
-
-                    if USE_VALID:                                                   
-                        # Save snapshot                        
-                        Ws[:, :, itir % MODEL_BUFFER] = W 
-                        Cis.append(Ci_valid)
                         
-                        # Stop when overfitting starts to occur
-                        if len(Cis) > (2 * MODEL_BUFFER):
-                            ci_new = np.mean(Cis[-MODEL_BUFFER:])
-                            ci_old = np.mean(Cis[-2*MODEL_BUFFER:-MODEL_BUFFER])        
-                    
-                            if ci_new < ci_old:
-                                snapshot_idx = (itir - MODEL_BUFFER) % MODEL_BUFFER
-                                W = Ws[:, :, snapshot_idx]
-                                break
-                    
+                    if MONITOR:
+                        print("\t{}\t{}\t{}\t{}".format(\
+                                self.EPOCHS_RUN,
+                                round(cost_tot, 3), 
+                                round(Ci_train, 3),
+                                round(Ci_valid, 3)))                                                                       
                     
                     # Update and save                     
                     #==========================================================
@@ -562,13 +555,38 @@ class SurvivalNCA(object):
                     if (self.EPOCHS_RUN % PLOT_STEP == 0) and \
                         (self.EPOCHS_RUN > 0):
                         _monitorProgress() 
+                        
+                    # Early stopping
+                    #==========================================================
+
+                    if EARLY_STOPPING:
+      
+                        # Save snapshot                        
+                        Ws[:, :, itir % MODEL_BUFFER] = W 
+                        Cis.append(Ci_valid)
+                        
+                        # Stop when overfitting starts to occur
+                        if len(Cis) > (2 * MODEL_BUFFER):
+                            ci_new = np.mean(Cis[-MODEL_BUFFER:])
+                            ci_old = np.mean(Cis[-2*MODEL_BUFFER:-MODEL_BUFFER])        
+                    
+                            if ci_new < ci_old:
+                                snapshot_idx = (itir - MODEL_BUFFER) % MODEL_BUFFER
+                                W = Ws[:, :, snapshot_idx]
+                                break
                     
             except KeyboardInterrupt:
                 pass
                 
             # save final model and plot costs
             #_saveTFmodel()
-            _monitorProgress()
+            
+            if EARLY_STOPPING:
+                snapshot = itir - MODEL_BUFFER
+            else:
+                snapshot = None
+                
+            _monitorProgress(snapshot_idx=snapshot)
 
             #pUtils.Log_and_print("Finished training model.")
             #pUtils.Log_and_print("Obtaining final results.")
@@ -643,16 +661,19 @@ class SurvivalNCA(object):
     # Visualization methods
     #==============================================================================
     
-    def _plotMonitor(self, arr, title, xlab, ylab, savename, arr2 = None):
+    def _plotMonitor(self, arr, title, xlab, ylab, savename, 
+                     arr2=None, snapshot_idx=None):
                             
         """ plots cost/other metric to monitor progress """
         
         print("Plotting " + title)
         
         fig, ax = plt.subplots() 
-        ax.plot(arr[:,0], arr[:,1], 'b', linewidth=1.5, aa=False)
+        ax.plot(arr[:,0], arr[:,1], color='b', linewidth=1.5, aa=False)
         if arr2 is not None:
-            ax.plot(arr[:,0], arr2, 'r', linewidth=1.5, aa=False)
+            ax.plot(arr[:,0], arr2, color='r', linewidth=1.5, aa=False)
+        if snapshot_idx is not None:
+            plt.axvline(x=snapshot_idx, linewidth=1.5, color='r', linestyle='--')
         plt.title(title, fontsize =16, fontweight ='bold')
         plt.xlabel(xlab)
         plt.ylabel(ylab) 

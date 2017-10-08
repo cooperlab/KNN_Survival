@@ -22,67 +22,63 @@ dtypes = c("Integ") #, "Genes")
 ```
 
 ```{r}
-#
-# Reading the matfiles
-#
 site = sites[1]
 dtype = dtypes[1]
 
+# Reading the matfiles
 dpath = paste(basePath, 'Data/SingleCancerDatasets/', site, '/', site, '_', dtype, '_Preprocessed', sep="")
-
 Data = readMat(paste(dpath, '.mat', sep=""))
 splitIdxs = readMat(paste(dpath, '_splitIdxs.mat', sep=""))
-```
-
-```{r}
-
-n = length(Data$Survival)
-
-```
-
-
-```{r}
-
-fold = 30
-
-# Getting split indices
-splitIdxs$train[fold][[1]][[1]][1,]
-splitIdxs$valid[fold,]
-splitIdxs$test[[fold]][[1]][1,]
 
 # Getting the data in needed format
 allInfo = data.frame(allData = Data$Integ.X, time = Data$Survival[1,], status = Data$Censored[1,])
-
 ```
 
+```{r}
+fold = 30
+
+# Getting split indices
+trainIdxs = splitIdxs$train[fold][[1]][[1]][1,]
+validIdxs = splitIdxs$valid[fold,]
+testIdxs = splitIdxs$test[[fold]][[1]][1,]
+```
 
 ```{r}
+# Hyperparameters to try
 treeArray = c(50, 100, 500, 1000)
 nodeSizeArray = c(1,3,5,7,9)
 nSplitArray = c(0,1)
 
+# initialize accuracy
+val_c_indices = c()
+test_c_indices = c()
+  
+# Loop index
 i=1
 j=1
 k=1
-
 ```
 
-
 ```{r}
-
 cat(i, j, k,"\n") 
 
 # training the model
-train.obj <- rfsrc(Surv(time, status) ~ ., allInfo, nsplit = nSplitArray[k], nodesize = nodeSizeArray[j], ntree = treeArray[i])
-
+train.obj <- rfsrc(Surv(time, status) ~ ., allInfo[trainIdxs,], nsplit = nSplitArray[k], nodesize = nodeSizeArray[j], ntree = treeArray[i])
 ```
 
-
 ```{r}
+# validate
+val_c_index <- cindex(train.obj, formula = Surv(time, status) ~ ., data=allInfo[validIdxs,])
+val_c_indices <- c(val_c_indices, val_c_index$AppCindex$rfsrc)
 
+# test
+test_c_index  <- cindex(train.obj, formula = Surv(time, status) ~ ., data=allInfo[testIdxs,])
+test_c_indices <- c(test_c_indices, test_c_index$AppCindex$rfsrc)
 
-# training
-train.obj <- rfsrc(Surv(V1, V1.1) ~ . , trainData, nsplit = nSplitArray[k], nodesize = nodeSizeArray[j], ntree = treeArray[i])
+rm(train.obj)
+rm(val_c_index)
+rm(test_c_index)
+
 ```
 
 

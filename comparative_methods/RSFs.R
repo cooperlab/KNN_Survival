@@ -1,6 +1,6 @@
 library(randomForestSRC, quietly=TRUE)
 library(prodlim, quietly=TRUE)
-library(pec, quietly=TRUE)
+#library(pec, quietly=TRUE)
 library(survival, quietly=TRUE)
 library(R.matlab, quietly=TRUE)
 

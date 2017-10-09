@@ -1,3 +1,5 @@
+#!/usr/bin/Rscript
+
 library(randomForestSRC, quietly=TRUE)
 library(prodlim, quietly=TRUE)
 #library(pec, quietly=TRUE)

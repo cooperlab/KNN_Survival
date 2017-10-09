@@ -9,8 +9,8 @@ library(R.matlab, quietly=TRUE)
 basePath = "/home/mtageld/Desktop/KNN_Survival/"
 
 # data description
-sites = c("GBMLGG", "BRCA", "KIPAN", "MM")
-dtypes = c("Integ", "Genes")
+sites = c("GBMLGG", "BRCA", "KIPAN")
+dtypes = c("Integ", "Gene")
 
 # Hyperparameters to try
 treeArray = c(50, 100, 500, 1000)
@@ -32,68 +32,84 @@ for (dtype in dtypes) {
     splitIdxs = readMat(paste(dpath, '_splitIdxs.mat', sep=""))
     
     # Getting the data in needed format
-    allInfo = data.frame(allData = Data$Integ.X, time = Data$Survival[1,], 
-                         status = 1-Data$Censored[1,])
+    if (dtype == "Integ"){
+      allInfo = data.frame(allData = Data$Integ.X, time = Data$Survival[1,], 
+                           status = 1-Data$Censored[1,])
+    } else {
+      #options("expression" = 500000)
+      allInfo = data.frame(allData = Data$Gene.X, time = Data$Survival[1,], 
+                           status = 1-Data$Censored[1,])
+    }
     
-    # define result file
-    resultFile = paste(basePath, 'Results/9_8Oct2017/RSF_', 
-                       site, '_', dtype, '.txt', sep="")
+    # initialize accuracy
+    # Note that we can't initialize to a fized length
+    # bacuse some folds are larger than others, so we'll
+    # just init to max possible no of patients
+    preds_val = matrix(nrow=length(Data$Survival), ncol=30)
+    preds_test = matrix(nrow=length(Data$Survival), ncol=30)
     
     # Go through folds
-    for (fold in 1:30){
+    for (fold in c(1,30)){ #1:30){
     
       # Getting split indices
-      trainIdxs = splitIdxs$train[fold][[1]][[1]][1,]
-      validIdxs = splitIdxs$valid[fold,]
-      testIdxs = splitIdxs$test[[fold]][[1]][1,]
-      
-      # initialize accuracy
-      val_c_indices = c()
-      test_c_indices = c()
+      # Note the +1 because R is one-indexed
+      if (site == "KIPAN" && dtype == "Integ"){
+        trainIdxs = splitIdxs$train[fold,] + 1
+        validIdxs = splitIdxs$valid[fold,]  + 1
+        testIdxs = splitIdxs$test[fold,]  + 1
+      } else {
+        trainIdxs = splitIdxs$train[fold][[1]][[1]][1,]  + 1
+        validIdxs = splitIdxs$valid[fold,]  + 1
+        testIdxs = splitIdxs$test[[fold]][[1]][1,]  + 1
+      }
       
       # Go through hyperparams and get Ci
       
-      cat("\nfold | trees nodes Split | Ci_val Ci_test\n")
+      cat("\nfold | trees | nodes | Split |\n")
       cat("--------------------------------------------\n")
       
-      for (i in 1:length(treeArray)){
-        for (j in 1:length(nodeSizeArray)){
-          for (k in 1:length(nSplitArray)){
+      for (i in 1:1){ #length(treeArray)){
+        for (j in 1:1){ #length(nodeSizeArray)){
+          for (k in 1:1){ #length(nSplitArray)){
+            
+            cat(fold, " | ", treeArray[i], " | ", nodeSizeArray[j], " | ", 
+                nSplitArray[k], "|\n") 
             
             # training the model
             train.obj <- rfsrc(Surv(time, status) ~ ., allInfo[trainIdxs,], 
                                nsplit = nSplitArray[k], nodesize = nodeSizeArray[j], 
                                ntree = treeArray[i])
             
-            # validate
-            val_c_index <- cindex(train.obj, formula = Surv(time, status) ~ ., 
-                                  data=allInfo[validIdxs,])
-            val_c_indices <- c(val_c_indices, val_c_index$AppCindex$rfsrc)
+            # predict validation set
+            preds_val[1:length(validIdxs),fold] = 
+              predict.rfsrc(train.obj, allInfo[validIdxs,])$predicted
             
             # test
-            test_c_index  <- cindex(train.obj, formula = Surv(time, status) ~ ., 
-                                    data=allInfo[testIdxs,])
-            test_c_indices <- c(test_c_indices, test_c_index$AppCindex$rfsrc)
-            
-            cat(fold, "|", treeArray[i], nodeSizeArray[j], nSplitArray[k], "|",
-                val_c_index$AppCindex$rfsrc, test_c_index$AppCindex$rfsrc, "\n") 
+            preds_test[1:length(testIdxs),fold] = 
+              predict.rfsrc(train.obj, allInfo[testIdxs,])$predicted
             
             # clear space      
             rm(train.obj)
-            rm(val_c_index)
-            rm(test_c_index)
       
           }
         }
       }
     }
     
-    # Find testing Ci corresponding to maximal validation Ci
-    resultData = data.frame(maxTest = test_c_indices[
-                            which(val_c_indices == max(val_c_indices))])
-    # Save result
-    write.table(resultData, file=resultFile)
-    cat("\nCi_test is stored to: ", resultFile, "\n")
+    # save result
+    resultFile_val = paste(basePath, 'Results/9_8Oct2017/', 
+                       site, '_', dtype, '_preds_val.txt', sep="")
+    resultFile_test = paste(basePath, 'Results/9_8Oct2017/', 
+                           site, '_', dtype, '_preds_test.txt', sep="")
+    
+    preds_val = data.frame(preds_val)
+    preds_test = data.frame(preds_test)
+    
+    write.table(preds_val, file=resultFile_val)
+    write.table(preds_test, file=resultFile_test)
+    
+    cat("\nPreds is stored to: \n", 
+        resultFile_val, "\n", resultFile_test, "\n")
 
   }
 }

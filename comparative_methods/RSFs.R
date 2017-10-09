@@ -5,21 +5,21 @@ library(survival, quietly=TRUE)
 library(R.matlab, quietly=TRUE)
 
 # paths
-basePath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-#basePath = "/home/mtageld/Desktop/KNN_Survival/"
+#basePath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+basePath = "/home/mtageld/Desktop/KNN_Survival/"
 
 # data description
-sites = c("GBMLGG") #, "BRCA", "KIPAN", "MM")
-dtypes = c("Integ") #, "Genes")
+sites = c("GBMLGG", "BRCA", "KIPAN", "MM")
+dtypes = c("Integ", "Genes")
 
 # Hyperparameters to try
 treeArray = c(50, 100, 500, 1000)
-nodeSizeArray = c(1,3,5,7,9)
-nSplitArray = c(0,1)
+nodeSizeArray = c(1, 3, 5, 7, 9)
+nSplitArray = c(0, 1)
 
 # Go through different datasets
-for (site in sites) {
-  for (dtype in dtypes) {
+for (dtype in dtypes) {
+  for (site in sites) {
     
     cat("\n============================================\n")
     cat(site, dtype, "\n")

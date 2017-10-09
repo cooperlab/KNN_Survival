@@ -51,7 +51,7 @@ for (dtype in dtypes) {
     preds_test = matrix(nrow=length(Data$Survival), ncol=30)
     
     # Go through folds
-    for (fold in c(1,30)){ #1:30){
+    for (fold in 1:30){
     
       # Getting split indices
       # Note the +1 because R is one-indexed
@@ -70,9 +70,9 @@ for (dtype in dtypes) {
       cat("\nfold | trees | nodes | Split |\n")
       cat("--------------------------------------------\n")
       
-      for (i in 1:1){ #length(treeArray)){
-        for (j in 1:1){ #length(nodeSizeArray)){
-          for (k in 1:1){ #length(nSplitArray)){
+      for (i in 1:length(treeArray)){
+        for (j in 1:length(nodeSizeArray)){
+          for (k in 1:length(nSplitArray)){
             
             cat(fold, " | ", treeArray[i], " | ", nodeSizeArray[j], " | ", 
                 nSplitArray[k], "|\n") 

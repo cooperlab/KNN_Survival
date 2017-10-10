@@ -1,5 +1,12 @@
 #!/usr/bin/Rscript
 
+#
+# NOTE:
+# Adapted with permission from code originally 
+# written by Safoora Yousefi
+#
+
+
 library(randomForestSRC, quietly=TRUE)
 library(prodlim, quietly=TRUE)
 #library(pec, quietly=TRUE)

@@ -261,6 +261,11 @@ class comput_graph(object):
             elif self.OPTIM == "Adam":
                 self.optimizer = tf.train.AdamOptimizer(self.LEARN_RATE).\
                     minimize(self.cost)
+                    
+            elif self.OPTIM == "FTRL":
+                # Coordinate descent
+                self.optimizer = tf.train.FtrlOptimizer(self.LEARN_RATE).\
+                    minimize(self.cost)
 
         # Merge all summaries for tensorboard
         #self.tbsummaries = tf.summary.merge_all()

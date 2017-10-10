@@ -7,6 +7,8 @@ Created on Mon Sep 25 15:38:22 2017
 """
 
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+
 import sys
 #sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
 sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')

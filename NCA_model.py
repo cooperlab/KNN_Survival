@@ -72,6 +72,7 @@ class SurvivalNCA(object):
                            'LEARN_RATE': 0.01,
                            'per_split_feats': 500,
                            'ROTATE': False,
+                           'DROPOUT_FRACTION': 0.1,
                            }
     userspecified_graphParams = ['dim_input',]
     

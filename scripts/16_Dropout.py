@@ -245,7 +245,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             print("\nBayesian Optimization of NCA hyperparameters.\n")            
             
-            nca_train_params['MONITOR'] = True  #False
+            nca_train_params['MONITOR'] = False
             
             def run_nca(ALPHA, LAMBDA, SIGMA, DROPOUT_FRACTION):
                 
@@ -481,7 +481,7 @@ if __name__ == '__main__':
             'MAX_ITIR': 50,
             'MODEL_BUFFER': 4,
             'EARLY_STOPPING': True,
-            'PLOT': True,
+            'PLOT': False,
             'K': K_init,
             'norm': norm,
             }
@@ -492,7 +492,7 @@ if __name__ == '__main__':
     bo_lims = {'ALPHA': (0, 1),
                'LAMBDA': (0, 1),
                'SIGMA': (0.2, 15),
-               'DROPOUT_FRACTION': (0, 0.9),
+               'DROPOUT_FRACTION': (0, 0.7),
                }
     
     # initial points to explore

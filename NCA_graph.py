@@ -188,7 +188,7 @@ class comput_graph(object):
             # represented in rows
             
             def kernel_function(z):
-                return tf.exp(-z * self.SIGMA)
+                return tf.exp(tf.multiply(-z, self.SIGMA))
 
             denomSum = tf.reduce_sum(kernel_function(normAX), axis=0)
             epsilon = 1e-50

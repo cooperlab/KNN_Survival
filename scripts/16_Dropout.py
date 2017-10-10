@@ -387,7 +387,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
         # combined training and validation sets
         combinedIdxs = splitIdxs['train'][fold] + splitIdxs['valid'][fold]
         
-        if USE_BAGGIG:
+        if USE_BAGGING:
             _, ci = knnmodel.predict_with_bagging(\
                         X_test=x_test,
                         X_train=np.concatenate((x_train, x_valid), axis=0),
@@ -459,7 +459,7 @@ if __name__ == '__main__':
                      'norm': norm,
                      }
                      
-    USE_BAGGIG = True
+    USE_BAGGING = True
     
     bagging_params = {'n_bags': 50,
                       'feats_per_bag': None
@@ -570,7 +570,7 @@ if __name__ == '__main__':
                                         graphParams=graphParams,
                                         nca_train_params=nca_train_params,
                                         USE_PCA=USE_PCA,
-                                        USE_BAGGING=USE_BAGGIG,
+                                        USE_BAGGING=USE_BAGGING,
                                         bagging_params=bagging_params,
                                         bo_lims=bo_lims,
                                         bo_expl=bo_expl,

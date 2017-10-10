@@ -56,6 +56,7 @@ class comput_graph(object):
                           the more likely the matrix is to fit into memory, 
                           with no effect on the end result
         ROTATE - when this is true, A is not limited to a scaling matrix
+        DROPOUT_FRACTION - Fraction of weights to randomly drop
         """
         
         #print("Building computational graph for survival NCA.")

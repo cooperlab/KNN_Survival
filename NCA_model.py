@@ -512,8 +512,8 @@ class SurvivalNCA(object):
                     # Now get final NCA matrix (without dropput)
                     #==========================================================
 
-                    feed_dict[self.graph.DROPOUT_FRACTION] = 1.0
-                    W = sess.run([self.graph.W], feed_dict = feed_dict)
+                    feed_dict[self.graph.DROPOUT_FRACTION] = 0
+                    W = self.graph.W.eval(feed_dict = feed_dict)
                     
                     # Get Ci for training/validation set
                     #==========================================================

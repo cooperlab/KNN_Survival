@@ -497,10 +497,7 @@ class SurvivalNCA(object):
                                      self.graph.SIGMA: graph_hyperparams['SIGMA'],
                                      self.graph.DROPOUT_FRACTION: graph_hyperparams['DROPOUT_FRACTION'],
                                      }  
-                        _, cost, W = sess.run([self.graph.optimizer, 
-                                               self.graph.cost, 
-                                               self.graph.W], \
-                                               feed_dict = feed_dict)
+                        _, cost = sess.run([self.graph.optimizer, self.graph.cost], feed_dict = feed_dict)
                                                  
                         # normalize cost for sample size
                         cost = cost / len(batch)
@@ -511,7 +508,12 @@ class SurvivalNCA(object):
 
                         #pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
                         #     format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
-                    
+
+                    # Now get final NCA matrix (without dropput)
+                    #==========================================================
+
+                    feed_dict[self.graph.DROPOUT_FRACTION] = 1.0
+                    W = sess.run([self.graph.W], feed_dict = feed_dict)
                     
                     # Get Ci for training/validation set
                     #==========================================================

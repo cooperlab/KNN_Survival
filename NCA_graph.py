@@ -30,14 +30,10 @@ class comput_graph(object):
     """
     
     def __init__(self, dim_input, 
-                 ALPHA = 0.5,
-                 LAMBDA = 1.0,
-                 SIGMA = 1.0,
                  OPTIM = 'GD',
                  LEARN_RATE = 0.01,
                  per_split_feats = 500,
-                 ROTATE = False,
-                 DROPOUT_FRACTION = 0.1):
+                 ROTATE = False):
         
         """
         Instantiate a computational graph for survival NCA.
@@ -64,14 +60,10 @@ class comput_graph(object):
         
         # set up instace attributes
         self.dim_input = dim_input
-        self.ALPHA = ALPHA
-        self.LAMBDA = LAMBDA
-        self.SIGMA = SIGMA
         self.OPTIM = OPTIM
         self.LEARN_RATE = LEARN_RATE
         self.per_split_feats = per_split_feats
         self.ROTATE = ROTATE
-        self.DROPOUT_FRACTION = DROPOUT_FRACTION
         
         # clear lurking tensors
         tf.reset_default_graph()
@@ -100,9 +92,16 @@ class comput_graph(object):
         """ Adds graph inputs as placeholders in graph """
         
         with tf.variable_scope("Inputs"):
-        
+            
+            # Inputs
             self.X_input = tf.placeholder("float", [None, self.dim_input], name='X_input')
             self.Pij_mask = tf.placeholder("float", [None, None], name='Pij_mask')
+            
+            # Hyperparams
+            self.ALPHA = tf.placeholder(tf.float32, name='ALPHA')
+            self.LAMBDA = tf.placeholder(tf.float32, name='LAMDBDA')
+            self.SIGMA = tf.placeholder(tf.float32, name='SIGMA')
+            self.DROPOUT_FRACTION = tf.placeholder(tf.float32, name='DROPOUT_FRACTION')
             
                  
     #%%========================================================================

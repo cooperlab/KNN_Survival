@@ -8,8 +8,8 @@ Created on Mon Sep 25 15:38:22 2017
 
 import os
 import sys
-#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
-sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
+sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+#sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
 import _pickle
 from scipy.io import loadmat
@@ -109,6 +109,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
     
     # Instantiate a KNN survival model.
     knnmodel = knn.SurvivalKNN(RESULTPATH_KNN, description=description) 
+    
     # instantiate NCA model    
     if USE_NCA:
         ncamodel = nca.SurvivalNCA(RESULTPATH_NCA, 
@@ -178,6 +179,11 @@ def get_cv_accuracy(dpath, site, dtype, description,
     Censored = Data['Censored'].reshape([N,])
     fnames = Data[dtype + '_Symbs']
     Data = None
+    
+    if USE_NCA:
+        # build computational graph for NCA model
+        graphParams['dim_input'] = Features.shape[1]
+        ncamodel.build_computational_graph(COMPUT_GRAPH_PARAMS=graphParams)
 
     
     with open(dpath.split('.mat')[0] + '_splitIdxs.pkl','rb') as f:
@@ -254,19 +260,19 @@ def get_cv_accuracy(dpath, site, dtype, description,
                 specified tunable hyperparameters                
                 """
                 
-                graphParams['ALPHA'] = ALPHA
-                graphParams['LAMBDA'] = LAMBDA
-                graphParams['SIGMA'] = SIGMA
-                graphParams['DROPOUT_FRACTION'] = DROPOUT_FRACTION
-                
-                
+                graph_hyperparams = {'ALPHA': ALPHA,
+                                     'LAMBDA': LAMBDA,
+                                     'SIGMA': SIGMA,
+                                     'DROPOUT_FRACTION': DROPOUT_FRACTION,
+                                     }
+                      
                 W = ncamodel.train(features = x_train,
                                    survival = Survival[splitIdxs['train'][fold]],
                                    censored = Censored[splitIdxs['train'][fold]],
                                    features_valid = x_valid,
                                    survival_valid = Survival[splitIdxs['valid'][fold]],
                                    censored_valid = Censored[splitIdxs['valid'][fold]],
-                                   COMPUT_GRAPH_PARAMS = graphParams,
+                                   graph_hyperparams = graph_hyperparams,
                                    **nca_train_params)
                 
                 ncamodel.reset_TrainHistory()
@@ -322,10 +328,11 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             nca_train_params['MONITOR'] = True
             
-            graphParams['ALPHA'] = ALPHA_OPTIM
-            graphParams['LAMBDA'] = LAMBDA_OPTIM
-            graphParams['SIGMA'] = SIGMA_OPTIM
-            graphParams['DROPOUT_FRACTION'] = DROPOUT_FRACTION_OPTIM
+            graph_hyperparams = {'ALPHA': ALPHA_OPTIM,
+                                 'LAMBDA': LAMBDA_OPTIM,
+                                 'SIGMA': SIGMA_OPTIM,
+                                 'DROPOUT_FRACTION': DROPOUT_FRACTION_OPTIM,
+                                 }
     
             # Learn NCA matrix
             W = ncamodel.train(features = x_train,
@@ -334,7 +341,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                features_valid = x_valid,
                                survival_valid = Survival[splitIdxs['valid'][fold]],
                                censored_valid = Censored[splitIdxs['valid'][fold]],
-                               COMPUT_GRAPH_PARAMS = graphParams,
+                               graph_hyperparams = graph_hyperparams,
                                **nca_train_params)    
                                
             # Ranks features
@@ -440,8 +447,8 @@ if __name__ == '__main__':
     
     # paths ----------------------------------------------------------
     
-    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
     RESULTPATH_BASE = projectPath + "Results/10_10Oct2017/"
     
     # dataset and description

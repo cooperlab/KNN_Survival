@@ -65,16 +65,20 @@ class SurvivalNCA(object):
     ###########################################################################
     
     # default graph params
-    default_graphParams = {'ALPHA': 0.5,
-                           'LAMBDA': 0,
-                           'SIGMA': 1.0,
-                           'OPTIM': 'GD',
+    default_graphParams = {'OPTIM': 'GD',
                            'LEARN_RATE': 0.01,
                            'per_split_feats': 500,
                            'ROTATE': False,
-                           'DROPOUT_FRACTION': 0.1,
                            }
     userspecified_graphParams = ['dim_input',]
+    
+    # default graph hyperparams
+    default_graph_hyperparams = {'LAMBDA': 0,
+                                'ALPHA': 0.5,
+                                'SIGMA': 1.0,
+                                'DROPOUT_FRACTION': 0.1,
+                                }
+    userspecified_graph_hyperparams = []
     
     
     # Init
@@ -233,12 +237,14 @@ class SurvivalNCA(object):
     # build computational graph
     #==============================================================================
     
-    def _build_computational_graph(self, COMPUT_GRAPH_PARAMS={}):
+    def build_computational_graph(self, COMPUT_GRAPH_PARAMS={}):
         
         """ 
         Build the computational graph for this model
         At least, no of dimensions ('D') must be provided
         """
+        
+        print("\nBuilding computational graph.")
         
         # Now that the computationl graph is provided D is always fixed
         self.D = COMPUT_GRAPH_PARAMS['dim_input']
@@ -251,9 +257,9 @@ class SurvivalNCA(object):
                     keys_Needed = self.userspecified_graphParams)
                     
         # instantiate computational graph
-        graph = cgraph.comput_graph(**self.COMPUT_GRAPH_PARAMS)
+        self.graph = cgraph.comput_graph(**self.COMPUT_GRAPH_PARAMS)
         
-        return graph
+        print("Finished building graph.")
     
     
     #%%============================================================================
@@ -265,7 +271,7 @@ class SurvivalNCA(object):
             features_valid = None, 
             survival_valid = None, 
             censored_valid = None,
-            COMPUT_GRAPH_PARAMS={},
+            graph_hyperparams={},
             BATCH_SIZE = 20,
             PLOT_STEP = 10,
             MODEL_SAVE_STEP = 10,
@@ -292,6 +298,8 @@ class SurvivalNCA(object):
         
         #pUtils.Log_and_print("Initial preprocessing.")
         
+        D = features.shape[1]
+
         assert len(features.shape) == 2
         assert len(survival.shape) == 1
         assert len(censored.shape) == 1
@@ -299,7 +307,7 @@ class SurvivalNCA(object):
         USE_VALID = False
         if features_valid is not None:
             USE_VALID = True
-            assert (features_valid.shape[1] == features.shape[1])
+            assert (features_valid.shape[1] == D)
             assert (survival_valid is not None)
             assert (censored_valid is not None)
             
@@ -309,9 +317,11 @@ class SurvivalNCA(object):
         # Define computational graph
         #======================================================================        
         
-        D = features.shape[1]
-        COMPUT_GRAPH_PARAMS['dim_input'] = D
-        graph = self._build_computational_graph(COMPUT_GRAPH_PARAMS)
+        graph_hyperparams = \
+            pUtils.Merge_dict_with_default(\
+                    dict_given = graph_hyperparams,
+                    dict_default = self.default_graph_hyperparams,
+                    keys_Needed = self.userspecified_graph_hyperparams)
         
         
         # Begin session
@@ -341,7 +351,7 @@ class SurvivalNCA(object):
                 
             # for tensorboard visualization
             #train_writer = tf.summary.FileWriter(self.RESULTPATH + 'model/tensorboard', 
-            #                                     sess.graph)
+            #                                     sess.self.graph)
 
             # Define some methods
             #==================================================================
@@ -480,12 +490,16 @@ class SurvivalNCA(object):
                                 Pij_mask[idx, at_risk_batch[idx]:] = 1
                         
                         # run optimizer and fetch cost
-                        feed_dict = {graph.X_input: x_batch,
-                                     graph.Pij_mask: Pij_mask,
+                        feed_dict = {self.graph.X_input: x_batch,
+                                     self.graph.Pij_mask: Pij_mask,
+                                     self.graph.ALPHA: graph_hyperparams['ALPHA'],
+                                     self.graph.LAMBDA: graph_hyperparams['LAMBDA'],
+                                     self.graph.SIGMA: graph_hyperparams['SIGMA'],
+                                     self.graph.DROPOUT_FRACTION: graph_hyperparams['DROPOUT_FRACTION'],
                                      }  
-                        _, cost, W = sess.run([graph.optimizer, 
-                                               graph.cost, 
-                                               graph.W], \
+                        _, cost, W = sess.run([self.graph.optimizer, 
+                                               self.graph.cost, 
+                                               self.graph.W], \
                                                feed_dict = feed_dict)
                                                  
                         # normalize cost for sample size

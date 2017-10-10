@@ -247,7 +247,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             nca_train_params['MONITOR'] = True  #False
             
-            def run_nca(ALPHA, LAMBDA, SIGMA):
+            def run_nca(ALPHA, LAMBDA, SIGMA, DROPOUT_FRACTION):
                 
                 """
                 Wrapper to run NCA and fetch validation accuracy using
@@ -257,6 +257,8 @@ def get_cv_accuracy(dpath, site, dtype, description,
                 graphParams['ALPHA'] = ALPHA
                 graphParams['LAMBDA'] = LAMBDA
                 graphParams['SIGMA'] = SIGMA
+                graphParams['DROPOUT_FRACTION'] = DROPOUT_FRACTION
+                
                 
                 W = ncamodel.train(features = x_train,
                                    survival = Survival[splitIdxs['train'][fold]],
@@ -303,11 +305,14 @@ def get_cv_accuracy(dpath, site, dtype, description,
             ALPHA_OPTIM = Optim_params['ALPHA']
             LAMBDA_OPTIM = Optim_params['LAMBDA']
             SIGMA_OPTIM = Optim_params['SIGMA']
+            DROPOUT_FRACTION_OPTIM = Optim_params['DROPOUT_FRACTION']
 
             print("\tOptimal NCA params:")
             print("\t--------------------")
-            print("\tALPHA\tLAMBDA\tSIGMA")
-            print("\t{}\t{}\t{}".format(ALPHA_OPTIM, LAMBDA_OPTIM, SIGMA_OPTIM))
+            print("\tALPHA\tLAMBDA\tSIGMA\tDROPOUT_FRACTION")
+            print("\t{}\t{}\t{}\t".format(\
+                ALPHA_OPTIM, LAMBDA_OPTIM, SIGMA_OPTIM, 
+                DROPOUT_FRACTION_OPTIM))
 
             #%%----------------------------------------------------------------
             # Learn final NCA matrix
@@ -320,6 +325,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
             graphParams['ALPHA'] = ALPHA_OPTIM
             graphParams['LAMBDA'] = LAMBDA_OPTIM
             graphParams['SIGMA'] = SIGMA_OPTIM
+            graphParams['DROPOUT_FRACTION'] = DROPOUT_FRACTION_OPTIM
     
             # Learn NCA matrix
             W = ncamodel.train(features = x_train,
@@ -485,13 +491,15 @@ if __name__ == '__main__':
     # limits of interval to explore
     bo_lims = {'ALPHA': (0, 1),
                'LAMBDA': (0, 1),
-               'SIGMA': (0.2, 15)
+               'SIGMA': (0.2, 15),
+               'DROPOUT_FRACTION': (0, 0.9),
                }
     
     # initial points to explore
     bo_expl = {'ALPHA': [0, 0, 1, 0, 0],
                'LAMBDA': [0, 1, 0, 0, 0],
                'SIGMA': [1, 1, 1, 5, 0.5],
+               'DROPOUT_FRACTION': [0, 0.5, 0, 0.5, 0],
                }
     
     # other bayesopt params
@@ -503,8 +511,8 @@ if __name__ == '__main__':
     #=================================================================
     
     for USE_NCA in [True, False]:
-        for Method in Methods:
-            for USE_PCA in [False, ]: #True]:
+        for USE_PCA in [False, ]: #True]:
+            for Method in Methods:
             
                 # pass params to dicts
                 k_tune_params['Method'] = Method

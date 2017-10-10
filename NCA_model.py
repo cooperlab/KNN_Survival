@@ -576,7 +576,7 @@ class SurvivalNCA(object):
                             ci_old = np.mean(Cis[-2*MODEL_BUFFER:-MODEL_BUFFER])        
                     
                             if ci_new < ci_old:
-                                snapshot_idx = (itir - MODEL_BUFFER) % MODEL_BUFFER
+                                snapshot_idx = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
                                 W = Ws[:, :, snapshot_idx]
                                 break
                     

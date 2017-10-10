@@ -36,7 +36,8 @@ class comput_graph(object):
                  OPTIM = 'GD',
                  LEARN_RATE = 0.01,
                  per_split_feats = 500,
-                 ROTATE = False):
+                 ROTATE = False,
+                 DROPOUT_FRACTION = 0.1):
         
         """
         Instantiate a computational graph for survival NCA.
@@ -69,6 +70,7 @@ class comput_graph(object):
         self.LEARN_RATE = LEARN_RATE
         self.per_split_feats = per_split_feats
         self.ROTATE = ROTATE
+        self.DROPOUT_FRACTION = DROPOUT_FRACTION
         
         # clear lurking tensors
         tf.reset_default_graph()
@@ -118,10 +120,13 @@ class comput_graph(object):
             if self.ROTATE:
                 self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_input], 
                                 initializer= tf.contrib.layers.xavier_initializer())
+                self.W = tf.nn.dropout(self.W, keep_prob=1 - self.DROPOUT_FRACTION)
             else:
                 # feature scales/weights
                 self.w = tf.get_variable("weights", shape=[self.dim_input], 
                                 initializer= tf.contrib.layers.xavier_initializer())
+                self.w = tf.nn.dropout(self.w, keep_prob=1 - self.DROPOUT_FRACTION)
+                
                 # diagonalize and matmul
                 self.W = tf.diag(self.w)
             

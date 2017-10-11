@@ -315,12 +315,14 @@ class SurvivalNCA(object):
             assert USE_VALID
         
         if not USE_VALID:
-            x_valid = None
+            features_valid = None
             survival_valid = None
             censored_valid = None        
         
         # Define relevant methods
         #======================================================================
+        
+        knnmodel = knn.SurvivalKNN(self.RESULTPATH, description=self.description)
         
         def _get_Cis(x_train, t_train, c_train,
                      x_valid=None, t_valid=None, c_valid=None):
@@ -359,16 +361,6 @@ class SurvivalNCA(object):
                 
             return Ci_train, Ci_valid
             
-        # Get baseline performance
-        #======================================================================
-        
-        self.Ci_train_baseline, self.Ci_valid_baseline = \
-                _get_Cis(x_train=features, 
-                         t_train=survival, 
-                         c_train=censored,
-                         x_valid=x_valid, 
-                         t_valid=survival_valid, 
-                         c_valid=censored_valid)
         
         # Define computational graph
         #======================================================================        
@@ -491,8 +483,6 @@ class SurvivalNCA(object):
                     print("\n\tepoch\tcost\tCi_train\tCi_valid")
                     print("\t----------------------------------------------")
                 
-                knnmodel = knn.SurvivalKNN(self.RESULTPATH, description=self.description)
-                
 #                # Initialize weights buffer 
 #                # (keep a snapshot of model for early stopping)
 #                # each "channel" in 3rd dim is one snapshot of the model
@@ -507,6 +497,36 @@ class SurvivalNCA(object):
                     itir += 1
                     cost_tot = 0
                     self._update_timestamp()
+                    
+                    
+                    
+                    # Get baseline performance first
+                    #======================================================================
+                    
+                    if itir == 0:                    
+                    
+                        self.Ci_train_baseline, self.Ci_valid_baseline = \
+                                _get_Cis(x_train=features, 
+                                         t_train=survival, 
+                                         c_train=censored,
+                                         x_valid=features_valid, 
+                                         t_valid=survival_valid, 
+                                         c_valid=censored_valid)
+                                         
+                        if MONITOR:
+                            print("\t{}\t{}\t{}\t{}".format(\
+                                    self.EPOCHS_RUN,
+                                    round(cost_tot, 3), 
+                                    round(self.Ci_train_baseline, 3),
+                                    round(self.Ci_valid_baseline, 3)))                                                                       
+                                            
+                        # update epochs and append costs                     
+                        self.EPOCHS_RUN += 1
+                        self.Costs_epochLevel_train.append(cost_tot)
+                        self.CIs_train.append(self.Ci_train_baseline)
+                        self.CIs_valid.append(self.Ci_valid_baseline)
+                        
+                        continue
             
                     # Divide into balanced batches
                     #==========================================================
@@ -744,9 +764,9 @@ class SurvivalNCA(object):
         if vline is not None:
             plt.axvline(x=vline, linewidth=1.5, color='k', linestyle='--')
         if hline1 is not None:
-            plt.axhline(x=vline, linewidth=1.5, color='b', linestyle='--')
+            plt.axhline(y=hline1, linewidth=1.5, color='b', linestyle='--')
         if hline2 is not None:
-            plt.axhline(x=vline, linewidth=1.5, color='r', linestyle='--')
+            plt.axhline(y=hline2, linewidth=1.5, color='r', linestyle='--')
         
         plt.title(title, fontsize =16, fontweight ='bold')
         plt.xlabel(xlab)

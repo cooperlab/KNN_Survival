@@ -472,6 +472,13 @@ class SurvivalNCA(object):
                                       
                     # Run over training set
                     #==========================================================
+                                      
+                    # Initialize feed dict
+                    feed_dict = {self.graph.ALPHA: graph_hyperparams['ALPHA'],
+                                 self.graph.LAMBDA: graph_hyperparams['LAMBDA'],
+                                 self.graph.SIGMA: graph_hyperparams['SIGMA'],
+                                 self.graph.DROPOUT_FRACTION: graph_hyperparams['DROPOUT_FRACTION'],
+                                 }  
                             
                     for batchidx, batch in enumerate(batchIdxs):
                         
@@ -490,13 +497,9 @@ class SurvivalNCA(object):
                                 Pij_mask[idx, at_risk_batch[idx]:] = 1
                         
                         # run optimizer and fetch cost
-                        feed_dict = {self.graph.X_input: x_batch,
-                                     self.graph.Pij_mask: Pij_mask,
-                                     self.graph.ALPHA: graph_hyperparams['ALPHA'],
-                                     self.graph.LAMBDA: graph_hyperparams['LAMBDA'],
-                                     self.graph.SIGMA: graph_hyperparams['SIGMA'],
-                                     self.graph.DROPOUT_FRACTION: graph_hyperparams['DROPOUT_FRACTION'],
-                                     }  
+                        feed_dict[self.graph.X_input] = x_batch
+                        feed_dict[self.graph.Pij_mask] = Pij_mask
+                                       
                         _, cost = sess.run([self.graph.optimizer, self.graph.cost], feed_dict = feed_dict)
                                                  
                         # normalize cost for sample size

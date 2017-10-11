@@ -486,13 +486,14 @@ if __name__ == '__main__':
     # NCA params  ---------------------------------------------------
     
     graphParams = \
-            {'OPTIM': 'GD',
+            {'OPTIM': 'Adam',
             'LEARN_RATE': 0.002, #0.002,
             'per_split_feats': 500,
             'transform': 'ffnn',
             'DEPTH': 2,
             'MAXWIDTH': 300,
             'dim_output': 30,
+            'NONLIN': 'ReLU',
             'ROTATE': True,            
             }
     

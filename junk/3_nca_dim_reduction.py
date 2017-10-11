@@ -495,7 +495,6 @@ if __name__ == '__main__':
             'dim_output': 2,
             'NONLIN': 'ReLU',
             'ROTATE': False,
-            'INITIALIZER': 'scaling',
             }
     
     nca_train_params = \

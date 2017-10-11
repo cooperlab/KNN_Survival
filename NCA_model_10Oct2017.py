@@ -314,6 +314,62 @@ class SurvivalNCA(object):
         if EARLY_STOPPING:
             assert USE_VALID
         
+        if not USE_VALID:
+            x_valid = None
+            survival_valid = None
+            censored_valid = None        
+        
+        # Define relevant methods
+        #======================================================================
+        
+        def _get_Cis(x_train, t_train, c_train,
+                     x_valid=None, t_valid=None, c_valid=None):
+                         
+            """Get prediction accuracy for training and validation sets"""
+            
+            # get neighbor indices    
+            neighbor_idxs_train = \
+                knnmodel._get_neighbor_idxs(x_train, 
+                                            x_train, 
+                                            norm=norm)
+            if USE_VALID:
+                neighbor_idxs_valid = \
+                    knnmodel._get_neighbor_idxs(x_valid, 
+                                                x_train, 
+                                                norm=norm)
+            
+            # Predict training/validation set
+            _, Ci_train = knnmodel.predict(neighbor_idxs_train,
+                                           Survival_train=t_train, 
+                                           Censored_train=c_train, 
+                                           Survival_test=t_train, 
+                                           Censored_test=c_train, 
+                                           K=K, 
+                                           Method=Method)
+            if USE_VALID:
+                _, Ci_valid = knnmodel.predict(neighbor_idxs_valid,
+                                           Survival_train=t_train, 
+                                           Censored_train=c_train, 
+                                           Survival_test=t_valid, 
+                                           Censored_test=c_valid, 
+                                           K=K, 
+                                           Method=Method)
+            else:
+                Ci_valid = 0
+                
+            return Ci_train, Ci_valid
+            
+        # Get baseline performance
+        #======================================================================
+        
+        self.Ci_train_baseline, self.Ci_valid_baseline = \
+                _get_Cis(x_train=features, 
+                         t_train=survival, 
+                         c_train=censored,
+                         x_valid=x_valid, 
+                         t_valid=survival_valid, 
+                         c_valid=censored_valid)
+        
         # Define computational graph
         #======================================================================        
         
@@ -373,7 +429,7 @@ class SurvivalNCA(object):
              
             
             # monitor
-            def _monitorProgress(snapshot_idx=None):
+            def _monitorProgress(vline=None):
 
                 """
                 Monitor cost - save txt and plots cost
@@ -421,7 +477,9 @@ class SurvivalNCA(object):
                                       title= "C-index vs. epoch", 
                                       xlab= "epoch", ylab= "C-index", 
                                       savename= savename + "_Ci.svg",
-                                      snapshot_idx=snapshot_idx)
+                                      vline=vline,
+                                      hline1=self.Ci_train_baseline,
+                                      hline2=self.Ci_valid_baseline)
     
             # Begin epochs
             #==================================================================
@@ -525,40 +583,19 @@ class SurvivalNCA(object):
                         feed_dict[self.graph.X_input] = features_valid
                         x_valid_transformed = \
                             self.graph.X_transformed.eval(feed_dict = feed_dict)
+                    else:
+                        x_valid_transformed = None
                     
                     # Get Ci for training/validation set
                     #==========================================================
+         
+                    Ci_train, Ci_valid = _get_Cis(x_train=x_train_transformed, 
+                                                  t_train=survival, 
+                                                  c_train=censored,
+                                                  x_valid=x_valid_transformed, 
+                                                  t_valid=survival_valid, 
+                                                  c_valid=censored_valid)
             
-                    # get neighbor indices    
-                    neighbor_idxs_train = \
-                        knnmodel._get_neighbor_idxs(x_train_transformed, 
-                                                    x_train_transformed, 
-                                                    norm=norm)
-                    if USE_VALID:
-                        neighbor_idxs_valid = \
-                            knnmodel._get_neighbor_idxs(x_valid_transformed, 
-                                                        x_train_transformed, 
-                                                        norm=norm)
-                    
-                    # Predict training/validation set
-                    _, Ci_train = knnmodel.predict(neighbor_idxs_train,
-                                                   Survival_train=survival, 
-                                                   Censored_train=censored, 
-                                                   Survival_test=survival, 
-                                                   Censored_test=censored, 
-                                                   K=K, 
-                                                   Method=Method)
-                    if USE_VALID:
-                        _, Ci_valid = knnmodel.predict(neighbor_idxs_valid,
-                                                   Survival_train=survival, 
-                                                   Censored_train=censored, 
-                                                   Survival_test=survival_valid, 
-                                                   Censored_test=censored_valid, 
-                                                   K=K, 
-                                                   Method=Method)
-                    if not USE_VALID:
-                        Ci_valid = 0
-                        
                     if MONITOR:
                         print("\t{}\t{}\t{}\t{}".format(\
                                 self.EPOCHS_RUN,
@@ -599,8 +636,8 @@ class SurvivalNCA(object):
 #                            ci_old = np.mean(Cis[-2*MODEL_BUFFER:-MODEL_BUFFER])        
 #                    
 #                            if ci_new < ci_old:
-#                                snapshot_idx = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
-#                                W = Ws[:, :, snapshot_idx]
+#                                vline = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
+#                                W = Ws[:, :, vline]
 #                                break
                     
             except KeyboardInterrupt:
@@ -618,7 +655,7 @@ class SurvivalNCA(object):
                     snapshot = itir - MODEL_BUFFER
                 else:
                     snapshot = None    
-                _monitorProgress(snapshot_idx=snapshot)
+                _monitorProgress(vline=snapshot)
                 
 #                # save learned weights
 #                np.save(self.RESULTPATH + 'model/' + self.description + \
@@ -694,7 +731,7 @@ class SurvivalNCA(object):
     #==============================================================================
     
     def _plotMonitor(self, arr, title, xlab, ylab, savename, 
-                     arr2=None, snapshot_idx=None):
+                     arr2=None, vline=None, hline1=None, hline2=None):
                             
         """ plots cost/other metric to monitor progress """
         
@@ -704,8 +741,13 @@ class SurvivalNCA(object):
         ax.plot(arr[:,0], arr[:,1], color='b', linewidth=1.5, aa=False)
         if arr2 is not None:
             ax.plot(arr[:,0], arr2, color='r', linewidth=1.5, aa=False)
-        if snapshot_idx is not None:
-            plt.axvline(x=snapshot_idx, linewidth=1.5, color='r', linestyle='--')
+        if vline is not None:
+            plt.axvline(x=vline, linewidth=1.5, color='k', linestyle='--')
+        if hline1 is not None:
+            plt.axhline(x=vline, linewidth=1.5, color='b', linestyle='--')
+        if hline2 is not None:
+            plt.axhline(x=vline, linewidth=1.5, color='r', linestyle='--')
+        
         plt.title(title, fontsize =16, fontweight ='bold')
         plt.xlabel(xlab)
         plt.ylabel(ylab) 

@@ -34,7 +34,7 @@ class comput_graph(object):
                  LEARN_RATE = 0.01,
                  per_split_feats = 500,
                  transform = 'linear',
-                 dim_output = 50,
+                 dim_output = 100,
                  ROTATE = False,
                  DEPTH = 2,
                  MAXWIDTH = 200,
@@ -370,7 +370,10 @@ class comput_graph(object):
             
             # cost the sum of Pij of at-risk cases over
             # all observed cases
-            self.cost = tf.reduce_sum(self.Pij) + _penalty(self.W)
+            self.cost = tf.reduce_sum(self.Pij)
+            
+            if self.transform == 'linear':            
+                self.cost = self.cost + _penalty(self.W)
 
 
     #%%========================================================================

@@ -435,12 +435,12 @@ class SurvivalNCA(object):
                 
                 knnmodel = knn.SurvivalKNN(self.RESULTPATH, description=self.description)
                 
-                # Initialize weights buffer 
-                # (keep a snapshot of model for early stopping)
-                # each "channel" in 3rd dim is one snapshot of the model
-                if USE_VALID:
-                    Ws = np.zeros((D, self.graph.dim_output, MODEL_BUFFER))
-                    Cis = []
+#                # Initialize weights buffer 
+#                # (keep a snapshot of model for early stopping)
+#                # each "channel" in 3rd dim is one snapshot of the model
+#                if USE_VALID:
+#                    Ws = np.zeros((D, self.graph.dim_output, MODEL_BUFFER))
+#                    Cis = []
                 
                 while itir < MAX_ITIR:
                     
@@ -509,19 +509,22 @@ class SurvivalNCA(object):
                         #pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
                         #     format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
 
-                    # Now get final NCA matrix (without dropput)
+                    # Now get transformed X
                     #==========================================================
 
                     feed_dict[self.graph.DROPOUT_FRACTION] = 0
-                    W = self.graph.W.eval(feed_dict = feed_dict)
+
+                    feed_dict[self.graph.X_input] = features                    
+                    x_train_transformed = \
+                        self.graph.X_transformed.eval(feed_dict = feed_dict)
+
+                    if USE_VALID:
+                        feed_dict[self.graph.X_input] = features_valid
+                        x_valid_transformed = \
+                            self.graph.X_transformed.eval(feed_dict = feed_dict)
                     
                     # Get Ci for training/validation set
                     #==========================================================
-            
-                    # transform
-                    x_train_transformed = np.dot(x_batch, W)
-                    if USE_VALID:
-                        x_valid_transformed = np.dot(features_valid, W)
             
                     # get neighbor indices    
                     neighbor_idxs_train = \
@@ -536,16 +539,16 @@ class SurvivalNCA(object):
                     
                     # Predict training/validation set
                     _, Ci_train = knnmodel.predict(neighbor_idxs_train,
-                                                   Survival_train=t_batch, 
-                                                   Censored_train=1-o_batch, 
-                                                   Survival_test=t_batch, 
-                                                   Censored_test=1-o_batch, 
+                                                   Survival_train=survival, 
+                                                   Censored_train=censored, 
+                                                   Survival_test=survival, 
+                                                   Censored_test=censored, 
                                                    K=K, 
                                                    Method=Method)
                     if USE_VALID:
                         _, Ci_valid = knnmodel.predict(neighbor_idxs_valid,
-                                                   Survival_train=t_batch, 
-                                                   Censored_train=1-o_batch, 
+                                                   Survival_train=survival, 
+                                                   Censored_train=censored, 
                                                    Survival_test=survival_valid, 
                                                    Censored_test=censored_valid, 
                                                    K=K, 
@@ -582,20 +585,20 @@ class SurvivalNCA(object):
                     # Early stopping
                     #==========================================================
 
-                    if EARLY_STOPPING:
-                        # Save snapshot                        
-                        Ws[:, :, itir % MODEL_BUFFER] = W 
-                        Cis.append(Ci_valid)
-                        
-                        # Stop when overfitting starts to occur
-                        if len(Cis) > (2 * MODEL_BUFFER):
-                            ci_new = np.mean(Cis[-MODEL_BUFFER:])
-                            ci_old = np.mean(Cis[-2*MODEL_BUFFER:-MODEL_BUFFER])        
-                    
-                            if ci_new < ci_old:
-                                snapshot_idx = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
-                                W = Ws[:, :, snapshot_idx]
-                                break
+#                    if EARLY_STOPPING:
+#                        # Save snapshot                        
+#                        Ws[:, :, itir % MODEL_BUFFER] = W 
+#                        Cis.append(Ci_valid)
+#                        
+#                        # Stop when overfitting starts to occur
+#                        if len(Cis) > (2 * MODEL_BUFFER):
+#                            ci_new = np.mean(Cis[-MODEL_BUFFER:])
+#                            ci_old = np.mean(Cis[-2*MODEL_BUFFER:-MODEL_BUFFER])        
+#                    
+#                            if ci_new < ci_old:
+#                                snapshot_idx = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
+#                                W = Ws[:, :, snapshot_idx]
+#                                break
                     
             except KeyboardInterrupt:
                 pass
@@ -614,11 +617,13 @@ class SurvivalNCA(object):
                     snapshot = None    
                 _monitorProgress(snapshot_idx=snapshot)
                 
-                # save learned weights
-                np.save(self.RESULTPATH + 'model/' + self.description + \
-                        self.timestamp + 'NCA_matrix.npy', W)
-            
-        return W
+#                # save learned weights
+#                np.save(self.RESULTPATH + 'model/' + self.description + \
+#                        self.timestamp + 'NCA_matrix.npy', W)
+#            
+#        return W
+                
+        return Ci_train, Ci_valid
 
                         
     #%%============================================================================

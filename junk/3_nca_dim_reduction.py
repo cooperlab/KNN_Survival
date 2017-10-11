@@ -268,36 +268,45 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                      'DROPOUT_FRACTION': DROPOUT_FRACTION,
                                      }
                       
-                W = ncamodel.train(features = x_train,
-                                   survival = Survival[splitIdxs['train'][fold]],
-                                   censored = Censored[splitIdxs['train'][fold]],
-                                   features_valid = x_valid,
-                                   survival_valid = Survival[splitIdxs['valid'][fold]],
-                                   censored_valid = Censored[splitIdxs['valid'][fold]],
-                                   graph_hyperparams = graph_hyperparams,
-                                   **nca_train_params)
-                
+#                W = ncamodel.train(features = x_train,
+#                                   survival = Survival[splitIdxs['train'][fold]],
+#                                   censored = Censored[splitIdxs['train'][fold]],
+#                                   features_valid = x_valid,
+#                                   survival_valid = Survival[splitIdxs['valid'][fold]],
+#                                   censored_valid = Censored[splitIdxs['valid'][fold]],
+#                                   graph_hyperparams = graph_hyperparams,
+#                                   **nca_train_params)
+#                
                 ncamodel.reset_TrainHistory()
-                
-                # transform
-                x_train_transformed = np.dot(x_train, W)
-                x_valid_transformed = np.dot(x_valid, W)
-                
-                # get neighbor indices    
-                neighbor_idxs = knnmodel._get_neighbor_idxs(x_valid_transformed, 
-                                                            x_train_transformed, 
-                                                            norm = nca_train_params['norm'])
-                
-                # Predict validation set
-                _, Ci = knnmodel.predict(neighbor_idxs,
-                                         Survival_train=Survival[splitIdxs['train'][fold]], 
-                                         Censored_train=Censored[splitIdxs['train'][fold]], 
-                                         Survival_test = Survival[splitIdxs['valid'][fold]], 
-                                         Censored_test = Censored[splitIdxs['valid'][fold]], 
-                                         K = nca_train_params['K'], 
-                                         Method = nca_train_params['Method'])
+#                
+#                # transform
+#                x_train_transformed = np.dot(x_train, W)
+#                x_valid_transformed = np.dot(x_valid, W)
+#                
+#                # get neighbor indices    
+#                neighbor_idxs = knnmodel._get_neighbor_idxs(x_valid_transformed, 
+#                                                            x_train_transformed, 
+#                                                            norm = nca_train_params['norm'])
+#                
+#                # Predict validation set
+#                _, Ci = knnmodel.predict(neighbor_idxs,
+#                                         Survival_train=Survival[splitIdxs['train'][fold]], 
+#                                         Censored_train=Censored[splitIdxs['train'][fold]], 
+#                                         Survival_test = Survival[splitIdxs['valid'][fold]], 
+#                                         Censored_test = Censored[splitIdxs['valid'][fold]], 
+#                                         K = nca_train_params['K'], 
+#                                         Method = nca_train_params['Method'])
+                      
+                _, Ci_valid = ncamodel.train(features = x_train,
+                                             survival = Survival[splitIdxs['train'][fold]],
+                                             censored = Censored[splitIdxs['train'][fold]],
+                                             features_valid = x_valid,
+                                             survival_valid = Survival[splitIdxs['valid'][fold]],
+                                             censored_valid = Censored[splitIdxs['valid'][fold]],
+                                             graph_hyperparams = graph_hyperparams,
+                                             **nca_train_params)
 
-                return Ci
+                return Ci_valid
             
             #
             # Run core bayesopt model
@@ -478,10 +487,13 @@ if __name__ == '__main__':
     
     graphParams = \
             {'OPTIM': 'GD',
-            'LEARN_RATE': 0.01, #0.002,
+            'LEARN_RATE': 0.002, #0.002,
             'per_split_feats': 500,
-            'ROTATE': True,
+            'transform': 'ffnn',
+            'DEPTH': 2,
+            'MAXWIDTH': 300,
             'dim_output': 30,
+            'ROTATE': True,            
             }
     
     nca_train_params = \

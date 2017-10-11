@@ -360,8 +360,16 @@ class SurvivalNCA(object):
                 Ci_valid = 0
                 
             return Ci_train, Ci_valid
-            
-        
+
+        # Get baseline performance            
+        self.Ci_train_baseline, self.Ci_valid_baseline = \
+                                _get_Cis(x_train=features, 
+                                         t_train=survival, 
+                                         c_train=censored,
+                                         x_valid=features_valid, 
+                                         t_valid=survival_valid, 
+                                         c_valid=censored_valid)
+                                         
         # Define computational graph
         #======================================================================        
         
@@ -461,7 +469,7 @@ class SurvivalNCA(object):
                 # this using screen (Xdisplay is not supported)
                 #
                 if PLOT:
-                    self._plotMonitor(arr= costs,
+                    self._plotMonitor(arr= costs[1:],
                                       title= "Cost vs. epoch", 
                                       xlab= "epoch", ylab= "Cost", 
                                       savename= savename + "_costs.svg")
@@ -471,7 +479,8 @@ class SurvivalNCA(object):
                                       savename= savename + "_Ci.svg",
                                       vline=vline,
                                       hline1=self.Ci_train_baseline,
-                                      hline2=self.Ci_valid_baseline)
+                                      hline2=self.Ci_valid_baseline,
+                                      IS_CI=True)
     
             # Begin epochs
             #==================================================================
@@ -494,24 +503,15 @@ class SurvivalNCA(object):
                     
                     #pUtils.Log_and_print("\n\tTraining epoch {}\n".format(self.EPOCHS_RUN))
                     
-                    itir += 1
+                    # initialize 
                     cost_tot = 0
                     self._update_timestamp()
+                    itir += 1
                     
-                    
-                    
-                    # Get baseline performance first
+                    # baseline performance
                     #======================================================================
                     
-                    if itir == 0:                    
-                    
-                        self.Ci_train_baseline, self.Ci_valid_baseline = \
-                                _get_Cis(x_train=features, 
-                                         t_train=survival, 
-                                         c_train=censored,
-                                         x_valid=features_valid, 
-                                         t_valid=survival_valid, 
-                                         c_valid=censored_valid)
+                    if itir == 1:                    
                                          
                         if MONITOR:
                             print("\t{}\t{}\t{}\t{}".format(\
@@ -660,6 +660,7 @@ class SurvivalNCA(object):
 #                                W = Ws[:, :, vline]
 #                                break
                     
+                    
             except KeyboardInterrupt:
                 pass
             
@@ -751,7 +752,10 @@ class SurvivalNCA(object):
     #==============================================================================
     
     def _plotMonitor(self, arr, title, xlab, ylab, savename, 
-                     arr2=None, vline=None, hline1=None, hline2=None):
+                     arr2=None, 
+                     vline=None, 
+                     hline1=None, hline2=None,
+                     IS_CI=False):
                             
         """ plots cost/other metric to monitor progress """
         
@@ -767,10 +771,13 @@ class SurvivalNCA(object):
             plt.axhline(y=hline1, linewidth=1.5, color='b', linestyle='--')
         if hline2 is not None:
             plt.axhline(y=hline2, linewidth=1.5, color='r', linestyle='--')
+        if IS_CI:
+            plt.ylim(ymin=0.5, ymax=1)
+            #plt.axhline(y=0.5, linewidth=1.5, color='k', linestyle='--')
         
         plt.title(title, fontsize =16, fontweight ='bold')
         plt.xlabel(xlab)
-        plt.ylabel(ylab) 
+        plt.ylabel(ylab)       
         plt.tight_layout()
         plt.savefig(savename)
         plt.close()

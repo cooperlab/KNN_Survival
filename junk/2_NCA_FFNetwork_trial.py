@@ -6,6 +6,7 @@ import tensorflow as tf
 # =============================================================================
 
 dim_input = 399
+
 tf.reset_default_graph()
 X_input = tf.placeholder("float", [None, dim_input], name='X_input')
 Pij_mask = tf.placeholder("float", [None, None], name='Pij_mask')
@@ -127,6 +128,6 @@ with tf.variable_scope("FFNetwork"):
     for i in range(1, DEPTH):
          l_in = _add_layer("layer_{}".format(i), l_in, **layer_params)
          
-    # outer layer (prediction)
+    # outer layer (final, transformed datset)
     layer_params['Drop'] = False
-    l_out = _add_layer("layer_{}".format(DEPTH), l_in, **layer_params)
+    X_transformed = _add_layer("layer_{}".format(DEPTH), l_in, **layer_params)

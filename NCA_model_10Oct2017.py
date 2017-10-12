@@ -760,25 +760,39 @@ class SurvivalNCA(object):
         """ plots cost/other metric to monitor progress """
         
         print("Plotting " + title)
+                
+        #fig, ax = plt.subplots() 
+        #plt.subplots() 
+        plt.figure(figsize=(5, 5))
         
-        fig, ax = plt.subplots() 
-        ax.plot(arr[:,0], arr[:,1], color='b', linewidth=1.5, aa=False)
+        plt.plot(arr[:,0], arr[:,1], color='b', linewidth=2.5, aa=False)
         if arr2 is not None:
-            ax.plot(arr[:,0], arr2, color='r', linewidth=1.5, aa=False)
+            plt.plot(arr[:,0], arr2, color='r', linewidth=2.5, aa=False)
         if vline is not None:
-            plt.axvline(x=vline, linewidth=1.5, color='k', linestyle='--')
+            #plt.axvline(x=vline, linewidth=1.5, color='k', linestyle='--')
+            pass
         if hline1 is not None:
             plt.axhline(y=hline1, linewidth=1.5, color='b', linestyle='--')
         if hline2 is not None:
             plt.axhline(y=hline2, linewidth=1.5, color='r', linestyle='--')
         if IS_CI:
+            #plt.ylim(ymax=1)
             plt.ylim(ymin=0.5, ymax=1)
             #plt.axhline(y=0.5, linewidth=1.5, color='k', linestyle='--')
         
         plt.title(title, fontsize =16, fontweight ='bold')
         plt.xlabel(xlab)
         plt.ylabel(ylab)       
-        plt.tight_layout()
+        plt.tight_layout()        
+        
+        #ax.axis('equal')
+        #ax.set_aspect('box')
+        #ax.set_aspect('equal')        
+        #plt.figaspect(1.0)
+        #plt.tight_layout()        
+        #ax.imshow(ax, aspect='auto') 
+        #ax.set_aspect(1.0)
+        
         plt.savefig(savename)
         plt.close()
 

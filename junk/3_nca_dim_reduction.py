@@ -7,7 +7,7 @@ Created on Mon Sep 25 15:38:22 2017
 """
 
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+#os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 import sys
 sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
@@ -501,7 +501,7 @@ if __name__ == '__main__':
             {'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
             'BATCH_SIZE': 400,
-            'MAX_ITIR': 50,
+            'MAX_ITIR': 25,
             'MODEL_BUFFER': 4,
             'EARLY_STOPPING': True,
             'PLOT': True,

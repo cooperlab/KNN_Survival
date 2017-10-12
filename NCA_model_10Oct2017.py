@@ -783,16 +783,7 @@ class SurvivalNCA(object):
         plt.title(title, fontsize =16, fontweight ='bold')
         plt.xlabel(xlab)
         plt.ylabel(ylab)       
-        plt.tight_layout()        
-        
-        #ax.axis('equal')
-        #ax.set_aspect('box')
-        #ax.set_aspect('equal')        
-        #plt.figaspect(1.0)
-        #plt.tight_layout()        
-        #ax.imshow(ax, aspect='auto') 
-        #ax.set_aspect(1.0)
-        
+        plt.tight_layout()                
         plt.savefig(savename)
         plt.close()
 

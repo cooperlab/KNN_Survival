@@ -455,7 +455,7 @@ if __name__ == '__main__':
     
     # dataset and description
     sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
-    dtypes = ["Integ", ] #"Gene"]
+    dtypes = ["Gene", ] #"Integ"]
     
     K_init = 35
     norm = 2
@@ -551,15 +551,15 @@ if __name__ == '__main__':
                         if ((not USE_PCA) and (not USE_NCA)):
                             continue
 
-                        if ((dtype == "Gene") and (not USE_PCA)):
-                            continue
+                        #if ((dtype == "Gene") and (not USE_PCA)):
+                        #    continue
                         
-                        #if (dtype == "Gene") and (not USE_PCA):
-                        #    nca_train_params['BATCH_SIZE'] = 100
-                        #    nca_train_params['MAX_ITIR'] = 8
-                        #else:
-                        #    nca_train_params['BATCH_SIZE'] = 400
-                        #    nca_train_params['MAX_ITIR'] = 25
+                        if (dtype == "Gene") and (not USE_PCA):
+                            nca_train_params['BATCH_SIZE'] = 30
+                            nca_train_params['MAX_ITIR'] = 4
+                        else:
+                            nca_train_params['BATCH_SIZE'] = 400
+                            nca_train_params['MAX_ITIR'] = 50
 
                         description = site +"_"+ dtype +"_"
                         dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \

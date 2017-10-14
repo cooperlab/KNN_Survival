@@ -482,7 +482,8 @@ class SurvivalNCA(object):
                                                 features[batch, :])
                                                 
                         # Get at-risk mask (to be multiplied by Pij)
-                        Pij_mask = np.zeros((n, n))
+                        n_batch = t_batch.shape[0]
+                        Pij_mask = np.zeros((n_batch, n_batch))
                         for idx in range(n):
                             # only observed cases
                             if o_batch[idx] == 1:

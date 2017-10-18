@@ -8,6 +8,7 @@ Created on Tue Oct 17 16:02:28 2017
 import os
 import numpy as np
 import matplotlib.pylab as plt
+from pandas import read_table
 
 #%%============================================================================
 # Plot cost change (method)
@@ -97,23 +98,39 @@ if __name__ == '__main__':
     # Plot accuracy monitor
     #==============================================================================
     
-    for site in sites:
-        for dtype in dtypes:
-            for method in methods:
-            
-                accuracy_path = result_path + method + '/' + site + '_' + dtype + '_/nca/plots/'
-                save_path = base_path + 'Results/tmp/' + site + '_' + dtype + '_' + method
-                
-                if site == 'GBMLGG':
-                    folds = [6, 16] #[0, 6, 16, 24]
-                    plot_params = {'maxfolds': 25, 'ci_min': 0.7, 'ci_max': 0.9}
-                    
-                elif site == 'KIPAN':
-                    folds =  [0, 19] #[0, 7, 15, 19] # KIPAN
-                    plot_params = {'maxfolds': 16, 'ci_min': 0.6, 'ci_max': 0.8}
-                
-                else:
-                    raise Exception('no specified folds for site')    
-                
-                # Now plot and save    
-                plot_cost_change(accuracy_path, save_path, folds, **plot_params)
+#    for site in sites:
+#        for dtype in dtypes:
+#            for method in methods:
+#            
+#                accuracy_path = result_path + method + '/' + site + '_' + dtype + '_/nca/plots/'
+#                save_path = base_path + 'Results/tmp/' + site + '_' + dtype + '_' + method
+#                
+#                if site == 'GBMLGG':
+#                    folds = [6, 16] #[0, 6, 16, 24]
+#                    plot_params = {'maxfolds': 25, 'ci_min': 0.7, 'ci_max': 0.9}
+#                    
+#                elif site == 'KIPAN':
+#                    folds =  [0, 19] #[0, 7, 15, 19] # KIPAN
+#                    plot_params = {'maxfolds': 16, 'ci_min': 0.6, 'ci_max': 0.8}
+#                
+#                else:
+#                    raise Exception('no specified folds for site')    
+#                
+#                # Now plot and save    
+#                plot_cost_change(accuracy_path, save_path, folds, **plot_params)
+    
+#%%
+
+site = sites[0]
+dtype = dtypes[0]
+method = methods[0]
+
+save_path = base_path + 'Results/tmp/' + site + '_' + dtype + '_' + method
+CIs = read_table(result_path + 'results_merged.tab')
+
+loc_method = set(np.where(CIs.iloc[0] == method.split('_')[0])[0])
+loc_site = set(np.where(CIs.iloc[3] == site)[0])
+loc_dtype = set(np.where(CIs.iloc[4] == dtype)[0])
+colIdx = list(loc_method & loc_site & loc_dtype)
+
+cis = np.float32(CIs.iloc[6:35, colIdx].values)[:, 0]

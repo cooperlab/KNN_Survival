@@ -36,7 +36,6 @@ class comput_graph(object):
                  transform = 'linear',
                  dim_output = 100,
                  ROTATE = False,
-                 INITIALIZER = 'scaling',
                  DEPTH = 2,
                  MAXWIDTH = 200,
                  NONLIN = 'Tanh'):
@@ -79,8 +78,6 @@ class comput_graph(object):
 
             # linear transform params
             self.ROTATE = ROTATE
-            if not ROTATE:
-                self.INITIALIZER = INITIALIZER
             
         elif self.transform == 'ffnn':
 
@@ -144,22 +141,11 @@ class comput_graph(object):
             if self.ROTATE:
                 self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_output], 
                                 initializer= tf.contrib.layers.xavier_initializer())
-                                
                 self.W = tf.nn.dropout(self.W, keep_prob=1 - self.DROPOUT_FRACTION)
             else:
                 # feature scales/weights
-                if self.INITIALIZER == 'scaling':
-                    w_init = tf.reduce_max(self.X_input, axis=0) - tf.reduce_min(self.X_input, axis=0)
-                    w_init = 1 - tf.nn.sigmoid(w_init)
-                    #self.w = tf.get_variable("weights", initializer= w_init)
-                    self.w = tf.Variable(w_init, name="weights")
-                    
-                elif self.INITIALIZER == 'xavier':
-                    self.w = tf.get_variable("weights", shape=[self.dim_input], 
-                                    initializer= tf.contrib.layers.xavier_initializer())
-                else:
-                    raise NameError("Unknown initializer.")
-                
+                self.w = tf.get_variable("weights", shape=[self.dim_input], 
+                                initializer= tf.contrib.layers.xavier_initializer())
                 self.w = tf.nn.dropout(self.w, keep_prob=1 - self.DROPOUT_FRACTION)
                 
                 # diagonalize and matmul

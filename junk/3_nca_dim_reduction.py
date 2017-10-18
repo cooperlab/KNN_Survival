@@ -7,7 +7,7 @@ Created on Mon Sep 25 15:38:22 2017
 """
 
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+#os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 import sys
 sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
@@ -489,20 +489,19 @@ if __name__ == '__main__':
             {'OPTIM': 'Adam',
             'LEARN_RATE': 0.002, #0.002,
             'per_split_feats': 500,
-            'transform': 'linear', #ffnn',
+            'transform': 'linear', #'ffnn', 
             'DEPTH': 2,
             'MAXWIDTH': 300,
             'dim_output': 2,
             'NONLIN': 'ReLU',
             'ROTATE': False,
-            'INITIALIZER': 'scaling',
             }
     
     nca_train_params = \
             {'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
             'BATCH_SIZE': 400,
-            'MAX_ITIR': 50,
+            'MAX_ITIR': 25,
             'MODEL_BUFFER': 4,
             'EARLY_STOPPING': True,
             'PLOT': True,

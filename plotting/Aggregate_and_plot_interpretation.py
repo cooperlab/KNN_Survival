@@ -4,6 +4,10 @@ Created on Thu Oct 19 17:36:05 2017
 
 @author: mohamed
 """
+import os
+import numpy as np
+from pandas import read_table
+import matplotlib.pylab as plt
 
 #%%============================================================================
 # Ground work
@@ -28,7 +32,9 @@ method = methods[0]
 #for dtype in dtypes:
 #for method in methods:
 
-ranks_path = result_path + method + '/' + site + '_' + dtype + '_/nca/ranks/'
 save_path = base_path + 'Results/tmp/' + site + '_' + dtype + '_' + method.split('_')[0]
 
-
+# read rank files
+ranks_path = result_path + method + '/' + site + '_' + dtype + '_/nca/ranks/'
+rank_files = os.listdir(ranks_path)
+ranks = [read_table(ranks_path + j, header=None) for j in rank_files]

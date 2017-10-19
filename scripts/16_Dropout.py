@@ -451,10 +451,10 @@ if __name__ == '__main__':
     
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH_BASE = projectPath + "Results/10_10Oct2017/"
+    RESULTPATH_BASE = projectPath + "Results/10_10Oct2017/Gene/"
     
     # dataset and description
-    sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
+    sites = ["GBMLGG", "KIPAN"]
     dtypes = ["Gene", ] #"Integ"]
     
     K_init = 35
@@ -548,15 +548,15 @@ if __name__ == '__main__':
                         if (USE_PCA and (not USE_NCA)):
                             continue
                         
-                        if ((not USE_PCA) and (not USE_NCA)):
-                            continue
+                        #if ((not USE_PCA) and (not USE_NCA)):
+                        #    continue
 
                         #if ((dtype == "Gene") and (not USE_PCA)):
                         #    continue
                         
                         if (dtype == "Gene") and (not USE_PCA):
                             nca_train_params['BATCH_SIZE'] = 30
-                            nca_train_params['MAX_ITIR'] = 4
+                            nca_train_params['MAX_ITIR'] = 10
                         else:
                             nca_train_params['BATCH_SIZE'] = 400
                             nca_train_params['MAX_ITIR'] = 50

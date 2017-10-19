@@ -520,7 +520,7 @@ class SurvivalNCA(object):
                     #==========================================================
             
                     # transform
-                    x_train_transformed = np.dot(x_batch, W)
+                    x_train_transformed = np.dot(features, W)
                     if USE_VALID:
                         x_valid_transformed = np.dot(features_valid, W)
             
@@ -537,16 +537,16 @@ class SurvivalNCA(object):
                     
                     # Predict training/validation set
                     _, Ci_train = knnmodel.predict(neighbor_idxs_train,
-                                                   Survival_train=t_batch, 
-                                                   Censored_train=1-o_batch, 
-                                                   Survival_test=t_batch, 
-                                                   Censored_test=1-o_batch, 
+                                                   Survival_train=survival, 
+                                                   Censored_train=censored, 
+                                                   Survival_test=survival, 
+                                                   Censored_test=censored, 
                                                    K=K, 
                                                    Method=Method)
                     if USE_VALID:
                         _, Ci_valid = knnmodel.predict(neighbor_idxs_valid,
-                                                   Survival_train=t_batch, 
-                                                   Censored_train=1-o_batch, 
+                                                   Survival_train=survival, 
+                                                   Censored_train=censored, 
                                                    Survival_test=survival_valid, 
                                                    Censored_test=censored_valid, 
                                                    K=K, 

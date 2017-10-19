@@ -9,6 +9,7 @@ import os
 import numpy as np
 import matplotlib.pylab as plt
 from pandas import read_table
+import matplotlib.patches as mpatches    
 
 #%%============================================================================
 # Plot cost change (method)
@@ -66,7 +67,7 @@ def plot_cost_change(accuracy_path, save_path, folds,
         fidx += 1
     
     # Add common title and axis labels
-    fig.text(0.5, 0.94, 'Cost/C-index change', 
+    fig.text(0.5, 0.94, site + ' ' + dtype, 
              ha='center', fontsize=16, fontweight='bold')
     fig.text(0.5, 0.05, 'Epoch', ha='center', fontsize=14)
     fig.text(0.01, 0.5, 'Cost (left) / C-index (right)', 
@@ -75,6 +76,101 @@ def plot_cost_change(accuracy_path, save_path, folds,
     # save and close
     plt.savefig(save_path + '_cost_change.svg')
     plt.close()
+    
+    
+#%%============================================================================
+# Plot comparative accuracy
+#==============================================================================
+
+def plot_accuracies(CIs, CIs_baseline, save_path, site):
+    
+    """
+    Plot comparative accuracies of various approaches
+    """
+
+    # Grab accuracies
+    #==============================================================================
+    # initialize
+    idx = 0
+    labs = []
+    
+    for method in methods:
+    
+        save_path = base_path + 'Results/tmp/' + site + '_' + dtype + '_' + method
+        
+        # find location of accuracy    
+        loc_method = set(np.where(CIs.iloc[0] == method.split('_')[0])[0])
+        loc_site = set(np.where(CIs.iloc[3] == site)[0])
+        loc_dtype = set(np.where(CIs.iloc[4] == dtype)[0])
+        colIdx = list(loc_method & loc_site & loc_dtype)
+        
+        # find location of baseline accuracy
+        loc_method = set(np.where(CIs_baseline.iloc[0] == method.split('_')[0])[0])
+        loc_site = set(np.where(CIs_baseline.iloc[3] == site)[0])
+        loc_dtype = set(np.where(CIs_baseline.iloc[4] == dtype)[0])
+        colIdx_baseline = list(loc_method & loc_site & loc_dtype)
+        
+        # Concatenate current and baseline
+        cis_now = np.concatenate((np.float32(CIs_baseline.iloc[6:35, colIdx_baseline].values),
+                                  np.float32(CIs.iloc[6:35, colIdx].values)), 
+                                  axis=1)
+        if idx == 0:
+            cis = cis_now
+        else:
+            cis = np.concatenate((cis, cis_now), axis=1)
+            
+        labs.extend([method.split('_')[0], method.split('_')[0] + ' + NCA'])
+        
+        idx += 1
+    
+    # Plotting
+    #==============================================================================
+    
+    bp = plt.boxplot(cis, patch_artist=True, showfliers=False)
+    
+    # title is cancer type and data type
+    plt.title(site + ' ' + dtype, fontsize=16, fontweight='bold')
+    
+    # remove x ticks (color coded instead)
+    plt.xticks(np.arange(cis.shape[1])+1, [])
+    
+    # fix ylabel and range
+    plt.ylabel("C-index", fontsize=14)
+    plt.ylim(ymin=0.4, ymax=1.0)
+    plt.axhline(0.5, linewidth=1.5, color='r', linestyle='--')  
+    
+    
+    color_scheme = ['c', 'aqua', 'goldenrod', 'gold']
+    
+    for box_idxs, box in enumerate(bp['boxes']):
+        
+        # Modify box props
+        box.set(color= color_scheme[box_idxs], linewidth=2)
+        box.set(facecolor = color_scheme[box_idxs]) 
+     
+        plt.axvline(box_idxs + 0.5, linewidth=0.5, color='k', linestyle='-')     
+        
+        # plot actual points as jitter
+        y = cis[:, box_idxs]
+        x = np.random.normal(1+box_idxs, 0.04, size=len(y))
+        plt.plot(x, y, 'r.', alpha=0.5, color='grey')
+    
+    # Modify whisker and cap
+    for whisker in bp['whiskers']:
+        whisker.set(color='grey', linewidth=1)
+    for cap in bp['caps']:
+        cap.set(color='grey', linewidth=1)
+    
+    # Add color legend
+    patches = []
+    for col_idx, col in enumerate(color_scheme):
+        patches.append(mpatches.Patch(color=col, label= labs[col_idx]))    
+    plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    
+    # Save
+    plt.savefig(save_path + '_Ci_overall.svg', figsize=(6, 6), bbox_inches='tight')
+    plt.close()
+
 
 #%% ###########################################################################
 #%% ###########################################################################
@@ -98,39 +194,38 @@ if __name__ == '__main__':
     # Plot accuracy monitor
     #==============================================================================
     
-#    for site in sites:
-#        for dtype in dtypes:
-#            for method in methods:
-#            
-#                accuracy_path = result_path + method + '/' + site + '_' + dtype + '_/nca/plots/'
-#                save_path = base_path + 'Results/tmp/' + site + '_' + dtype + '_' + method
-#                
-#                if site == 'GBMLGG':
-#                    folds = [6, 16] #[0, 6, 16, 24]
-#                    plot_params = {'maxfolds': 25, 'ci_min': 0.7, 'ci_max': 0.9}
-#                    
-#                elif site == 'KIPAN':
-#                    folds =  [0, 19] #[0, 7, 15, 19] # KIPAN
-#                    plot_params = {'maxfolds': 16, 'ci_min': 0.6, 'ci_max': 0.8}
-#                
-#                else:
-#                    raise Exception('no specified folds for site')    
-#                
-#                # Now plot and save    
-#                plot_cost_change(accuracy_path, save_path, folds, **plot_params)
+    for site in sites:
+        for dtype in dtypes:
+            for method in methods:
+            
+                accuracy_path = result_path + method + '/' + site + '_' + dtype + '_/nca/plots/'
+                save_path = base_path + 'Results/tmp/' + site + '_' + dtype + '_' + method.split('_')[0]
+                
+                if site == 'GBMLGG':
+                    folds = [6, 16] #[0, 6, 16, 24]
+                    plot_params = {'maxfolds': 25, 'ci_min': 0.7, 'ci_max': 0.9}
+                    
+                elif site == 'KIPAN':
+                    folds =  [0, 19] #[0, 7, 15, 19] # KIPAN
+                    plot_params = {'maxfolds': 16, 'ci_min': 0.6, 'ci_max': 0.8}
+                
+                else:
+                    raise Exception('no specified folds for site')    
+                
+                # Now plot and save    
+                plot_cost_change(accuracy_path, save_path, folds, **plot_params)
+
+
+
+    #%%============================================================================
+    # Plot comparative accuracies
+    #==============================================================================
     
-#%%
-
-site = sites[0]
-dtype = dtypes[0]
-method = methods[0]
-
-save_path = base_path + 'Results/tmp/' + site + '_' + dtype + '_' + method
-CIs = read_table(result_path + 'results_merged.tab')
-
-loc_method = set(np.where(CIs.iloc[0] == method.split('_')[0])[0])
-loc_site = set(np.where(CIs.iloc[3] == site)[0])
-loc_dtype = set(np.where(CIs.iloc[4] == dtype)[0])
-colIdx = list(loc_method & loc_site & loc_dtype)
-
-cis = np.float32(CIs.iloc[6:35, colIdx].values)[:, 0]
+    CIs = read_table(result_path + 'results_merged.tab')
+    CIs_baseline = read_table(result_path + 'results_merged_baseline.tab')
+    site = sites[0]
+    dtype = dtypes[0]
+    save_path = base_path + 'Results/tmp/' + site + '_' + dtype
+    
+    for site in sites:
+        plot_accuracies(CIs, CIs_baseline, save_path, site=site)

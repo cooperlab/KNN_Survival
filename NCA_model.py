@@ -483,6 +483,9 @@ class SurvivalNCA(object):
                                                 
                         # Get at-risk mask (to be multiplied by Pij)
                         n_batch = t_batch.shape[0]
+                        
+                        print("n_batch = {}".format(n_batch))                        
+                        
                         Pij_mask = np.zeros((n_batch, n_batch))
                         for idx in range(n_batch):
                             # only observed cases
@@ -514,15 +517,15 @@ class SurvivalNCA(object):
                     #==========================================================
 
                     feed_dict[self.graph.DROPOUT_FRACTION] = 0
-                    W = self.graph.W.eval(feed_dict = feed_dict)
+                    W_grabbed = self.graph.W.eval(feed_dict = feed_dict)
                     
                     # Get Ci for training/validation set
                     #==========================================================
             
                     # transform
-                    x_train_transformed = np.dot(features, W)
+                    x_train_transformed = np.dot(features, W_grabbed)
                     if USE_VALID:
-                        x_valid_transformed = np.dot(features_valid, W)
+                        x_valid_transformed = np.dot(features_valid, W_grabbed)
             
                     # get neighbor indices    
                     neighbor_idxs_train = \
@@ -585,7 +588,7 @@ class SurvivalNCA(object):
 
                     if EARLY_STOPPING:
                         # Save snapshot                        
-                        Ws[:, :, itir % MODEL_BUFFER] = W 
+                        Ws[:, :, itir % MODEL_BUFFER] = W_grabbed 
                         Cis.append(Ci_valid)
                         
                         # Stop when overfitting starts to occur
@@ -595,7 +598,7 @@ class SurvivalNCA(object):
                     
                             if ci_new < ci_old:
                                 snapshot_idx = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
-                                W = Ws[:, :, snapshot_idx]
+                                W_grabbed = Ws[:, :, snapshot_idx]
                                 break
                     
             except KeyboardInterrupt:
@@ -617,9 +620,9 @@ class SurvivalNCA(object):
                 
                 # save learned weights
                 np.save(self.RESULTPATH + 'model/' + self.description + \
-                        self.timestamp + 'NCA_matrix.npy', W)
+                        self.timestamp + 'NCA_matrix.npy', W_grabbed)
             
-        return W
+        return W_grabbed
 
                         
     #%%============================================================================

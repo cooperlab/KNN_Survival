@@ -253,7 +253,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
             
             print("\nBayesian Optimization of NCA hyperparameters.\n")            
             
-            nca_train_params['MONITOR'] = False
+            nca_train_params['MONITOR'] = True #False
             
             def run_nca(ALPHA, LAMBDA, SIGMA, DROPOUT_FRACTION):
                 

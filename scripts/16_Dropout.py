@@ -505,15 +505,15 @@ if __name__ == '__main__':
                }
     
     # initial points to explore
-    bo_expl = {'ALPHA': [0, 0, 1, 0, 0],
-               'LAMBDA': [0, 1, 0, 0, 0],
-               'SIGMA': [1, 1, 1, 5, 0.5],
-               'DROPOUT_FRACTION': [0, 0.5, 0, 0.5, 0],
+    bo_expl = {'ALPHA': [0, 1, 0],
+               'LAMBDA': [0, 1, 1],
+               'SIGMA': [1, 5, 0.5],
+               'DROPOUT_FRACTION': [0, 0.5, 0],
                }
     
     # other bayesopt params
     bo_params = {'init_points': 2,
-                 'n_itir': 15,
+                 'n_itir': 5, #15
                  }
         
     # Now run experiment
@@ -556,7 +556,7 @@ if __name__ == '__main__':
                         
                         if (dtype == "Gene") and (not USE_PCA):
                             nca_train_params['BATCH_SIZE'] = 30
-                            nca_train_params['MAX_ITIR'] = 10
+                            nca_train_params['MAX_ITIR'] = 25 #10
                         else:
                             nca_train_params['BATCH_SIZE'] = 400
                             nca_train_params['MAX_ITIR'] = 50

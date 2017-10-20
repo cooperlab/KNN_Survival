@@ -57,7 +57,16 @@ for fidx, fname in enumerate(fnames):
     print("feature {} of {}: {}".format(fidx, len(fnames)-1, fname))
     
     cum_weight = 0
+    
     for fold_ranks in ranks:
-        cum_weight += fold_ranks.loc[fname].values[0]
+        
+        wt = fold_ranks.loc[fname].values[0]
+        if 'ndarray' in str(type(wt)):
+            cum_weight += wt[0]
+        else:
+            cum_weight += wt
         
     fweights.append(cum_weight)
+    
+sorted_idxs = np.argsort(fweights)
+fnames_sorted = np.array(fnames)[sorted_idxs]

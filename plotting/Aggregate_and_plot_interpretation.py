@@ -37,4 +37,27 @@ save_path = base_path + 'Results/tmp/' + site + '_' + dtype + '_' + method.split
 # read rank files
 ranks_path = result_path + method + '/' + site + '_' + dtype + '_/nca/ranks/'
 rank_files = os.listdir(ranks_path)
-ranks = [read_table(ranks_path + j, header=None) for j in rank_files]
+ranks = []
+
+
+for fold, rank_file in enumerate(rank_files):
+    
+    print("Fold {} of {}".format(fold, len(rank_files)-1))
+    
+    ranks.append(read_table(ranks_path + rank_file, header=None, names=[1]))
+    
+    fnames = list(ranks[fold].index)
+    fnames = [j.split(' ')[0] for j in list(ranks[0].index)]
+    ranks[fold].index = fnames
+
+#%%
+fweights = []
+for fidx, fname in enumerate(fnames):
+    
+    print("feature {} of {}: {}".format(fidx, len(fnames)-1, fname))
+    
+    cum_weight = 0
+    for fold_ranks in ranks:
+        cum_weight += fold_ranks.loc[fname].values[0]
+        
+    fweights.append(cum_weight)

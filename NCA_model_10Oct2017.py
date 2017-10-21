@@ -492,12 +492,12 @@ class SurvivalNCA(object):
                     print("\n\tepoch\tcost\tCi_train\tCi_valid")
                     print("\t----------------------------------------------")
                 
-#                # Initialize weights buffer 
-#                # (keep a snapshot of model for early stopping)
-#                # each "channel" in 3rd dim is one snapshot of the model
-#                if USE_VALID:
-#                    Ws = np.zeros((D, self.graph.dim_output, MODEL_BUFFER))
-#                    Cis = []
+                # Initialize weights buffer 
+                # (keep a snapshot of model for early stopping)
+                # each "channel" in 3rd dim is one snapshot of the model
+                if USE_VALID and (self.graph.transform == 'linear'):
+                    Ws = np.zeros((D, self.graph.dim_output, MODEL_BUFFER))
+                    Cis = []
                 
                 while itir < MAX_ITIR:
                     
@@ -590,21 +590,33 @@ class SurvivalNCA(object):
                         #pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
                         #     format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
 
-                    # Now get transformed X
+                    # Now get W and transformed X
                     #==========================================================
 
                     feed_dict[self.graph.DROPOUT_FRACTION] = 0
 
-                    feed_dict[self.graph.X_input] = features                    
-                    x_train_transformed = \
-                        self.graph.X_transformed.eval(feed_dict = feed_dict)
+                    
 
-                    if USE_VALID:
-                        feed_dict[self.graph.X_input] = features_valid
-                        x_valid_transformed = \
-                            self.graph.X_transformed.eval(feed_dict = feed_dict)
-                    else:
-                        x_valid_transformed = None
+#                    if USE_VALID:
+#                        
+#                        if self.graph.transform == 'linear':
+#                            feed_dict[self.graph.X_input] = features_valid
+#                            W_grabbed = self.graph.W.eval(feed_dict = feed_dict)
+#                            x_train_transformed = np.dot(features, W_grabbed)
+#                            x_valid_transformed = np.dot(features_valid, W_grabbed)
+#                            
+#                        else:
+#                            feed_dict[self.graph.X_input] = features   
+#                            x_train_transformed = \
+#                                self.graph.X_transformed.eval(feed_dict = feed_dict)
+#                            x_valid_transformed = \
+#                                self.graph.X_transformed.eval(feed_dict = feed_dict)
+#                                
+#                    else:
+#                        feed_dict[self.graph.X_input] = features   
+#                        x_train_transformed = \
+#                            self.graph.X_transformed.eval(feed_dict = feed_dict)
+#                        x_valid_transformed = None
                     
                     # Get Ci for training/validation set
                     #==========================================================
@@ -647,7 +659,7 @@ class SurvivalNCA(object):
 
 #                    if EARLY_STOPPING:
 #                        # Save snapshot                        
-#                        Ws[:, :, itir % MODEL_BUFFER] = W 
+#                        Ws[:, :, itir % MODEL_BUFFER] = W_grabbed
 #                        Cis.append(Ci_valid)
 #                        
 #                        # Stop when overfitting starts to occur

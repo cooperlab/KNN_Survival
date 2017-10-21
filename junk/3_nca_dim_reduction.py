@@ -460,10 +460,10 @@ if __name__ == '__main__':
     
     projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH_BASE = projectPath + "Results/11_11Oct2017/"
+    RESULTPATH_BASE = projectPath + "Results/tmp/"
     
     # dataset and description
-    sites = ["GBMLGG", "BRCA", "KIPAN", "MM"]
+    sites = ["GBMLGG", ] #"BRCA", "KIPAN", "MM"]
     dtypes = ["Integ", ] #"Gene"]
     
     K_init = 35

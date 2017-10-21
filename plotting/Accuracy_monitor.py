@@ -111,8 +111,8 @@ def plot_accuracies(CIs, CIs_baseline, save_path, site):
         colIdx_baseline = list(loc_method & loc_site & loc_dtype)
         
         # Concatenate current and baseline
-        cis_now = np.concatenate((np.float32(CIs_baseline.iloc[6:35, colIdx_baseline].values),
-                                  np.float32(CIs.iloc[6:35, colIdx].values)), 
+        cis_now = np.concatenate((np.float32(CIs_baseline.iloc[5:35, colIdx_baseline].values),
+                                  np.float32(CIs.iloc[5:35, colIdx].values)), 
                                   axis=1)
         if idx == 0:
             cis = cis_now

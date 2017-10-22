@@ -313,6 +313,7 @@ class SurvivalNCA(object):
             
         if EARLY_STOPPING:
             assert USE_VALID
+            assert self.graph.transform == 'linear'
         
         if not USE_VALID:
             features_valid = None
@@ -597,26 +598,28 @@ class SurvivalNCA(object):
 
                     
 
-#                    if USE_VALID:
-#                        
-#                        if self.graph.transform == 'linear':
-#                            feed_dict[self.graph.X_input] = features_valid
-#                            W_grabbed = self.graph.W.eval(feed_dict = feed_dict)
-#                            x_train_transformed = np.dot(features, W_grabbed)
-#                            x_valid_transformed = np.dot(features_valid, W_grabbed)
-#                            
-#                        else:
-#                            feed_dict[self.graph.X_input] = features   
-#                            x_train_transformed = \
-#                                self.graph.X_transformed.eval(feed_dict = feed_dict)
-#                            x_valid_transformed = \
-#                                self.graph.X_transformed.eval(feed_dict = feed_dict)
-#                                
-#                    else:
-#                        feed_dict[self.graph.X_input] = features   
-#                        x_train_transformed = \
-#                            self.graph.X_transformed.eval(feed_dict = feed_dict)
-#                        x_valid_transformed = None
+                    if USE_VALID:
+                        
+                        if self.graph.transform == 'linear':
+                            feed_dict[self.graph.X_input] = features 
+                            W_grabbed = self.graph.W.eval(feed_dict = feed_dict)
+                            x_train_transformed = np.dot(features, W_grabbed)
+                            x_valid_transformed = np.dot(features_valid, W_grabbed)
+                            
+                        else:
+                            feed_dict[self.graph.X_input] = features   
+                            x_train_transformed = \
+                                self.graph.X_transformed.eval(feed_dict = feed_dict)
+                            
+                            feed_dict[self.graph.X_input] = features_valid
+                            x_valid_transformed = \
+                                self.graph.X_transformed.eval(feed_dict = feed_dict)
+                                
+                    else:
+                        feed_dict[self.graph.X_input] = features   
+                        x_train_transformed = \
+                            self.graph.X_transformed.eval(feed_dict = feed_dict)
+                        x_valid_transformed = None
                     
                     # Get Ci for training/validation set
                     #==========================================================
@@ -657,20 +660,20 @@ class SurvivalNCA(object):
                     # Early stopping
                     #==========================================================
 
-#                    if EARLY_STOPPING:
-#                        # Save snapshot                        
-#                        Ws[:, :, itir % MODEL_BUFFER] = W_grabbed
-#                        Cis.append(Ci_valid)
-#                        
-#                        # Stop when overfitting starts to occur
-#                        if len(Cis) > (2 * MODEL_BUFFER):
-#                            ci_new = np.mean(Cis[-MODEL_BUFFER:])
-#                            ci_old = np.mean(Cis[-2*MODEL_BUFFER:-MODEL_BUFFER])        
-#                    
-#                            if ci_new < ci_old:
-#                                vline = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
-#                                W = Ws[:, :, vline]
-#                                break
+                    if EARLY_STOPPING:
+                        # Save snapshot                        
+                        Ws[:, :, itir % MODEL_BUFFER] = W_grabbed
+                        Cis.append(Ci_valid)
+                        
+                        # Stop when overfitting starts to occur
+                        if len(Cis) > (2 * MODEL_BUFFER):
+                            ci_new = np.mean(Cis[-MODEL_BUFFER:])
+                            ci_old = np.mean(Cis[-2*MODEL_BUFFER:-MODEL_BUFFER])        
+                    
+                            if ci_new < ci_old:
+                                vline = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
+                                W = Ws[:, :, vline]
+                                break
                     
                     
             except KeyboardInterrupt:
@@ -690,13 +693,15 @@ class SurvivalNCA(object):
                     snapshot = None    
                 _monitorProgress(vline=snapshot)
                 
-#                # save learned weights
-#                np.save(self.RESULTPATH + 'model/' + self.description + \
-#                        self.timestamp + 'NCA_matrix.npy', W)
-#            
-#        return W
-                
-        return Ci_train, Ci_valid
+                if self.graph.transform == 'linear':
+                    # save learned weights
+                    np.save(self.RESULTPATH + 'model/' + self.description + \
+                            self.timestamp + 'NCA_matrix.npy', W)
+        
+        if self.graph.transform == 'linear':        
+            return W
+        else:        
+            return Ci_train, Ci_valid
 
                         
     #%%============================================================================

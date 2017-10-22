@@ -35,7 +35,7 @@ import SurvivalUtils as sUtils
 import DataManagement as dm
 
 #import NCA_graph as cgraph
-import NCA_graph_10Oct2017 as cgraph
+import NCA_graph as cgraph
 import KNNSurvival as knn
 
 #raise(Exception)
@@ -310,67 +310,10 @@ class SurvivalNCA(object):
             assert (features_valid.shape[1] == D)
             assert (survival_valid is not None)
             assert (censored_valid is not None)
-        
+            
         if EARLY_STOPPING:
             assert USE_VALID
-            assert self.graph.transform == 'linear'
         
-        if not USE_VALID:
-            features_valid = None
-            survival_valid = None
-            censored_valid = None        
-        
-        # Define relevant methods
-        #======================================================================
-        
-        knnmodel = knn.SurvivalKNN(self.RESULTPATH, description=self.description)
-        
-        def _get_Cis(x_train, t_train, c_train,
-                     x_valid=None, t_valid=None, c_valid=None):
-                         
-            """Get prediction accuracy for training and validation sets"""
-            
-            # get neighbor indices    
-            neighbor_idxs_train = \
-                knnmodel._get_neighbor_idxs(x_train, 
-                                            x_train, 
-                                            norm=norm)
-            if USE_VALID:
-                neighbor_idxs_valid = \
-                    knnmodel._get_neighbor_idxs(x_valid, 
-                                                x_train, 
-                                                norm=norm)
-            
-            # Predict training/validation set
-            _, Ci_train = knnmodel.predict(neighbor_idxs_train,
-                                           Survival_train=t_train, 
-                                           Censored_train=c_train, 
-                                           Survival_test=t_train, 
-                                           Censored_test=c_train, 
-                                           K=K, 
-                                           Method=Method)
-            if USE_VALID:
-                _, Ci_valid = knnmodel.predict(neighbor_idxs_valid,
-                                           Survival_train=t_train, 
-                                           Censored_train=c_train, 
-                                           Survival_test=t_valid, 
-                                           Censored_test=c_valid, 
-                                           K=K, 
-                                           Method=Method)
-            else:
-                Ci_valid = 0
-                
-            return Ci_train, Ci_valid
-
-        # Get baseline performance            
-        self.Ci_train_baseline, self.Ci_valid_baseline = \
-                                _get_Cis(x_train=features, 
-                                         t_train=survival, 
-                                         c_train=censored,
-                                         x_valid=features_valid, 
-                                         t_valid=survival_valid, 
-                                         c_valid=censored_valid)
-                                         
         # Define computational graph
         #======================================================================        
         
@@ -430,7 +373,7 @@ class SurvivalNCA(object):
              
             
             # monitor
-            def _monitorProgress(vline=None):
+            def _monitorProgress(snapshot_idx=None):
 
                 """
                 Monitor cost - save txt and plots cost
@@ -470,7 +413,7 @@ class SurvivalNCA(object):
                 # this using screen (Xdisplay is not supported)
                 #
                 if PLOT:
-                    self._plotMonitor(arr= costs[1:],
+                    self._plotMonitor(arr= costs,
                                       title= "Cost vs. epoch", 
                                       xlab= "epoch", ylab= "Cost", 
                                       savename= savename + "_costs.svg")
@@ -478,10 +421,7 @@ class SurvivalNCA(object):
                                       title= "C-index vs. epoch", 
                                       xlab= "epoch", ylab= "C-index", 
                                       savename= savename + "_Ci.svg",
-                                      vline=vline,
-                                      hline1=self.Ci_train_baseline,
-                                      hline2=self.Ci_valid_baseline,
-                                      IS_CI=True)
+                                      snapshot_idx=snapshot_idx)
     
             # Begin epochs
             #==================================================================
@@ -493,41 +433,22 @@ class SurvivalNCA(object):
                     print("\n\tepoch\tcost\tCi_train\tCi_valid")
                     print("\t----------------------------------------------")
                 
+                knnmodel = knn.SurvivalKNN(self.RESULTPATH, description=self.description)
+                
                 # Initialize weights buffer 
                 # (keep a snapshot of model for early stopping)
                 # each "channel" in 3rd dim is one snapshot of the model
-                if USE_VALID and (self.graph.transform == 'linear'):
-                    Ws = np.zeros((D, self.graph.dim_output, MODEL_BUFFER))
+                if USE_VALID:
+                    Ws = np.zeros((D, D, MODEL_BUFFER))
                     Cis = []
                 
                 while itir < MAX_ITIR:
                     
                     #pUtils.Log_and_print("\n\tTraining epoch {}\n".format(self.EPOCHS_RUN))
                     
-                    # initialize 
+                    itir += 1
                     cost_tot = 0
                     self._update_timestamp()
-                    itir += 1
-                    
-                    # baseline performance
-                    #======================================================================
-                    
-                    if itir == 1:                    
-                                         
-                        if MONITOR:
-                            print("\t{}\t{}\t{}\t{}".format(\
-                                    self.EPOCHS_RUN,
-                                    round(cost_tot, 3), 
-                                    round(self.Ci_train_baseline, 3),
-                                    round(self.Ci_valid_baseline, 3)))                                                                       
-                                            
-                        # update epochs and append costs                     
-                        self.EPOCHS_RUN += 1
-                        self.Costs_epochLevel_train.append(cost_tot)
-                        self.CIs_train.append(self.Ci_train_baseline)
-                        self.CIs_valid.append(self.Ci_valid_baseline)
-                        
-                        continue
             
                     # Divide into balanced batches
                     #==========================================================
@@ -551,13 +472,6 @@ class SurvivalNCA(object):
                                       
                     # Run over training set
                     #==========================================================
-                                      
-                    # Initialize feed dict
-                    feed_dict = {self.graph.ALPHA: graph_hyperparams['ALPHA'],
-                                 self.graph.LAMBDA: graph_hyperparams['LAMBDA'],
-                                 self.graph.SIGMA: graph_hyperparams['SIGMA'],
-                                 self.graph.DROPOUT_FRACTION: graph_hyperparams['DROPOUT_FRACTION'],
-                                 }  
                             
                     for batchidx, batch in enumerate(batchIdxs):
                         
@@ -568,17 +482,25 @@ class SurvivalNCA(object):
                                                 features[batch, :])
                                                 
                         # Get at-risk mask (to be multiplied by Pij)
-                        Pij_mask = np.zeros((n, n))
-                        for idx in range(n):
+                        n_batch = t_batch.shape[0]
+                        
+                        # print("\tbatch {} of {}".format(batchidx, n_batch-1))                        
+                        
+                        Pij_mask = np.zeros((n_batch, n_batch))
+                        for idx in range(n_batch):
                             # only observed cases
                             if o_batch[idx] == 1:
                                 # only at-risk cases
                                 Pij_mask[idx, at_risk_batch[idx]:] = 1
                         
                         # run optimizer and fetch cost
-                        feed_dict[self.graph.X_input] = x_batch
-                        feed_dict[self.graph.Pij_mask] = Pij_mask
-                                       
+                        feed_dict = {self.graph.X_input: x_batch,
+                                     self.graph.Pij_mask: Pij_mask,
+                                     self.graph.ALPHA: graph_hyperparams['ALPHA'],
+                                     self.graph.LAMBDA: graph_hyperparams['LAMBDA'],
+                                     self.graph.SIGMA: graph_hyperparams['SIGMA'],
+                                     self.graph.DROPOUT_FRACTION: graph_hyperparams['DROPOUT_FRACTION'],
+                                     }  
                         _, cost = sess.run([self.graph.optimizer, self.graph.cost], feed_dict = feed_dict)
                                                  
                         # normalize cost for sample size
@@ -591,46 +513,50 @@ class SurvivalNCA(object):
                         #pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
                         #     format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
 
-                    # Now get W and transformed X
+                    # Now get final NCA matrix (without dropput)
                     #==========================================================
 
                     feed_dict[self.graph.DROPOUT_FRACTION] = 0
-
-                    
-
-                    if USE_VALID:
-                        
-                        if self.graph.transform == 'linear':
-                            feed_dict[self.graph.X_input] = features 
-                            W_grabbed = self.graph.W.eval(feed_dict = feed_dict)
-                            x_train_transformed = np.dot(features, W_grabbed)
-                            x_valid_transformed = np.dot(features_valid, W_grabbed)
-                            
-                        else:
-                            feed_dict[self.graph.X_input] = features   
-                            x_train_transformed = \
-                                self.graph.X_transformed.eval(feed_dict = feed_dict)
-                            
-                            feed_dict[self.graph.X_input] = features_valid
-                            x_valid_transformed = \
-                                self.graph.X_transformed.eval(feed_dict = feed_dict)
-                                
-                    else:
-                        feed_dict[self.graph.X_input] = features   
-                        x_train_transformed = \
-                            self.graph.X_transformed.eval(feed_dict = feed_dict)
-                        x_valid_transformed = None
+                    W_grabbed = self.graph.W.eval(feed_dict = feed_dict)
                     
                     # Get Ci for training/validation set
                     #==========================================================
-         
-                    Ci_train, Ci_valid = _get_Cis(x_train=x_train_transformed, 
-                                                  t_train=survival, 
-                                                  c_train=censored,
-                                                  x_valid=x_valid_transformed, 
-                                                  t_valid=survival_valid, 
-                                                  c_valid=censored_valid)
             
+                    # transform
+                    x_train_transformed = np.dot(features, W_grabbed)
+                    if USE_VALID:
+                        x_valid_transformed = np.dot(features_valid, W_grabbed)
+            
+                    # get neighbor indices    
+                    neighbor_idxs_train = \
+                        knnmodel._get_neighbor_idxs(x_train_transformed, 
+                                                    x_train_transformed, 
+                                                    norm=norm)
+                    if USE_VALID:
+                        neighbor_idxs_valid = \
+                            knnmodel._get_neighbor_idxs(x_valid_transformed, 
+                                                        x_train_transformed, 
+                                                        norm=norm)
+                    
+                    # Predict training/validation set
+                    _, Ci_train = knnmodel.predict(neighbor_idxs_train,
+                                                   Survival_train=survival, 
+                                                   Censored_train=censored, 
+                                                   Survival_test=survival, 
+                                                   Censored_test=censored, 
+                                                   K=K, 
+                                                   Method=Method)
+                    if USE_VALID:
+                        _, Ci_valid = knnmodel.predict(neighbor_idxs_valid,
+                                                   Survival_train=survival, 
+                                                   Censored_train=censored, 
+                                                   Survival_test=survival_valid, 
+                                                   Censored_test=censored_valid, 
+                                                   K=K, 
+                                                   Method=Method)
+                    if not USE_VALID:
+                        Ci_valid = 0
+                        
                     if MONITOR:
                         print("\t{}\t{}\t{}\t{}".format(\
                                 self.EPOCHS_RUN,
@@ -662,7 +588,7 @@ class SurvivalNCA(object):
 
                     if EARLY_STOPPING:
                         # Save snapshot                        
-                        Ws[:, :, itir % MODEL_BUFFER] = W_grabbed
+                        Ws[:, :, itir % MODEL_BUFFER] = W_grabbed 
                         Cis.append(Ci_valid)
                         
                         # Stop when overfitting starts to occur
@@ -671,13 +597,9 @@ class SurvivalNCA(object):
                             ci_old = np.mean(Cis[-2*MODEL_BUFFER:-MODEL_BUFFER])        
                     
                             if ci_new < ci_old:
-                                vline = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
-                                W = Ws[:, :, vline]
+                                snapshot_idx = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
+                                W_grabbed = Ws[:, :, snapshot_idx]
                                 break
-                            
-                        if itir ==  MAX_ITIR:
-                            W = W_grabbed
-                    
                     
             except KeyboardInterrupt:
                 pass
@@ -694,17 +616,13 @@ class SurvivalNCA(object):
                     snapshot = itir - MODEL_BUFFER
                 else:
                     snapshot = None    
-                _monitorProgress(vline=snapshot)
+                _monitorProgress(snapshot_idx=snapshot)
                 
-                if self.graph.transform == 'linear':
-                    # save learned weights
-                    np.save(self.RESULTPATH + 'model/' + self.description + \
-                            self.timestamp + 'NCA_matrix.npy', W)
-        
-        if self.graph.transform == 'linear':        
-            return W
-        else:        
-            return Ci_train, Ci_valid
+                # save learned weights
+                np.save(self.RESULTPATH + 'model/' + self.description + \
+                        self.timestamp + 'NCA_matrix.npy', W_grabbed)
+            
+        return W_grabbed
 
                         
     #%%============================================================================
@@ -716,8 +634,6 @@ class SurvivalNCA(object):
         """ ranks features by feature weights or variance after transform"""
         
         print("Ranking features by " + rank_type)
-        
-        assert w.shape[0] == fnames.shape[0]
     
         fidx = np.arange(self.D).reshape(self.D, 1)        
         
@@ -774,38 +690,22 @@ class SurvivalNCA(object):
     #==============================================================================
     
     def _plotMonitor(self, arr, title, xlab, ylab, savename, 
-                     arr2=None, 
-                     vline=None, 
-                     hline1=None, hline2=None,
-                     IS_CI=False):
+                     arr2=None, snapshot_idx=None):
                             
         """ plots cost/other metric to monitor progress """
         
         print("Plotting " + title)
-                
-        #fig, ax = plt.subplots() 
-        #plt.subplots() 
-        plt.figure(figsize=(5, 5))
         
-        plt.plot(arr[:,0], arr[:,1], color='b', linewidth=2.5, aa=False)
+        fig, ax = plt.subplots() 
+        ax.plot(arr[:,0], arr[:,1], color='b', linewidth=1.5, aa=False)
         if arr2 is not None:
-            plt.plot(arr[:,0], arr2, color='r', linewidth=2.5, aa=False)
-        if vline is not None:
-            #plt.axvline(x=vline, linewidth=1.5, color='k', linestyle='--')
-            pass
-        if hline1 is not None:
-            plt.axhline(y=hline1, linewidth=1.5, color='b', linestyle='--')
-        if hline2 is not None:
-            plt.axhline(y=hline2, linewidth=1.5, color='r', linestyle='--')
-        if IS_CI:
-            #plt.ylim(ymax=1)
-            plt.ylim(ymin=0.5, ymax=1)
-            #plt.axhline(y=0.5, linewidth=1.5, color='k', linestyle='--')
-        
+            ax.plot(arr[:,0], arr2, color='r', linewidth=1.5, aa=False)
+        if snapshot_idx is not None:
+            plt.axvline(x=snapshot_idx, linewidth=1.5, color='r', linestyle='--')
         plt.title(title, fontsize =16, fontweight ='bold')
         plt.xlabel(xlab)
-        plt.ylabel(ylab)       
-        plt.tight_layout()                
+        plt.ylabel(ylab) 
+        plt.tight_layout()
         plt.savefig(savename)
         plt.close()
 

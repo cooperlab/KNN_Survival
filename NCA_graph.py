@@ -33,7 +33,12 @@ class comput_graph(object):
                  OPTIM = 'GD',
                  LEARN_RATE = 0.01,
                  per_split_feats = 500,
-                 ROTATE = False):
+                 transform = 'linear',
+                 dim_output = 100,
+                 ROTATE = False,
+                 DEPTH = 2,
+                 MAXWIDTH = 200,
+                 NONLIN = 'Tanh'):
         
         """
         Instantiate a computational graph for survival NCA.
@@ -52,36 +57,55 @@ class comput_graph(object):
                           the more likely the matrix is to fit into memory, 
                           with no effect on the end result
         ROTATE - when this is true, A is not limited to a scaling matrix
-        DROPOUT_FRACTION - Fraction of weights to randomly drop
         """
         
-        #print("Building computational graph for survival NCA.")
-        #pUtils.Log_and_print("Building computational graph for survival NCA.")    
-        
         # set up instace attributes
+        # =====================================================================
+        
         self.dim_input = dim_input
+        
+        if dim_output > dim_input:
+            dim_output = dim_input
+        self.dim_output = int(dim_output)
+        
         self.OPTIM = OPTIM
         self.LEARN_RATE = LEARN_RATE
         self.per_split_feats = per_split_feats
-        self.ROTATE = ROTATE
+
+        self.transform = transform
         
-        # clear lurking tensors
+        if self.transform == 'linear':
+            
+            if not ROTATE:        
+                assert dim_output == dim_input
+
+            # linear transform params
+            self.ROTATE = ROTATE
+            
+        elif self.transform == 'ffnn':
+
+            # feed forward network architecture
+            self.DEPTH = int(DEPTH)
+            self.MAXWIDTH = int(MAXWIDTH)
+            self.NONLIN = NONLIN
+                   
+        else:
+            raise ValueError("Unknown transform type.")
+           
+        # Add computational graph
+        # =====================================================================
+        
         tf.reset_default_graph()
-        
-        #pUtils.Log_and_print("Adding placeholders.")
         self.add_placeholders()
         
-        #pUtils.Log_and_print("Adding linear feature transform.")
-        self.add_linear_transform()
+        if self.transform == 'linear':
+            self.add_linear_transform()
+        elif self.transform == 'ffnn':
+            self.add_ffnn()
             
-        #pUtils.Log_and_print("Adding regularized weighted log likelihood.")
         self.add_cost()
-        
-        #pUtils.Log_and_print("Adding optimizer.")
         self.add_optimizer()
         
-        #pUtils.Log_and_print("Finished building graph.")
-
 
     #%%========================================================================
     # Add placeholders to graph  
@@ -105,7 +129,7 @@ class comput_graph(object):
             
                  
     #%%========================================================================
-    # Linear transformation (for interpretability)
+    # Linear transformation
     #==========================================================================
 
     def add_linear_transform(self):
@@ -118,7 +142,7 @@ class comput_graph(object):
             
             
             if self.ROTATE:
-                self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_input], 
+                self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_output], 
                                 initializer= tf.contrib.layers.xavier_initializer())
                 self.W = tf.nn.dropout(self.W, keep_prob=1 - self.DROPOUT_FRACTION)
             else:
@@ -131,6 +155,116 @@ class comput_graph(object):
                 self.W = tf.diag(self.w)
             
             self.X_transformed = tf.matmul(self.X_input, self.W)
+
+            
+    #%%========================================================================
+    # Feed-forward neural network transform
+    #==========================================================================
+
+    def add_ffnn(self):
+        
+        """
+        Transform features non-linearly using a feed-forward neural network
+        with potential dimensionality reduction
+        """
+
+        # Define sizes of weights and biases
+        #======================================================================
+        
+        dim_in = self.dim_input
+        
+        if self.DEPTH == 1:
+            dim_out = self.dim_output
+        else:
+            dim_out = self.MAXWIDTH
+        
+        weights_sizes = {'layer_1': [dim_in, dim_out]}
+        biases_sizes = {'layer_1': [dim_out]}
+        dim_in = dim_out
+        
+        if self.DEPTH > 2:
+            for i in range(2, self.DEPTH):                
+                dim_out = int(dim_out)
+                weights_sizes['layer_{}'.format(i)] = [dim_in, dim_out]
+                biases_sizes['layer_{}'.format(i)] = [dim_out]
+                dim_in = dim_out
+         
+        if self.DEPTH > 1:
+            dim_out = self.dim_output
+            weights_sizes['layer_{}'.format(self.DEPTH)] = [dim_in, dim_out]
+            biases_sizes['layer_{}'.format(self.DEPTH)] = [dim_out]
+            dim_in = dim_out
+            
+            
+        # Define layers
+        #======================================================================
+        
+        def _add_layer(layer_name, Input, APPLY_NONLIN = True,
+                       Mode = "Encoder", Drop = True):
+            
+            """ adds a single fully-connected layer"""
+            
+            with tf.variable_scope(layer_name):
+                
+                # initialize using xavier method
+                
+                m_w = weights_sizes[layer_name][0]
+                n_w = weights_sizes[layer_name][1]
+                m_b = biases_sizes[layer_name][0]
+                
+                xavier = tf.contrib.layers.xavier_initializer()
+                
+                w = tf.get_variable("weights", shape=[m_w, n_w], initializer= xavier)
+                #variable_summaries(w)
+             
+                b = tf.get_variable("biases", shape=[m_b], initializer= xavier)
+                #variable_summaries(b)
+                    
+                # Do the matmul and apply nonlin
+                
+                with tf.name_scope("pre_activations"):   
+                    if Mode == "Encoder":
+                        l = tf.add(tf.matmul(Input, w),b) 
+                    elif Mode == "Decoder":
+                        l = tf.matmul(tf.add(Input,b), w) 
+                    #tf.summary.histogram('pre_activations', l)
+                
+                if APPLY_NONLIN:
+                    if self.NONLIN == "Sigmoid":  
+                        l = tf.nn.sigmoid(l, name= 'activation')
+                    elif self.NONLIN == "ReLU":  
+                        l = tf.nn.relu(l, name= 'activation')
+                    elif self.NONLIN == "Tanh":  
+                        l = tf.nn.tanh(l, name= 'activation') 
+                    #tf.summary.histogram('activations', l)
+                
+                # Dropout
+                
+                if Drop:
+                    with tf.name_scope('dropout'):
+                        l = tf.nn.dropout(l, keep_prob= 1-self.DROPOUT_FRACTION)
+                    
+                return l
+        
+        # Now add the layers
+        #======================================================================
+            
+        with tf.variable_scope("FFNetwork"):
+            
+            l_in = self.X_input
+         
+            layer_params = {'APPLY_NONLIN' : True,
+                            'Mode' : "Encoder",
+                            'Drop' : True,
+                            }
+                       
+            for i in range(1, self.DEPTH):
+                 l_in = _add_layer("layer_{}".format(i), l_in, **layer_params)
+                 
+            # outer layer (final, transformed datset)
+            layer_params['Drop'] = False
+            self.X_transformed = _add_layer("layer_{}".format(self.DEPTH), l_in, **layer_params)            
+    
     
     #%%========================================================================
     # Get Pij 
@@ -239,7 +373,10 @@ class comput_graph(object):
             
             # cost the sum of Pij of at-risk cases over
             # all observed cases
-            self.cost = tf.reduce_sum(self.Pij) + _penalty(self.W)
+            self.cost = tf.reduce_sum(self.Pij)
+            
+            if self.transform == 'linear':            
+                self.cost = self.cost + _penalty(self.W)
 
 
     #%%========================================================================

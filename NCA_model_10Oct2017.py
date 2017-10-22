@@ -310,7 +310,7 @@ class SurvivalNCA(object):
             assert (features_valid.shape[1] == D)
             assert (survival_valid is not None)
             assert (censored_valid is not None)
-            
+        
         if EARLY_STOPPING:
             assert USE_VALID
             assert self.graph.transform == 'linear'
@@ -674,6 +674,9 @@ class SurvivalNCA(object):
                                 vline = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
                                 W = Ws[:, :, vline]
                                 break
+                            
+                        if itir ==  MAX_ITIR:
+                            W = W_grabbed
                     
                     
             except KeyboardInterrupt:
@@ -713,6 +716,8 @@ class SurvivalNCA(object):
         """ ranks features by feature weights or variance after transform"""
         
         print("Ranking features by " + rank_type)
+        
+        assert w.shape[0] == fnames.shape[0]
     
         fidx = np.arange(self.D).reshape(self.D, 1)        
         

@@ -75,6 +75,9 @@ class comput_graph(object):
         self.transform = transform
         
         if self.transform == 'linear':
+            
+            if not ROTATE:        
+                assert dim_output == dim_input
 
             # linear transform params
             self.ROTATE = ROTATE

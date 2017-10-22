@@ -293,7 +293,7 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                                                 norm = nca_train_params['norm'])
                     
                     # Predict validation set
-                    _, Ci = knnmodel.predict(neighbor_idxs,
+                    _, Ci_valid = knnmodel.predict(neighbor_idxs,
                                              Survival_train=Survival[splitIdxs['train'][fold]], 
                                              Censored_train=Censored[splitIdxs['train'][fold]], 
                                              Survival_test = Survival[splitIdxs['valid'][fold]], 
@@ -364,7 +364,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                **nca_train_params)    
                                
             # Ranks features
-            if not USE_PCA:
+            if (not USE_PCA) and \
+                graphParams['transform'] == 'linear' and \
+                (not graphParams['ROTATE']):
                 ncamodel.rankFeats(W, fnames, rank_type="weights", 
                                    PLOT=nca_train_params['PLOT'])
             
@@ -500,17 +502,17 @@ if __name__ == '__main__':
             'transform': 'linear', #'ffnn', 
             'DEPTH': 2,
             'MAXWIDTH': 300,
-            'dim_output': 2,
+            'dim_output': 1000, #2,
             'NONLIN': 'ReLU',
-            'ROTATE': False,
+            'ROTATE': False, #True,
             }
     
     nca_train_params = \
             {'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
             'BATCH_SIZE': 400,
-            'MAX_ITIR': 25,
-            'MODEL_BUFFER': 4,
+            'MAX_ITIR': 100,
+            'MODEL_BUFFER': 8,
             'EARLY_STOPPING': True,
             'PLOT': True,
             'K': K_init,
@@ -528,14 +530,14 @@ if __name__ == '__main__':
     
     # initial points to explore
     bo_expl = {'ALPHA': [0, 0, 1, 0, 0],
-               'LAMBDA': [0, 1, 0, 0, 0],
+               'LAMBDA': [0, 1, 1, 0, 0],
                'SIGMA': [1, 1, 1, 5, 0.5],
                'DROPOUT_FRACTION': [0, 0.5, 0, 0.5, 0],
                }
     
     # other bayesopt params
     bo_params = {'init_points': 2,
-                 'n_itir': 15,
+                 'n_itir': 1, #15,
                  }
         
     # Now run experiment

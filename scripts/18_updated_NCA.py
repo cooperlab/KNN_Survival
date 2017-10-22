@@ -470,11 +470,11 @@ if __name__ == '__main__':
     
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH_BASE = projectPath + "Results/12_21Oct2017/"
+    RESULTPATH_BASE = projectPath + "Results/10_10Oct2017/"
     
     # dataset and description
     sites = ["GBMLGG", "KIPAN"] #, "MM"]
-    dtypes = ["Integ", ] #"Gene"]
+    dtypes = ["Gene", ] #"Integ"]
     
     K_init = 35
     norm = 2
@@ -500,10 +500,10 @@ if __name__ == '__main__':
             'LEARN_RATE': 0.002,
             'per_split_feats': 500,
             'transform': 'linear', #'ffnn', 
-            'ROTATE': True, #False,
+            'ROTATE': False, #True,
             'DEPTH': 2,
             'MAXWIDTH': 300,
-            'dim_output': 2, #1000,
+            'dim_output': 30000, #2,
             'NONLIN': 'ReLU',
             }
     
@@ -512,7 +512,7 @@ if __name__ == '__main__':
             'MODEL_SAVE_STEP': 200,
             'BATCH_SIZE': 400,
             'MAX_ITIR': 100,
-            'MODEL_BUFFER': 8,
+            'MODEL_BUFFER': 4, #8,
             'EARLY_STOPPING': True,
             'PLOT': False, #True,
             'K': K_init,
@@ -529,15 +529,15 @@ if __name__ == '__main__':
                }
     
     # initial points to explore
-    bo_expl = {'ALPHA': [0, 0, 1, 0, 0],
-               'LAMBDA': [0, 1, 1, 0, 0],
-               'SIGMA': [1, 1, 1, 5, 0.5],
-               'DROPOUT_FRACTION': [0, 0.5, 0, 0.5, 0],
+    bo_expl = {'ALPHA': [0, 1, 0.5], #[0, 0, 1, 0, 0],
+               'LAMBDA': [0, 1, 0.5], #[0, 1, 0.5, 0, 0],
+               'SIGMA': [1, 0.5, 5], #[1, 1, 1, 5, 0.5],
+               'DROPOUT_FRACTION': [0, 0.5, 0], #[0, 0.5, 0, 0.5, 0],
                }
     
     # other bayesopt params
     bo_params = {'init_points': 2,
-                 'n_itir': 15,
+                 'n_itir': 10, #15,
                  }
         
     # Now run experiment
@@ -572,18 +572,18 @@ if __name__ == '__main__':
                         if (USE_PCA and (not USE_NCA)):
                             continue
                         
-                        if ((not USE_PCA) and (not USE_NCA)):
-                            continue
+                        #if ((not USE_PCA) and (not USE_NCA)):
+                        #    continue
 
-                        if ((dtype == "Gene") and (not USE_PCA)):
-                            continue
+                        #if ((dtype == "Gene") and (not USE_PCA)):
+                        #    continue
                         
-                        #if (dtype == "Gene") and (not USE_PCA):
-                        #    nca_train_params['BATCH_SIZE'] = 100
-                        #    nca_train_params['MAX_ITIR'] = 8
-                        #else:
-                        #    nca_train_params['BATCH_SIZE'] = 400
-                        #    nca_train_params['MAX_ITIR'] = 25
+                        if (dtype == "Gene") and (not USE_PCA):
+                            nca_train_params['BATCH_SIZE'] = 30
+                            nca_train_params['MAX_ITIR'] = 25
+                        else:
+                            nca_train_params['BATCH_SIZE'] = 400
+                            nca_train_params['MAX_ITIR'] = 25
 
                         description = site +"_"+ dtype +"_"
                         dpath = projectPath + "Data/SingleCancerDatasets/"+ site+"/"+ \

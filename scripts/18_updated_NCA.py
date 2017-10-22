@@ -470,7 +470,7 @@ if __name__ == '__main__':
     
     #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
     projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH_BASE = projectPath + "Results/10_10Oct2017/"
+    RESULTPATH_BASE = projectPath + "Results/10_10Oct2017/Gene/"
     
     # dataset and description
     sites = ["GBMLGG", "KIPAN"] #, "MM"]

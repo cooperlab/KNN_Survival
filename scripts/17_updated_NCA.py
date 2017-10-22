@@ -10,8 +10,8 @@ import os
 #os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 import sys
-sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
-#sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
+#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
 import _pickle
 from scipy.io import loadmat
@@ -468,12 +468,12 @@ if __name__ == '__main__':
     
     # paths ----------------------------------------------------------
     
-    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
-    RESULTPATH_BASE = projectPath + "Results/tmp/"
+    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    RESULTPATH_BASE = projectPath + "Results/12_21Oct2017/"
     
     # dataset and description
-    sites = ["GBMLGG", ] #"BRCA", "KIPAN", "MM"]
+    sites = ["GBMLGG", "KIPAN"] #, "MM"]
     dtypes = ["Integ", ] #"Gene"]
     
     K_init = 35
@@ -537,7 +537,7 @@ if __name__ == '__main__':
     
     # other bayesopt params
     bo_params = {'init_points': 2,
-                 'n_itir': 1, #15,
+                 'n_itir': 15,
                  }
         
     # Now run experiment

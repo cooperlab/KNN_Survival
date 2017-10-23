@@ -83,6 +83,12 @@ end
 % notice that glmnet takes observed event (1 - censorship status)
 Y_train = [Data.Survival(:, idxs_train); 1 - Data.Censored(:, idxs_train)]'; 
 
+%%%%% W A R N I N G !!!! %%%%%%%%%%%%%%%%%
+% just for prototyping
+X_train = X_train(1:50, 1:10);
+Y_train = Y_train(1:50, :);
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 %% fit model
 fit = glmnet(X_train, Y_train, 'cox', opts);  
 

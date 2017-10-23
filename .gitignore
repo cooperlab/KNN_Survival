@@ -12,6 +12,7 @@
 *.pyc
 __pycache__/*
 *.swp
+.Rhistory
 
 # complied files
 *.html

@@ -4,8 +4,8 @@ library(R.matlab, quietly=TRUE)
 library(Coxnet, quietly=TRUE)
 
 # paths
-#basePath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-basePath = "/home/mtageld/Desktop/KNN_Survival/"
+basePath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+#basePath = "/home/mtageld/Desktop/KNN_Survival/"
 
 # data description
 sites = c("GBMLGG", "KIPAN")
@@ -100,7 +100,7 @@ for (dtype in dtypes) {
           preds_val[1:length(validIdxs), hyperp_idx] = X[validIdxs,] %*% beta
           
           # predict testing
-          preds_test[1:length(validIdxs), hyperp_idx] = X[testIdxs,] %*% beta
+          preds_test[1:length(testIdxs), hyperp_idx] = X[testIdxs,] %*% beta
           
           # increment
           hyperp_idx = hyperp_idx + 1

@@ -70,7 +70,7 @@ accuracy_files.sort()
 #==============================================================================
 
 # get indices of feature(s) of interest
-thresholds = [0, 0] #[0.5, 0.5]
+thresholds = [0, 0]
 fnames_of_interst = ["IDH1_Mut", "IDH2_Mut"]
 #fnames_of_interst = ["CIC_Mut"]
 #fnames_of_interst = ["1p_CNVArm", "19q_CNVArm"]

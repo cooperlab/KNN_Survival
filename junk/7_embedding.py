@@ -44,6 +44,7 @@ N = Features.shape[0]
 Survival = Data['Survival'].reshape([N,])
 Censored = Data['Censored'].reshape([N,])
 fnames = Data[dtype + '_Symbs']
+fnames = [j.split(' ')[0] for j in fnames]
 Data = None
 
 #%% 
@@ -68,21 +69,39 @@ accuracy_files.sort()
 # Fetch embeddings and plot
 #==============================================================================
 
-embed_idx = 16; embed_fname = embedding_files[embed_idx]
+# get indices of feature(s) of interest
+thresholds = [0, 0] #[0.5, 0.5]
+fnames_of_interst = ["IDH1_Mut", "IDH2_Mut"]
+#fnames_of_interst = ["CIC_Mut"]
+#fnames_of_interst = ["1p_CNVArm", "19q_CNVArm"]
 
-#for embed_idx, embed_fname in enumerate(embedding_files):
+feats_of_interest = [i for i,j in enumerate(fnames) if j in fnames_of_interst]
 
-embedding = np.load(embed_path + embed_fname)
+ishigh = np.zeros([N,])
 
-ci_valid = np.loadtxt(accuracy_path + accuracy_files[embed_idx])
+#fid = 0; f = feats_of_interest[fid]
+for fid, f in enumerate(feats_of_interest):
+    ishigh = ishigh + (Features[:, f] > thresholds[fid])
 
+ishigh = np.int32(ishigh)
 
-#%%
-# plot and save
-# -------------------------------------------------------------------------
-
-plt.scatter(embedding[:, 0], embedding[:, 1])
-
-plt.title("ci_valid = {}, n_epochs = {}".format(round(ci_valid[-1], 3), len(ci_valid)), fontsize=16)
-plt.savefig(result_path + '/tmp/' + embed_fname + '.svg')
-plt.close()
+#embed_idx = 16; embed_fname = embedding_files[embed_idx]
+for embed_idx, embed_fname in enumerate(embedding_files):
+    
+    print("fold {}".format(embed_idx))
+    
+    # Get embedding
+    embedding = np.dot(Features, np.load(embed_path + embed_fname))
+    
+    # Get accuracy
+    ci_valid = np.loadtxt(accuracy_path + accuracy_files[embed_idx])
+    
+    
+    # plot and save
+    # -------------------------------------------------------------------------
+    
+    plt.scatter(embedding[ishigh==0, 0], embedding[ishigh==0, 1], c='b')
+    plt.scatter(embedding[ishigh==1, 0], embedding[ishigh==1, 1], c='r')
+    plt.title("ci_valid = {}, n_epochs = {}".format(round(ci_valid[-1], 3), len(ci_valid)), fontsize=16)
+    plt.savefig(result_path + '/tmp/' + embed_fname + '.svg')
+    plt.close()

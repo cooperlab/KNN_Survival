@@ -131,9 +131,9 @@ top_feat_names = np.array(fnames)[top_feat_idxs]
 #==============================================================================
 
 #fidx = top_feat_idxs[0]
-for fidx in top_feat_idxs[0:n_feats_to_plot]:
+for rank, fidx in enumerate(top_feat_idxs[0:n_feats_to_plot]):
     
-    print("plotting " + fnames[fidx])
+    print("rank " + str(rank) + ": plotting" + fnames[fidx])
 
     # scatter points
     plt.scatter(accuracies, NC_deltas[:, fidx])
@@ -153,9 +153,13 @@ for fidx in top_feat_idxs[0:n_feats_to_plot]:
               format(round(rhos[fidx], 3), pval_string), fontsize=16)
     plt.xlabel("Testing C-index", fontsize=14)
     plt.ylabel("cluster separation", fontsize=14)
-    plt.savefig(result_path + '/tmp/' + fnames[fidx] + '_corr.svg')
+    plt.savefig(result_path + '/tmp/' + str(rank) + '_' + fnames[fidx] + '_corr.svg')
     plt.close()
 
+
+#%%
+#%%
+#%%
 
 #%%
 # Mutations

@@ -28,6 +28,8 @@ dtypes = ["Integ", ] # "Gene"]
 methods = ["cumulative-time_TrueNCA_FalsePCA", "non-cumulative_TrueNCA_FalsePCA"]
 
 n_top_folds = 30
+pval_thresh = 0.01
+n_feats_to_plot = 10
 
 site = sites[0]
 dtype = dtypes[0]
@@ -44,6 +46,7 @@ print("Loading data.")
 Data = loadmat(dpath)
 Features = Data[dtype + '_X'].copy()
 N = Features.shape[0]
+P = Features.shape[1]
 Survival = Data['Survival'].reshape([N,])
 Censored = Data['Censored'].reshape([N,])
 fnames = Data[dtype + '_Symbs']
@@ -73,29 +76,86 @@ embedding_files = embedding_files[top_folds]
 
 #sys.exit()
 
-#%% 
-# isolate feature(s) of interest
+#%%============================================================================
+# Itirate through embeddings and get cluster separations
 #==============================================================================
 
-def isolate_feats(fnames, thresholds):
+threshold = 0 # Z-scored
+
+NC_deltas = np.zeros((len(embedding_files), P))
+
+#embed_idx = 16; embed_fname = embedding_files[embed_idx]
+for embed_idx, embed_fname in enumerate(embedding_files):
     
-    """
-    isolate indices of patients having feature of interest.
-    Args:
-        fnames - feature names
-        thresholds - threshold above which feature is considered present
-    Returns:
-        is_feat - np array (N, ) indicating no of positive features per patient
-    """
+    print("fold {}".format(embed_idx))
+
+    # Get embedding
+    embedding = np.dot(Features, np.load(embed_path + embed_fname))
     
-    feat_idx = [i for i,j in enumerate(fnames) if j in fnames]
+    # Itirate through features and get cluster separation
+    for fidx in range(P):
     
-    is_feat = np.zeros([N,])
-    
-    for fid, f in enumerate(feat_idx):
-        is_feat = is_feat + (Features[:, f] > thresholds[fid])
+        # Get cluster separation
+        feat_is_present = 0 + (Features[:, fidx] > threshold)
         
-    return is_feat
+        # Get distance across various neighborhood components
+        NC_delta = 0
+        for ncidx in range(embedding.shape[1]):
+            delta = np.mean(embedding[feat_is_present==0, ncidx]) - \
+                    np.mean(embedding[feat_is_present==1, ncidx])    
+            NC_delta = NC_delta + delta**2
+        
+        NC_deltas[embed_idx, fidx] = np.sqrt(NC_delta)
+
+#%%============================================================================
+# Rank features by correlation between their separation and accuracy
+#==============================================================================
+
+rhos = np.zeros((P, ))
+pvals = np.zeros((P, ))
+
+# find spearman correlations
+for fidx in range(P):
+    corr = spearmanr(accuracies, NC_deltas[:, fidx])
+    rhos[fidx] = corr[0]
+    pvals[fidx] = corr[1]
+
+rhos_signif = rhos
+rhos_signif[pvals > pval_thresh] = 0
+
+top_feat_idxs = np.argsort(rhos_signif)[::-1]
+top_feat_names = np.array(fnames)[top_feat_idxs]
+
+#%%============================================================================
+# Visualize top features
+#==============================================================================
+
+#fidx = top_feat_idxs[0]
+for fidx in top_feat_idxs[0:n_feats_to_plot]:
+    
+    print("plotting " + fnames[fidx])
+
+    # scatter points
+    plt.scatter(accuracies, NC_deltas[:, fidx])
+    
+    # plot line of best fit
+    slope, intercept = np.polyfit(accuracies, NC_deltas[:, fidx], deg=1)
+    abline_values = [slope * i + intercept for i in accuracies]
+    plt.plot(accuracies, abline_values, 'b--')
+    
+    pval_string = round(pvals[fidx], 3)
+    if pval_string == 0:
+        pval_string = '< 0.001'
+    
+    fname_string = fnames[fidx].replace('_', ' ')[0: 15]
+    
+    plt.title(fname_string + ": spRho= {}, p {}".\
+              format(round(rhos[fidx], 3), pval_string), fontsize=16)
+    plt.xlabel("Testing C-index", fontsize=14)
+    plt.ylabel("cluster separation", fontsize=14)
+    plt.savefig(result_path + '/tmp/' + fnames[fidx] + '_corr.svg')
+    plt.close()
+
 
 #%%
 # Mutations

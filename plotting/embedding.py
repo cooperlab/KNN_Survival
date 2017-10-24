@@ -66,7 +66,7 @@ accuracy_files = [j for j in accuracy_files if 'valid' in j]
 accuracy_files.sort()
 
 #%% 
-# Fetch embeddings and plot
+# isolate feature(s) of interest
 #==============================================================================
 
 def isolate_feats(fnames, thresholds):
@@ -89,11 +89,13 @@ def isolate_feats(fnames, thresholds):
         
     return is_feat
 
-#%%
-
-# IDH
+# IDHwt
 is_IDHwt = isolate_feats(fnames=("IDH1_Mut", "IDH2_Mut"), thresholds=(0, 0))
 is_IDHwt = 1 - np.int32(is_IDHwt > 0)
+
+# CIC
+is_CIC = isolate_feats(fnames=("CIC_Mut",), thresholds=(0,))
+is_CIC = np.int32(is_CIC > 0)
 
 # 1p19q
 is_1p19qCodel = isolate_feats(fnames=("1p_CNVArm", "19q_CNVArm"), thresholds=(0, 0))
@@ -104,6 +106,10 @@ IDHmut = 1 - is_IDHwt
 NonCodel = 1 - is_1p19qCodel
 is_IDHmutNonCodel = np.int32((IDHmut + NonCodel) == 2)
 is_IDHmutCodel = np.int32((IDHmut + is_1p19qCodel) == 2)
+
+#%%
+# Fetch embedding and plot
+#==============================================================================
     
 #embed_idx = 16; embed_fname = embedding_files[embed_idx]
 for embed_idx, embed_fname in enumerate(embedding_files):
@@ -118,38 +124,33 @@ for embed_idx, embed_fname in enumerate(embedding_files):
     
     
     # plot and save
-    # -------------------------------------------------------------------------
-    
-    
-    #plt.scatter(embedding[is_IDHwt==0, 0], embedding[is_IDHwt==0, 1], c='b')
-    #plt.scatter(embedding[is_IDHmutNonCodel==1, 0], embedding[is_IDHmutNonCodel==1, 1], c='b', alpha=0.5)
-    #plt.scatter(embedding[is_IDHmutCodel==1, 0], embedding[is_IDHmutCodel==1, 1], c='g', alpha=0.5)
-    
-    #plt.scatter(embedding[is_IDHwt==0, 0], embedding[is_IDHwt==0, 1], c='b')
-    #plt.scatter(embedding[is_IDHwt==1, 0], embedding[is_IDHwt==1, 1], c='r')
-    
-    #plt.scatter(embedding[is_1p19qCodel==1, 0], embedding[is_1p19qCodel==1, 1], c='b')
-    #plt.scatter(embedding[is_1p19qCodel==0, 0], embedding[is_1p19qCodel==0, 1], c='r')
-    
-    plt.scatter(embedding[is_1p19qCodel==1, 0], embedding[is_1p19qCodel==1, 1], c='b')
-    plt.scatter(embedding[is_1p19qCodel==0, 0], embedding[is_1p19qCodel==0, 1], c='g')
+
+    # IDH only
+    plt.scatter(embedding[is_IDHwt==0, 0], embedding[is_IDHwt==0, 1], c='b')
     plt.scatter(embedding[is_IDHwt==1, 0], embedding[is_IDHwt==1, 1], c='r')
+    plt.title("IDH - ci_valid = {}, n_epochs = {}".format(round(ci_valid[-1], 3), len(ci_valid)), fontsize=16)
+    plt.savefig(result_path + '/tmp/' + embed_fname.split('.npy')[0] + '_IDH.svg')
+    plt.close()
     
-    #for ptidx in range(N):
-    #    
-    #    if is_IDHwt[ptidx] == 1:
-    #        ptcolor = 'r'
-    #    else:
-    #        ptcolor = 'b'
-    #        
-    #    if is_1p19qCodel[ptidx] == 1:
-    #        ptmarker = 'o'
-    #    else:
-    #        ptmarker = '^'
-    #    
-    #    plt.scatter(embedding[ptidx, 0], embedding[ptidx, 1], c=ptcolor, marker=ptmarker, alpha=0.5)
+    # CIC only
+    plt.scatter(embedding[is_CIC==0, 0], embedding[is_CIC==0, 1], c='b')
+    plt.scatter(embedding[is_CIC==1, 0], embedding[is_CIC==1, 1], c='g')
+    plt.title("CIC - ci_valid = {}, n_epochs = {}".format(round(ci_valid[-1], 3), len(ci_valid)), fontsize=16)
+    plt.savefig(result_path + '/tmp/' + embed_fname.split('.npy')[0] + '_CIC.svg')
+    plt.close()
     
+    # IDH and CIC
+    plt.scatter(embedding[is_IDHwt==0, 0], embedding[is_IDHwt==0, 1], c='k')
+    plt.scatter(embedding[is_CIC==1, 0], embedding[is_CIC==1, 1], c='gold')
+    plt.scatter(embedding[is_IDHwt==1, 0], embedding[is_IDHwt==1, 1], c='r')
+    plt.title("IDH-CIC - ci_valid = {}, n_epochs = {}".format(round(ci_valid[-1], 3), len(ci_valid)), fontsize=16)
+    plt.savefig(result_path + '/tmp/' + embed_fname.split('.npy')[0] + '_IDH-CIC.svg')
+    plt.close()
     
-    plt.title("ci_valid = {}, n_epochs = {}".format(round(ci_valid[-1], 3), len(ci_valid)), fontsize=16)
-    plt.savefig(result_path + '/tmp/' + embed_fname + '.svg')
+    # LGGsubtypes
+    plt.scatter(embedding[is_IDHmutNonCodel==1, 0], embedding[is_IDHmutNonCodel==1, 1], c='k')
+    plt.scatter(embedding[is_IDHmutCodel==1, 0], embedding[is_IDHmutCodel==1, 1], c='gold')
+    plt.scatter(embedding[is_IDHwt==1, 0], embedding[is_IDHwt==1, 1], c='r')
+    plt.title("LGGsubtypes - ci_valid = {}, n_epochs = {}".format(round(ci_valid[-1], 3), len(ci_valid)), fontsize=16)
+    plt.savefig(result_path + '/tmp/' + embed_fname.split('.npy')[0] + '_LGGsubtypes.svg')
     plt.close()

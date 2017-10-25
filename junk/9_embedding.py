@@ -66,7 +66,7 @@ embedding_files = [j for j in embedding_files if '.npy' in j]
 embedding_files.sort()
 embedding_files = np.array(embedding_files)
 
-# Fetch accuracies and sort
+# Fetch accuracies and sort all by accuracy
 accuracies = np.loadtxt(specific_path + site + '_' + dtype + '_testing_Ci.txt')
 top_folds = np.argsort(accuracies)[::-1][0:n_top_folds]
 
@@ -130,11 +130,24 @@ top_feat_names = np.array(fnames)[top_feat_idxs]
 # Visualize top features
 #==============================================================================
 
+# fetch embedding with highest testing c-index
+embedding = np.dot(Features, np.load(embed_path + embedding_files[0]))
+
 #fidx = top_feat_idxs[0]
 for rank, fidx in enumerate(top_feat_idxs[0:n_feats_to_plot]):
     
-    print("rank " + str(rank) + ": plotting" + fnames[fidx])
+    print("rank " + str(rank) + ": plotting " + fnames[fidx])
 
+
+    # Visualize feature distribution in best embedding
+    # -------------------------------------------------------------------------
+
+    
+
+
+    # Visualize correlation between cluster separation and accuracy
+    #--------------------------------------------------------------------------
+    
     # scatter points
     plt.scatter(accuracies, NC_deltas[:, fidx])
     
@@ -145,7 +158,9 @@ for rank, fidx in enumerate(top_feat_idxs[0:n_feats_to_plot]):
     
     pval_string = round(pvals[fidx], 3)
     if pval_string == 0:
-        pval_string = '< 0.001'
+        pval_string = '<0.001'
+    else:
+        pval_string = '= ' + str(pval_string)
     
     fname_string = fnames[fidx].replace('_', ' ')[0: 15]
     
@@ -156,6 +171,7 @@ for rank, fidx in enumerate(top_feat_idxs[0:n_feats_to_plot]):
     plt.savefig(result_path + '/tmp/' + str(rank) + '_' + fnames[fidx] + '_corr.svg')
     plt.close()
 
+sys.exit()
 
 #%%
 #%%

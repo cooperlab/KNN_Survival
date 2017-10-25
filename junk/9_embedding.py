@@ -130,9 +130,6 @@ top_feat_names = np.array(fnames)[top_feat_idxs]
 # Visualize top features
 #==============================================================================
 
-# fetch embedding with highest testing c-index
-embedding = np.dot(Features, np.load(embed_path + embedding_files[0]))
-
 #fidx = top_feat_idxs[0]
 for rank, fidx in enumerate(top_feat_idxs[0:n_feats_to_plot]):
     
@@ -144,21 +141,23 @@ for rank, fidx in enumerate(top_feat_idxs[0:n_feats_to_plot]):
 
     # Visualize feature distribution in best embedding
     # -------------------------------------------------------------------------
+
+    # fetch embedding with highest separation
+    embedding = np.dot(Features, np.load(embed_path + embedding_files[np.argmax(NC_deltas[:, fidx])]))
     
     feat_is_present = 0 + (Features[:, fidx] > threshold)
     
     plt.scatter(embedding[feat_is_present==0, 0], embedding[feat_is_present==0, 1], c='b')
     plt.scatter(embedding[feat_is_present==1, 0], embedding[feat_is_present==1, 1], c='r')
-    plt.title(fname_string + ": ci_test= {}, NC_delta= {}".\
+    plt.title(fname_string + ": testing Ci= {}, NC delta= {}".\
                format(round(accuracies[0], 3), 
-                      round(NC_delta[0, fidx], 3)), 
+                      round(NC_deltas[0, fidx], 3)), 
                fontsize=16)
     plt.xlabel("NC1", fontsize=14)
     plt.ylabel("NC2", fontsize=14)
     plt.savefig(result_path + '/tmp/' + str(rank) + '_' + fnames[fidx] + '_clusters.svg')
     plt.close()
     
-
 
     # Visualize correlation between cluster separation and accuracy
     #--------------------------------------------------------------------------
@@ -183,95 +182,3 @@ for rank, fidx in enumerate(top_feat_idxs[0:n_feats_to_plot]):
     plt.ylabel("cluster separation", fontsize=14)
     plt.savefig(result_path + '/tmp/' + str(rank) + '_' + fnames[fidx] + '_corr.svg')
     plt.close()
-
-sys.exit()
-
-#%%
-#%%
-#%%
-
-#%%
-# Mutations
-#------------------------------------------------------------------------------
-
-# IDHwt
-#is_IDHwt = isolate_feats(fnames=("IDH1_Mut", "IDH2_Mut"), thresholds=(0, 0))
-is_IDHwt = isolate_feats(fnames=("IDH1_Mut", ), thresholds=(0, ))
-is_IDHwt = 1 - np.int32(is_IDHwt > 0)
-
-# CIC
-is_CIC = isolate_feats(fnames=("CIC_Mut",), thresholds=(0,))
-is_CIC = np.int32(is_CIC > 0)
-
-
-#%%
-# Fetch embedding and plot
-#==============================================================================
-
-NC_delta = np.zeros([len(embedding_files,)])    
-
-#embed_idx = 16; embed_fname = embedding_files[embed_idx]
-for embed_idx, embed_fname in enumerate(embedding_files):
-
-    print("fold {}".format(embed_idx))
-    
-    # Get embedding
-    embedding = np.dot(Features, np.load(embed_path + embed_fname))
-    
-    # Get IDH cluster separation
-    NC0_delta = np.mean(embedding[is_IDHwt==0, 0]) - np.mean(embedding[is_IDHwt==1, 0])
-    NC1_delta = np.mean(embedding[is_IDHwt==0, 1]) - np.mean(embedding[is_IDHwt==1, 1])
-    NC_delta[embed_idx] = np.sqrt(NC0_delta**2 + NC1_delta**2)
-    
-    # plot and save
-
-    # IDH only
-    plt.scatter(embedding[is_IDHwt==0, 0], embedding[is_IDHwt==0, 1], c='b')
-    plt.scatter(embedding[is_IDHwt==1, 0], embedding[is_IDHwt==1, 1], c='r')
-    plt.title("IDH - ci_test = {}, NC_delta = {}".\
-               format(round(accuracies[embed_idx], 3), 
-                      round(NC_delta[embed_idx], 3)), 
-               fontsize=16)
-    plt.xlabel("NC1", fontsize=14)
-    plt.ylabel("NC2", fontsize=14)
-    plt.savefig(result_path + '/tmp/IDH/' + embed_fname.split('.npy')[0] + '.svg')
-    plt.close()
-    
-    # CIC only
-    plt.scatter(embedding[is_CIC==0, 0], embedding[is_CIC==0, 1], c='k')
-    plt.scatter(embedding[is_CIC==1, 0], embedding[is_CIC==1, 1], c='gold')
-    plt.title("CIC - ci_test = {}".format(round(accuracies[embed_idx], 3)), fontsize=16)
-    plt.xlabel("NC1", fontsize=14)
-    plt.ylabel("NC2", fontsize=14)
-    plt.savefig(result_path + '/tmp/CIC/' + embed_fname.split('.npy')[0] + '.svg')
-    plt.close()
-    
-    # IDH1 and CIC
-    plt.scatter(embedding[is_IDHwt==0, 0], embedding[is_IDHwt==0, 1], c='k')
-    plt.scatter(embedding[is_CIC==1, 0], embedding[is_CIC==1, 1], c='gold')
-    plt.scatter(embedding[is_IDHwt==1, 0], embedding[is_IDHwt==1, 1], c='r')
-    plt.title("IDH-CIC - ci_test = {}, NC_delta = {}".\
-               format(round(accuracies[embed_idx], 3), 
-                      round(NC_delta[embed_idx], 3)), 
-               fontsize=16)
-    plt.xlabel("NC1", fontsize=14)
-    plt.ylabel("NC2", fontsize=14)
-    plt.savefig(result_path + '/tmp/IDH-CIC/' + embed_fname.split('.npy')[0] + '.svg')
-    plt.close()
-
-# find spearman correlation
-rho, pval = spearmanr(accuracies, NC_delta)
-            
-# scatter points
-plt.scatter(accuracies, NC_delta)
-
-# plot line of best fit
-slope, intercept = np.polyfit(accuracies, NC_delta, deg=1)
-abline_values = [slope * i + intercept for i in accuracies]
-plt.plot(accuracies, abline_values, 'b--')
-
-plt.title("IDH1 - spearman rho = {}, p = {}".format(round(rho, 3), round(pval, 4)), fontsize=16)
-plt.xlabel("Testing C-index", fontsize=14)
-plt.ylabel("cluster separation", fontsize=14)
-plt.savefig(result_path + '/tmp/IDH' + '.svg')
-plt.close()

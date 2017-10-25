@@ -13,6 +13,7 @@ import os
 import numpy as np
 import matplotlib.pylab as plt
 from scipy.io import loadmat
+from scipy.stats import spearmanr
 
 #%%============================================================================
 # Define params
@@ -25,6 +26,10 @@ result_path = base_path + 'Results/12_21Oct2017/'
 sites = ["GBMLGG", "KIPAN"]
 dtypes = ["Integ", ] # "Gene"]
 methods = ["cumulative-time_TrueNCA_FalsePCA", "non-cumulative_TrueNCA_FalsePCA"]
+
+n_top_folds = 30
+pval_thresh = 0.01
+n_feats_to_plot = 10
 
 site = sites[0]
 dtype = dtypes[0]
@@ -41,6 +46,7 @@ print("Loading data.")
 Data = loadmat(dpath)
 Features = Data[dtype + '_X'].copy()
 N = Features.shape[0]
+P = Features.shape[1]
 Survival = Data['Survival'].reshape([N,])
 Censored = Data['Censored'].reshape([N,])
 fnames = Data[dtype + '_Symbs']
@@ -58,86 +64,121 @@ embed_path = specific_path + 'nca/model/'
 embedding_files = os.listdir(embed_path)
 embedding_files = [j for j in embedding_files if '.npy' in j]
 embedding_files.sort()
+embedding_files = np.array(embedding_files)
 
-# Fetch accuracies and sort
-accuracy_path = specific_path + 'nca/plots/'
-accuracy_files = os.listdir(accuracy_path)
-accuracy_files = [j for j in accuracy_files if 'valid' in j]
-accuracy_files.sort()
+# Fetch accuracies and sort all by accuracy
+accuracies = np.loadtxt(specific_path + site + '_' + dtype + '_testing_Ci.txt')
+top_folds = np.argsort(accuracies)[::-1][0:n_top_folds]
 
-#%% 
-# isolate feature(s) of interest
+# keep top folds
+accuracies = accuracies[top_folds]
+embedding_files = embedding_files[top_folds]
+
+#sys.exit()
+
+#%%============================================================================
+# Itirate through embeddings and get cluster separations
 #==============================================================================
 
-def isolate_feats(fnames, thresholds):
-    
-    """
-    isolate indices of patients having feature of interest.
-    Args:
-        fnames - feature names
-        thresholds - threshold above which feature is considered present
-    Returns:
-        is_feat - np array (N, ) indicating no of positive features per patient
-    """
-    
-    feat_idx = [i for i,j in enumerate(fnames) if j in fnames]
-    
-    is_feat = np.zeros([N,])
-    
-    for fid, f in enumerate(feat_idx):
-        is_feat = is_feat + (Features[:, f] > thresholds[fid])
-        
-    return is_feat
+threshold = 0 # Z-scored
 
-#%%
-# Mutations
-#------------------------------------------------------------------------------
+NC_deltas = np.zeros((len(embedding_files), P))
 
-# IDHwt
-#is_IDHwt = isolate_feats(fnames=("IDH1_Mut", "IDH2_Mut"), thresholds=(0, 0))
-is_IDHwt = isolate_feats(fnames=("IDH1_Mut", ), thresholds=(0, ))
-is_IDHwt = 1 - np.int32(is_IDHwt > 0)
-
-# CIC
-is_CIC = isolate_feats(fnames=("CIC_Mut",), thresholds=(0,))
-is_CIC = np.int32(is_CIC > 0)
-
-
-#%%
-# Fetch embedding and plot
-#==============================================================================
-    
 #embed_idx = 16; embed_fname = embedding_files[embed_idx]
 for embed_idx, embed_fname in enumerate(embedding_files):
-
-    print("fold {}".format(embed_idx))
     
+    print("fold {}".format(embed_idx))
+
     # Get embedding
     embedding = np.dot(Features, np.load(embed_path + embed_fname))
     
-    # Get accuracy
-    ci_valid = np.loadtxt(accuracy_path + accuracy_files[embed_idx])
+    # Itirate through features and get cluster separation
+    for fidx in range(P):
     
-    # plot and save
+        # Get cluster separation
+        feat_is_present = 0 + (Features[:, fidx] > threshold)
+        
+        # Get distance across various neighborhood components
+        NC_delta = 0
+        for ncidx in range(embedding.shape[1]):
+            delta = np.mean(embedding[feat_is_present==0, ncidx]) - \
+                    np.mean(embedding[feat_is_present==1, ncidx])    
+            NC_delta = NC_delta + delta**2
+        
+        NC_deltas[embed_idx, fidx] = np.sqrt(NC_delta)
 
-    # IDH only
-    plt.scatter(embedding[is_IDHwt==0, 0], embedding[is_IDHwt==0, 1], c='b')
-    plt.scatter(embedding[is_IDHwt==1, 0], embedding[is_IDHwt==1, 1], c='r')
-    plt.title("IDH - ci_valid = {}, n_epochs = {}".format(round(ci_valid[-1], 3), len(ci_valid)), fontsize=16)
-    plt.savefig(result_path + '/tmp/IDH/' + embed_fname.split('.npy')[0] + '.svg')
+#%%============================================================================
+# Rank features by correlation between their separation and accuracy
+#==============================================================================
+
+rhos = np.zeros((P, ))
+pvals = np.zeros((P, ))
+
+# find spearman correlations
+for fidx in range(P):
+    corr = spearmanr(accuracies, NC_deltas[:, fidx])
+    rhos[fidx] = corr[0]
+    pvals[fidx] = corr[1]
+
+rhos_signif = rhos
+rhos_signif[pvals > pval_thresh] = 0
+
+top_feat_idxs = np.argsort(rhos_signif)[::-1]
+top_feat_names = np.array(fnames)[top_feat_idxs]
+
+#%%============================================================================
+# Visualize top features
+#==============================================================================
+
+#fidx = top_feat_idxs[0]
+for rank, fidx in enumerate(top_feat_idxs[0:n_feats_to_plot]):
+    
+    
+    fname_string = fnames[fidx].replace('_', ' ')[0: 15]
+    
+    print("rank " + str(rank) + ": plotting " + fname_string)
+
+
+    # Visualize feature distribution in best embedding
+    # -------------------------------------------------------------------------
+
+    # fetch embedding with highest separation
+    embedding = np.dot(Features, np.load(embed_path + embedding_files[np.argmax(NC_deltas[:, fidx])]))
+    
+    feat_is_present = 0 + (Features[:, fidx] > threshold)
+    
+    plt.scatter(embedding[feat_is_present==0, 0], embedding[feat_is_present==0, 1], c='b')
+    plt.scatter(embedding[feat_is_present==1, 0], embedding[feat_is_present==1, 1], c='r')
+    plt.title(fname_string + ": testing Ci= {}, NC delta= {}".\
+               format(round(accuracies[0], 3), 
+                      round(NC_deltas[0, fidx], 3)), 
+               fontsize=16)
+    plt.xlabel("NC1", fontsize=14)
+    plt.ylabel("NC2", fontsize=14)
+    plt.savefig(result_path + '/tmp/' + str(rank) + '_' + fnames[fidx] + '_clusters.svg')
     plt.close()
     
-    # CIC only
-    plt.scatter(embedding[is_CIC==0, 0], embedding[is_CIC==0, 1], c='k')
-    plt.scatter(embedding[is_CIC==1, 0], embedding[is_CIC==1, 1], c='gold')
-    plt.title("CIC - ci_valid = {}, n_epochs = {}".format(round(ci_valid[-1], 3), len(ci_valid)), fontsize=16)
-    plt.savefig(result_path + '/tmp/CIC/' + embed_fname.split('.npy')[0] + '.svg')
-    plt.close()
+
+    # Visualize correlation between cluster separation and accuracy
+    #--------------------------------------------------------------------------
     
-    # IDH1 and CIC
-    plt.scatter(embedding[is_IDHwt==0, 0], embedding[is_IDHwt==0, 1], c='k')
-    plt.scatter(embedding[is_CIC==1, 0], embedding[is_CIC==1, 1], c='gold')
-    plt.scatter(embedding[is_IDHwt==1, 0], embedding[is_IDHwt==1, 1], c='r')
-    plt.title("IDH-CIC - ci_valid = {}, n_epochs = {}".format(round(ci_valid[-1], 3), len(ci_valid)), fontsize=16)
-    plt.savefig(result_path + '/tmp/IDH-CIC/' + embed_fname.split('.npy')[0] + '.svg')
+    # scatter points
+    plt.scatter(accuracies, NC_deltas[:, fidx])
+    
+    # plot line of best fit
+    slope, intercept = np.polyfit(accuracies, NC_deltas[:, fidx], deg=1)
+    abline_values = [slope * i + intercept for i in accuracies]
+    plt.plot(accuracies, abline_values, 'b--')
+    
+    pval_string = round(pvals[fidx], 3)
+    if pval_string == 0:
+        pval_string = '<0.001'
+    else:
+        pval_string = '= ' + str(pval_string)
+    
+    plt.title(fname_string + ": spRho= {}, p {}".\
+              format(round(rhos[fidx], 3), pval_string), fontsize=16)
+    plt.xlabel("Testing C-index", fontsize=14)
+    plt.ylabel("cluster separation", fontsize=14)
+    plt.savefig(result_path + '/tmp/' + str(rank) + '_' + fnames[fidx] + '_corr.svg')
     plt.close()

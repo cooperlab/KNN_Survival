@@ -684,6 +684,10 @@ class SurvivalNCA(object):
             except KeyboardInterrupt:
                 pass
             
+            
+            if not EARLY_STOPPING:
+                W = W_grabbed
+                
             #pUtils.Log_and_print("Finished training model.")
             #pUtils.Log_and_print("Obtaining final results.")            
             

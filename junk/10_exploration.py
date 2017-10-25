@@ -81,7 +81,7 @@ CIs_valid = [np.loadtxt(accuracy_path + j) for j in accuracy_files if 'valid' in
 #==============================================================================
 
 n_folds = len(CIs_test)
-n_bottom_folds = 5
+n_bottom_folds = 10
 
 for idx in range(1, n_bottom_folds+1):
     
@@ -92,5 +92,5 @@ for idx in range(1, n_bottom_folds+1):
     plt.axhline(CIs_test[top_folds[-idx]], linewidth=2, c='r', linestyle='--')
     
     plt.title("fold rank = {} of {}".format(foldrank, n_folds-1), fontsize=16)
-    plt.savefig(result_path + '/tmp/' + str(foldrank) + '.svg')
+    plt.savefig(result_path + '/tmp/foldrank_' + str(foldrank) + '_Cis.svg')
     plt.close()

@@ -136,12 +136,27 @@ embedding = np.dot(Features, np.load(embed_path + embedding_files[0]))
 #fidx = top_feat_idxs[0]
 for rank, fidx in enumerate(top_feat_idxs[0:n_feats_to_plot]):
     
-    print("rank " + str(rank) + ": plotting " + fnames[fidx])
+    
+    fname_string = fnames[fidx].replace('_', ' ')[0: 15]
+    
+    print("rank " + str(rank) + ": plotting " + fname_string)
 
 
     # Visualize feature distribution in best embedding
     # -------------------------------------------------------------------------
-
+    
+    feat_is_present = 0 + (Features[:, fidx] > threshold)
+    
+    plt.scatter(embedding[feat_is_present==0, 0], embedding[feat_is_present==0, 1], c='b')
+    plt.scatter(embedding[feat_is_present==1, 0], embedding[feat_is_present==1, 1], c='r')
+    plt.title(fname_string + ": ci_test= {}, NC_delta= {}".\
+               format(round(accuracies[0], 3), 
+                      round(NC_delta[0, fidx], 3)), 
+               fontsize=16)
+    plt.xlabel("NC1", fontsize=14)
+    plt.ylabel("NC2", fontsize=14)
+    plt.savefig(result_path + '/tmp/' + str(rank) + '_' + fnames[fidx] + '_clusters.svg')
+    plt.close()
     
 
 
@@ -161,8 +176,6 @@ for rank, fidx in enumerate(top_feat_idxs[0:n_feats_to_plot]):
         pval_string = '<0.001'
     else:
         pval_string = '= ' + str(pval_string)
-    
-    fname_string = fnames[fidx].replace('_', ' ')[0: 15]
     
     plt.title(fname_string + ": spRho= {}, p {}".\
               format(round(rhos[fidx], 3), pval_string), fontsize=16)

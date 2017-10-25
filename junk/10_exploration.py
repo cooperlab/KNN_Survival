@@ -13,7 +13,7 @@ import os
 import numpy as np
 import matplotlib.pylab as plt
 from scipy.io import loadmat
-#from scipy.stats import spearmanr
+from scipy.stats import spearmanr
 import _pickle
 
 #%%============================================================================
@@ -76,14 +76,18 @@ accuracy_files.sort()
 CIs_train = [np.loadtxt(accuracy_path + j)[:, 1] for j in accuracy_files if 'train' in j]
 CIs_valid = [np.loadtxt(accuracy_path + j) for j in accuracy_files if 'valid' in j]
 
-#%%============================================================================
-# Q0 - Is it an overfitting issue?
-#==============================================================================
 
 n_folds = len(CIs_test)
 n_bottom_folds = 10
 
+#%%============================================================================
+# Q0 - Is it an overfitting issue?
+#==============================================================================
+
+
 for idx in range(1, n_bottom_folds+1):
+    
+    print("plotting Cis for bottom fold: " + str(idx))
     
     foldrank = n_folds - idx 
 
@@ -92,5 +96,40 @@ for idx in range(1, n_bottom_folds+1):
     plt.axhline(CIs_test[top_folds[-idx]], linewidth=2, c='r', linestyle='--')
     
     plt.title("fold rank = {} of {}".format(foldrank, n_folds-1), fontsize=16)
+    plt.xlabel("Epoch", fontsize=14)
+    plt.ylabel("C-index", fontsize=14)
+    
     plt.savefig(result_path + '/tmp/foldrank_' + str(foldrank) + '_Cis.svg')
     plt.close()
+
+#%%============================================================================
+# Q1 - Does it have to with fraction censored?
+#==============================================================================
+
+fraction_censored = np.zeros((n_folds, ))
+
+for foldidx in range(n_folds):
+    censored_test = Censored[splitIdxs['test'][foldidx]]
+    fraction_censored[foldidx] = sum(censored_test) / len(censored_test)
+    
+plt.scatter(fraction_censored, CIs_test)
+
+# plot line of best fit
+slope, intercept = np.polyfit(fraction_censored, CIs_test, deg=1)
+abline_values = [slope * i + intercept for i in CIs_test]
+plt.plot(CIs_test, abline_values, 'b--')
+
+rho, pval = spearmanr(fraction_censored, CIs_test)
+
+pval_string = round(pval, 3)
+if pval_string == 0:
+    pval_string = '<0.001'
+else:
+    pval_string = '= ' + str(pval_string)
+
+plt.title("spRho= {}, p {}".format(round(rho, 3), pval_string), fontsize=16)
+plt.xlabel("fraction censored", fontsize=14)
+plt.ylabel("testing C-index", fontsize=14)
+
+plt.savefig(result_path + '/tmp/fraction_censored.svg')
+plt.close()

@@ -10,14 +10,14 @@ import os
 #os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 import sys
-sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
-#sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
+#sys.path.append('/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/Codes')
+sys.path.append('/home/mtageld/Desktop/KNN_Survival/Codes')
 
 import _pickle
 from scipy.io import loadmat
 import numpy as np
 from sklearn.decomposition import PCA
-from bayes_opt import BayesianOptimization as bayesopt
+#from bayes_opt import BayesianOptimization as bayesopt
 
 import NCA_model_experimental as nca
 import KNNSurvival as knn
@@ -476,8 +476,8 @@ if __name__ == '__main__':
     
     # paths ----------------------------------------------------------
     
-    projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
-    #projectPath = "/home/mtageld/Desktop/KNN_Survival/"
+    #projectPath = "/home/mohamed/Desktop/CooperLab_Research/KNN_Survival/"
+    projectPath = "/home/mtageld/Desktop/KNN_Survival/"
     RESULTPATH_BASE = projectPath + "Results/tmp/"
     
     # dataset and description

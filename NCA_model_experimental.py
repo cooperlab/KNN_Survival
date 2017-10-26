@@ -689,10 +689,10 @@ class SurvivalNCA(object):
                     
                     # Stop when convergent
                     #==========================================================
-                    cost_diffs = np.diff(np.array(self.Costs_epochLevel_train[-convergence_buffer:]))
+                    cost_diffs = np.abs(np.diff(np.array(self.Costs_epochLevel_train[-convergence_buffer:])))
                     if np.mean(cost_diffs) < convergence_threshold:
                         W = W_grabbed
-                        continue
+                        break
                         
                     # Early stopping
                     #==========================================================

@@ -316,28 +316,34 @@ def get_cv_accuracy(dpath, site, dtype, description,
 
                 return Ci_valid
             
-            #
-            # Run core bayesopt model
-            #
+#            #
+#            # Run core bayesopt model
+#            #
+#            
+#            bo = bayesopt(run_nca, bo_lims)
+#            bo.explore(bo_expl)
+#            bo.maximize(init_points = bo_params['init_points'], 
+#                        n_iter = bo_params['n_itir'])
+#                        
+#            # fetch optimal params
+#            Optim_params = bo.res['max']['max_params']
+#            ALPHA_OPTIM = Optim_params['ALPHA']
+#            LAMBDA_OPTIM = Optim_params['LAMBDA']
+#            SIGMA_OPTIM = Optim_params['SIGMA']
+#            DROPOUT_FRACTION_OPTIM = Optim_params['DROPOUT_FRACTION']
+#
+#            print("\tOptimal NCA params:")
+#            print("\t--------------------")
+#            print("\tALPHA\tLAMBDA\tSIGMA\tDROPOUT_FRACTION")
+#            print("\t{}\t{}\t{}\t".format(\
+#                ALPHA_OPTIM, LAMBDA_OPTIM, SIGMA_OPTIM, 
+#                DROPOUT_FRACTION_OPTIM))
             
-            bo = bayesopt(run_nca, bo_lims)
-            bo.explore(bo_expl)
-            bo.maximize(init_points = bo_params['init_points'], 
-                        n_iter = bo_params['n_itir'])
-                        
             # fetch optimal params
-            Optim_params = bo.res['max']['max_params']
-            ALPHA_OPTIM = Optim_params['ALPHA']
-            LAMBDA_OPTIM = Optim_params['LAMBDA']
-            SIGMA_OPTIM = Optim_params['SIGMA']
-            DROPOUT_FRACTION_OPTIM = Optim_params['DROPOUT_FRACTION']
-
-            print("\tOptimal NCA params:")
-            print("\t--------------------")
-            print("\tALPHA\tLAMBDA\tSIGMA\tDROPOUT_FRACTION")
-            print("\t{}\t{}\t{}\t".format(\
-                ALPHA_OPTIM, LAMBDA_OPTIM, SIGMA_OPTIM, 
-                DROPOUT_FRACTION_OPTIM))
+            ALPHA_OPTIM = 1
+            LAMBDA_OPTIM = 0.04
+            SIGMA_OPTIM = 1
+            DROPOUT_FRACTION_OPTIM = 0
 
             #%%----------------------------------------------------------------
             # Learn final NCA matrix
@@ -361,7 +367,9 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                survival_valid = Survival[splitIdxs['valid'][fold]],
                                censored_valid = Censored[splitIdxs['valid'][fold]],
                                graph_hyperparams = graph_hyperparams,
-                               **nca_train_params)    
+                               **nca_train_params)  
+                               
+            ncamodel.reset_TrainHistory()
                                
             # Ranks features
             if (not USE_PCA) and \
@@ -511,9 +519,9 @@ if __name__ == '__main__':
             {'PLOT_STEP': 200,
             'MODEL_SAVE_STEP': 200,
             'BATCH_SIZE': 400,
-            'MAX_ITIR': 150,
+            'MAX_ITIR': 100,
             'MODEL_BUFFER': 8,
-            'EARLY_STOPPING': False,
+            'EARLY_STOPPING': False, #True,
             'PLOT': True, #True,
             'K': K_init,
             'norm': norm,

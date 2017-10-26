@@ -275,12 +275,14 @@ class SurvivalNCA(object):
             survival_valid = None, 
             censored_valid = None,
             graph_hyperparams={},
-            mask_type = 'at-risk', #'observed',
+            mask_type = 'observed', #'at-risk',
             BATCH_SIZE = 20,
             PLOT_STEP = 10,
             MODEL_SAVE_STEP = 10,
             MAX_ITIR = 100,
             MODEL_BUFFER = 4,
+            convergence_buffer = 5,
+            convergence_threshold = 0.001,
             EARLY_STOPPING = False,
             MONITOR=True,
             PLOT=True,
@@ -507,8 +509,9 @@ class SurvivalNCA(object):
                 # (keep a snapshot of model for early stopping)
                 # each "channel" in 3rd dim is one snapshot of the model
                 if USE_VALID and (self.graph.transform == 'linear'):
-                    Ws = np.zeros((D, self.graph.dim_output, MODEL_BUFFER))
-                    Cis = []
+                    if EARLY_STOPPING:
+                        Ws = np.zeros((D, self.graph.dim_output, MODEL_BUFFER))
+                        Cis = []
                 
                 while itir < MAX_ITIR:
                     
@@ -625,7 +628,6 @@ class SurvivalNCA(object):
                     feed_dict[self.graph.DROPOUT_FRACTION] = 0
 
                     
-
                     if USE_VALID:
                         
                         if self.graph.transform == 'linear':
@@ -645,8 +647,8 @@ class SurvivalNCA(object):
                                 
                     else:
                         feed_dict[self.graph.X_input] = features   
-                        x_train_transformed = \
-                            self.graph.X_transformed.eval(feed_dict = feed_dict)
+                        W_grabbed = self.graph.W.eval(feed_dict = feed_dict)
+                        x_train_transformed = np.dot(features, W_grabbed)
                         x_valid_transformed = None
                     
                     # Get Ci for training/validation set
@@ -684,6 +686,13 @@ class SurvivalNCA(object):
                         if (self.EPOCHS_RUN % PLOT_STEP == 0) and \
                             (self.EPOCHS_RUN > 0):
                             _monitorProgress() 
+                    
+                    # Stop when convergent
+                    #==========================================================
+                    cost_diffs = np.diff(np.array(self.Costs_epochLevel_train[-convergence_buffer:]))
+                    if np.mean(cost_diffs) < convergence_threshold:
+                        W = W_grabbed
+                        continue
                         
                     # Early stopping
                     #==========================================================
@@ -703,8 +712,8 @@ class SurvivalNCA(object):
                                 W = Ws[:, :, vline]
                                 break
                             
-                        if itir ==  MAX_ITIR:
-                            W = W_grabbed
+                    if itir ==  MAX_ITIR:
+                        W = W_grabbed
                     
                     
             except KeyboardInterrupt:

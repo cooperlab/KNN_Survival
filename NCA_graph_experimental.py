@@ -150,7 +150,7 @@ class comput_graph(object):
             else:
                 
                 # Initialize weights to a slightly noisy identity matrix
-                epsilon = 0.3
+                epsilon = 0.5
                 weights_init = 1 + tf.random_uniform(shape=(self.dim_input, ), 
                                                      minval= -epsilon, maxval= epsilon, 
                                                      dtype= tf.float32)

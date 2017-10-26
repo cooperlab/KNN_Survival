@@ -35,7 +35,7 @@ import SurvivalUtils as sUtils
 import DataManagement as dm
 
 #import NCA_graph as cgraph
-import NCA_graph as cgraph
+import NCA_graph_experimental as cgraph
 import KNNSurvival as knn
 
 #raise(Exception)
@@ -68,12 +68,15 @@ class SurvivalNCA(object):
     default_graphParams = {'OPTIM': 'GD',
                            'LEARN_RATE': 0.01,
                            'per_split_feats': 500,
+                           'transform' : 'linear',
+                           'regularization' : 'L2',
+                           'dim_output' : 1e6,
                            'ROTATE': False,
                            }
     userspecified_graphParams = ['dim_input',]
     
     # default graph hyperparams
-    default_graph_hyperparams = {'LAMBDA': 0,
+    default_graph_hyperparams = {'LAMBDA': 0.004,
                                 'ALPHA': 0.5,
                                 'SIGMA': 1.0,
                                 'DROPOUT_FRACTION': 0.1,
@@ -272,6 +275,7 @@ class SurvivalNCA(object):
             survival_valid = None, 
             censored_valid = None,
             graph_hyperparams={},
+            mask_type = 'at-risk', #'observed',
             BATCH_SIZE = 20,
             PLOT_STEP = 10,
             MODEL_SAVE_STEP = 10,
@@ -288,6 +292,9 @@ class SurvivalNCA(object):
         train a survivalNCA model
         features - (N,D) np array
         survival and censored - (N,) np array
+        mask_type - one of ["observed", "at-risk"], as follows:
+            "at_risk" - using only at-risk cases in an unweighted fashion
+            "observed" - using only observed cases, weighted by |Ti - Tj|
         """
         
         #pUtils.Log_and_print("Training survival NCA model.")
@@ -319,6 +326,9 @@ class SurvivalNCA(object):
             features_valid = None
             survival_valid = None
             censored_valid = None        
+        
+        assert mask_type in ['observed', 'at-risk']        
+        assert Method in ['cumulative-time', 'cumulative-hazard', 'non-cumulative']
         
         # Define relevant methods
         #======================================================================
@@ -567,15 +577,31 @@ class SurvivalNCA(object):
                                                 1-censored[batch],
                                                 features[batch, :])
                                                 
-                        # Get at-risk mask (to be multiplied by Pij)
+                        # Get mask (to be multiplied by Pij)
+                        # -----------------------------------------------------
                         n_batch = t_batch.shape[0]
-
                         Pij_mask = np.zeros((n_batch, n_batch))
+                        
+                        # Get difference in outcomes between all cases
+                        if mask_type == 'observed':
+                            outcome_diff = np.abs(t_batch[None, :] - t_batch[:, None])
+                            
                         for idx in range(n_batch):
+                            
                             # only observed cases
                             if o_batch[idx] == 1:
-                                # only at-risk cases
-                                Pij_mask[idx, at_risk_batch[idx]:] = 1
+                                
+                                if mask_type == 'at-risk':
+                                    # only at-risk cases (unweighted)
+                                    Pij_mask[idx, at_risk_batch[idx]:] = 1
+                                    
+                                elif mask_type == 'observed':
+                                    # only observed cases (weighted)
+                                    Pij_mask[idx, o_batch==1] = 1
+                                    
+                        if mask_type == 'observed':
+                            Pij_mask = Pij_mask * outcome_diff
+                        # -----------------------------------------------------
                         
                         # run optimizer and fetch cost
                         feed_dict[self.graph.X_input] = x_batch

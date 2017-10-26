@@ -19,7 +19,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 from bayes_opt import BayesianOptimization as bayesopt
 
-import NCA_model as nca
+import NCA_model_experimental as nca
 import KNNSurvival as knn
 from pandas import DataFrame as df
 
@@ -148,10 +148,10 @@ def get_cv_accuracy(dpath, site, dtype, description,
                                                         norm = k_tune_params['norm'])
             # Predict validation set
             _, Ci = knnmodel.predict(neighbor_idxs,
-                                     Survival_train=T_train, 
-                                     Censored_train=C_train, 
-                                     Survival_test =T_valid, 
-                                     Censored_test =C_valid, 
+                                     Survival_train= T_train, 
+                                     Censored_train= C_train, 
+                                     Survival_test= T_valid, 
+                                     Censored_test= C_valid, 
                                      K=k_tune_params['K_init'], 
                                      Method = k_tune_params['Method'])
             
@@ -473,7 +473,7 @@ if __name__ == '__main__':
     RESULTPATH_BASE = projectPath + "Results/tmp/"
     
     # dataset and description
-    sites = ["GBMLGG", "KIPAN"] #, "MM"]
+    sites = ["GBMLGG", ] #, "MM"]
     dtypes = ["Integ", ] #"Gene"]
     
     K_init = 35
@@ -497,13 +497,13 @@ if __name__ == '__main__':
     
     graphParams = \
             {'OPTIM': 'Adam',
-            'LEARN_RATE': 0.002,
+            'LEARN_RATE': 0.01, #0.002,
             'per_split_feats': 500,
             'transform': 'linear', #'ffnn', 
-            'ROTATE': True, #False,
+            'ROTATE': False,
             'DEPTH': 2,
             'MAXWIDTH': 300,
-            'dim_output': 2, #1000,
+            'dim_output': 1000,
             'NONLIN': 'ReLU',
             }
     
@@ -514,7 +514,7 @@ if __name__ == '__main__':
             'MAX_ITIR': 150,
             'MODEL_BUFFER': 8,
             'EARLY_STOPPING': False,
-            'PLOT': False, #True,
+            'PLOT': True, #True,
             'K': K_init,
             'norm': norm,
             }

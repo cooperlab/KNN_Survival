@@ -146,12 +146,19 @@ class comput_graph(object):
             if self.ROTATE:
                 self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_output], 
                                 initializer= tf.contrib.layers.xavier_initializer())
-                # self.W = tf.nn.dropout(self.W, keep_prob=1 - self.DROPOUT_FRACTION)
+
             else:
+                
+                # Initialize weights to a slightly noisy identity matrix
+                epsilon = 0.3
+                weights_init = 1 + tf.random_uniform(shape=(self.dim_input, ), 
+                                                     minval= -epsilon, maxval= epsilon, 
+                                                     dtype= tf.float32)
+                
                 # feature scales/weights
-                self.w = tf.get_variable("weights", shape=[self.dim_input], 
-                                initializer= tf.contrib.layers.xavier_initializer())
-                # self.w = tf.nn.dropout(self.w, keep_prob=1 - self.DROPOUT_FRACTION)
+                #self.w = tf.get_variable("weights", shape=[self.dim_input], 
+                #                initializer= tf.contrib.layers.xavier_initializer())
+                self.w = tf.get_variable("weights", initializer= weights_init)
                 
                 # diagonalize and matmul
                 self.W = tf.diag(self.w)

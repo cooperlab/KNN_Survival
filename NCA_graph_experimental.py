@@ -34,12 +34,12 @@ class comput_graph(object):
                  LEARN_RATE = 0.01,
                  per_split_feats = 500,
                  transform = 'linear',
-                 regularization = 'L2',
                  dim_output = 100,
                  ROTATE = False,
                  DEPTH = 2,
                  MAXWIDTH = 200,
-                 NONLIN = 'Tanh'):
+                 NONLIN = 'Tanh', 
+                 w_init = None):
         
         """
         Instantiate a computational graph for survival NCA.
@@ -74,12 +74,12 @@ class comput_graph(object):
         self.per_split_feats = per_split_feats
 
         self.transform = transform
-        self.regularization = regularization
         
         if self.transform == 'linear':
             
             if not ROTATE:        
                 assert dim_output == dim_input
+                self.w_init = w_init
 
             # linear transform params
             self.ROTATE = ROTATE
@@ -146,19 +146,15 @@ class comput_graph(object):
             if self.ROTATE:
                 self.W = tf.get_variable("weights", shape=[self.dim_input, self.dim_output], 
                                 initializer= tf.contrib.layers.xavier_initializer())
-
             else:
-                
-                # Initialize weights to a slightly noisy identity matrix
-                epsilon = 0.2
-                weights_init = 1 + tf.random_uniform(shape=(self.dim_input, ), 
-                                                     minval= -epsilon, maxval= epsilon, 
-                                                     dtype= tf.float32)
-                
-                # feature scales/weights
-                #self.w = tf.get_variable("weights", shape=[self.dim_input], 
-                #                initializer= tf.contrib.layers.xavier_initializer())
-                self.w = tf.get_variable("weights", initializer= weights_init)
+                # Feature scales/weights
+                if self.w_init is not None:
+                    # Initialize weights using predefined weights
+                    self.w = tf.get_variable("weights", initializer= self.w_init)
+                else:
+                    # Xavier initialization
+                    self.w = tf.get_variable("weights", shape=[self.dim_input], 
+                                    initializer= tf.contrib.layers.xavier_initializer())
                 
                 # diagonalize and matmul
                 self.W = tf.diag(self.w)
@@ -363,21 +359,14 @@ class comput_graph(object):
             
             with tf.name_scope("Regularization"):
                 
-                if self.regularization in ['L1', 'elasticnet']:
-                    # Lasso-like penalty
-                    L1penalty = tf.reduce_sum(tf.abs(W))
-                
-                if self.regularization in ['L2', 'elasticnet']:
-                    # Compute the L2 penalty (ridge-like)
-                    L2penalty = tf.reduce_sum(W ** 2)
-                
-                if self.regularization == 'L1':
-                    P = L1penalty
-                elif self.regularization == 'L2':
-                    P = L2penalty
-                else:
-                    # Combine L1 and L2 penalty terms (elastic net)
-                    P = self.LAMBDA * (self.ALPHA * L1penalty + (1 - self.ALPHA) * L2penalty)
+                # Lasso-like penalty
+                L1penalty = tf.reduce_sum(tf.abs(W), axis=None, keep_dims= False)
+
+                # Compute the L2 penalty (ridge-like)
+                L2penalty = tf.reduce_sum(W ** 2, axis=None, keep_dims= False)
+
+                # Combine L1 and L2 penalty terms (elastic net)
+                P = self.LAMBDA * (self.ALPHA * L1penalty + (1 - self.ALPHA) * L2penalty)
             
             return P
         
@@ -391,7 +380,7 @@ class comput_graph(object):
             self.cost = tf.reduce_sum(self.Pij)
             
             if self.transform == 'linear':            
-                self.cost = self.cost + _penalty(self.W)
+                self.cost = self.cost #+ _penalty(self.W)
 
 
     #%%========================================================================

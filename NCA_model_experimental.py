@@ -69,17 +69,17 @@ class SurvivalNCA(object):
                            'LEARN_RATE': 0.01,
                            'per_split_feats': 500,
                            'transform' : 'linear',
-                           'regularization' : 'L2',
                            'dim_output' : 1e6,
                            'ROTATE': False,
+                           'w_init': None,
                            }
     userspecified_graphParams = ['dim_input',]
     
     # default graph hyperparams
     default_graph_hyperparams = {'LAMBDA': 0.004,
-                                'ALPHA': 0.5,
+                                'ALPHA': 0,
                                 'SIGMA': 1.0,
-                                'DROPOUT_FRACTION': 0.1,
+                                'DROPOUT_FRACTION': 0,
                                 }
     userspecified_graph_hyperparams = []
     

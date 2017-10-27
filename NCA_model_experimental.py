@@ -610,14 +610,14 @@ class SurvivalNCA(object):
                         feed_dict[self.graph.X_input] = x_batch
                         feed_dict[self.graph.Pij_mask] = Pij_mask
                                        
-                        _, cost = sess.run([self.graph.optimizer, self.graph.cost], feed_dict = feed_dict)
+                        _, loss = sess.run([self.graph.optimizer, self.graph.cost], feed_dict = feed_dict)
                                                  
                         # normalize cost for sample size
-                        cost = cost / len(batch)
+                        loss = loss / len(batch)
                         
                         # record/append cost
                         #self.Costs_batchLevel_train.append(cost)                  
-                        cost_tot += cost                        
+                        cost_tot += loss                        
 
                         #pUtils.Log_and_print("\t\tTraining: Batch {} of {}, cost = {}".\
                         #     format(batchidx, len(batchIdxs)-1, round(cost[0], 3)))
@@ -664,7 +664,7 @@ class SurvivalNCA(object):
                     if MONITOR:
                         print("\t{}\t{}\t{}\t{}".format(\
                                 self.EPOCHS_RUN,
-                                round(cost_tot, 3), 
+                                cost_tot, #round(cost_tot, 3), 
                                 round(Ci_train, 3),
                                 round(Ci_valid, 3)))                                                                       
                     
@@ -689,10 +689,14 @@ class SurvivalNCA(object):
                     
                     # Stop when convergent
                     #==========================================================
-                    cost_diffs = np.abs(np.diff(np.array(self.Costs_epochLevel_train[-convergence_buffer:])))
-                    if np.mean(cost_diffs) < convergence_threshold:
-                        W = W_grabbed
-                        break
+                    
+                    if itir > 2 * convergence_buffer:
+                        cost_diffs = np.abs(np.diff(np.array(self.Costs_epochLevel_train[-convergence_buffer:])))
+                        if np.mean(cost_diffs) < convergence_threshold:
+                            W = W_grabbed
+                            if MONITOR:
+                                print("model is convergent.")
+                            break
                         
                     # Early stopping
                     #==========================================================
@@ -710,6 +714,8 @@ class SurvivalNCA(object):
                             if ci_new < ci_old:
                                 vline = (itir - MODEL_BUFFER+1) % MODEL_BUFFER
                                 W = Ws[:, :, vline]
+                                if MONITOR:
+                                    print("model is overfitting.")
                                 break
                             
                     if itir ==  MAX_ITIR:

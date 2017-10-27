@@ -58,7 +58,7 @@ bagging_params = {'n_bags': 50,
 
 graphParams = \
         {'OPTIM': 'Adam',
-        'LEARN_RATE': 0.01, #0.002,
+        'LEARN_RATE': 0.002,
         'per_split_feats': 500,
         'dim_output': 1000,
         'transform': 'linear', #'ffnn', 
@@ -72,7 +72,7 @@ nca_train_params = \
         {'PLOT_STEP': 200,
         'MODEL_SAVE_STEP': 200,
         'BATCH_SIZE': 400,
-        'MAX_ITIR': 10, # 100,
+        'MAX_ITIR': 100, # 100,
         'MODEL_BUFFER': 8,
         'EARLY_STOPPING': False, #True,
         'PLOT': True, #True,

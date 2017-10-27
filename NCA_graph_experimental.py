@@ -360,13 +360,31 @@ class comput_graph(object):
             with tf.name_scope("Regularization"):
                 
                 # Lasso-like penalty
-                L1penalty = tf.reduce_sum(tf.abs(W), axis=None, keep_dims= False)
-
+                L1penalty = tf.reduce_sum(tf.abs(W))
+                
                 # Compute the L2 penalty (ridge-like)
-                L2penalty = tf.reduce_sum(W ** 2, axis=None, keep_dims= False)
-
-                # Combine L1 and L2 penalty terms (elastic net)
-                P = self.LAMBDA * (self.ALPHA * L1penalty + (1 - self.ALPHA) * L2penalty)
+                L2penalty = tf.reduce_sum(W ** 2)
+                    
+                # Combine L1 and L2 penalty terms
+                #P = self.LAMBDA * (self.ALPHA * L1penalty + (1 - self.ALPHA) * L2penalty)
+                P = L2penalty
+                
+#                # Lasso-like penalty
+#                L1penalty = tf.reduce_sum(tf.abs(W), axis=None, keep_dims= False)
+#
+#                # Compute the L2 penalty (ridge-like)
+#                L2penalty = tf.reduce_sum(W ** 2, axis=None, keep_dims= False)
+#
+#                # Combine L1 and L2 penalty terms (elastic net)
+#                P = self.LAMBDA * (self.ALPHA * L1penalty + (1 - self.ALPHA) * L2penalty)
+                
+                print("W shape = {}".format(W.shape))
+                print("L1penalty = {}".format(L1penalty))
+                print("L1penalty shape = {}".format(L1penalty.shape))
+                print("L1penalty = {}".format(L2penalty))
+                print("L2penalty shape = {}".format(L2penalty.shape))
+                print("penalty = {}".format(P))
+                print("penalty shape = {}".format(P.shape))
             
             return P
         
@@ -380,7 +398,7 @@ class comput_graph(object):
             self.cost = tf.reduce_sum(self.Pij)
             
             if self.transform == 'linear':            
-                self.cost = self.cost #+ _penalty(self.W)
+                self.cost = self.cost + _penalty(self.W)
 
 
     #%%========================================================================

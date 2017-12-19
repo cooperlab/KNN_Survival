@@ -275,7 +275,7 @@ class SurvivalNCA(object):
             survival_valid = None, 
             censored_valid = None,
             graph_hyperparams={},
-            mask_type = 'observed', #'at-risk',
+            mask_type = 'at-risk', #'observed'
             BATCH_SIZE = 20,
             PLOT_STEP = 10,
             MODEL_SAVE_STEP = 10,
@@ -632,7 +632,10 @@ class SurvivalNCA(object):
                         
                         if self.graph.transform == 'linear':
                             feed_dict[self.graph.X_input] = features 
-                            W_grabbed = self.graph.W.eval(feed_dict = feed_dict)
+                            
+                            #W_grabbed = self.graph.W.eval(feed_dict = feed_dict)
+                            W_grabbed = sess.run([self.graph.W], feed_dict=feed_dict)
+
                             x_train_transformed = np.dot(features, W_grabbed)
                             x_valid_transformed = np.dot(features_valid, W_grabbed)
                             
